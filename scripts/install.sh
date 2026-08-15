@@ -213,6 +213,10 @@ ensure_symlink \
     "$repo_root/scripts/runtime/lock-session.sh" \
     "$bin_dir/lock-session.sh"
         
+ensure_symlink \
+    "$repo_root/scripts/runtime/launch-foot.sh" \
+    "$bin_dir/launch-foot.sh"
+            
 # ----------------------------------------------------------------------------
 # Local machine configuration
 #

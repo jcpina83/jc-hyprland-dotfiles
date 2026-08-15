@@ -87,4 +87,28 @@ else
     printf 'WARN python3 not installed; JSON/JSONC validation skipped.\n'
 fi
 
+printf '\n==> Foot configuration\n'
+
+foot_config="$repo_root/config/foot/foot.ini"
+
+if [[ -f "$foot_config" ]]; then
+
+    if command -v foot >/dev/null 2>&1; then
+
+        if foot \
+            --config="$foot_config" \
+            --check-config
+        then
+            printf '  Foot OK    %s\n' "$foot_config"
+        else
+            printf '  Foot FAIL  %s\n' "$foot_config" >&2
+            status=1
+        fi
+
+    else
+        printf 'WARN foot not installed; Foot validation skipped.\n'
+    fi
+
+fi
+
 exit "$status"
