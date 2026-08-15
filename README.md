@@ -29,6 +29,22 @@ Machine-specific information such as monitor names, PCI devices and local wallpa
 
 ---
 
+## Screenshots
+
+### Odyssey Glass
+
+![Odyssey Glass desktop](docs/screenshots/odyssey-glass-desktop.webp)
+
+![Odyssey Glass launcher](docs/screenshots/odyssey-glass-wofi.webp)
+
+![Odyssey Glass notifications](docs/screenshots/odyssey-glass-swaync.webp)
+
+### Cyber Noir
+
+![Cyber Noir desktop](docs/screenshots/cyber-noir-desktop.webp)
+
+---
+
 ## Design principles
 
 - Distribution agnostic
@@ -481,4 +497,4 @@ The project is currently focused on:
 
 ## License
 
-License information will be defined before the first public release.
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

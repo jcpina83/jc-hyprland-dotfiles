@@ -45,6 +45,43 @@ else
 fi
 
 
+printf '\n==> Release files\n'
+
+required_release_files=(
+    "README.md"
+    "LICENSE"
+    "CHANGELOG.md"
+    "VERSION"
+    ".gitignore"
+    ".gitattributes"
+)
+
+for file in "${required_release_files[@]}"; do
+
+    if [[ -r "$file" ]]; then
+        ok "$file"
+    else
+        fail "required release file missing: $file"
+    fi
+
+done
+
+
+printf '\n==> Changelog\n'
+
+if [[ -r VERSION && -r CHANGELOG.md ]]; then
+
+    version="$(tr -d '[:space:]' < VERSION)"
+
+    if grep -Fq "[$version]" CHANGELOG.md; then
+        ok "CHANGELOG contains [$version]"
+    else
+        fail "CHANGELOG does not contain release [$version]"
+    fi
+
+fi
+
+
 printf '\n==> Git diff validation\n'
 
 if git diff --check; then
@@ -102,5 +139,21 @@ if ((errors > 0)); then
     exit 1
 fi
 
+printf '\n==> Installer\n'
+
+if make --no-print-directory install-check; then
+    ok "installer dry run"
+else
+    fail "installer dry run failed"
+fi
+
+
+printf '\n==> Clean installation simulation\n'
+
+if make --no-print-directory clean-install-check; then
+    ok "clean-install simulation"
+else
+    fail "clean-install simulation failed"
+fi
 
 printf '\nRepository is ready for release validation.\n'
