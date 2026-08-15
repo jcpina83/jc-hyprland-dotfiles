@@ -1,29 +1,174 @@
 {
-  "layer": "top",
-  "position": "top",
-  "output": "@SECONDARY_OUTPUT@",
-  "height": 34,
-  "margin-top": 8,
-  "margin-left": 14,
-  "margin-right": 14,
-  "spacing": 6,
-  "modules-left": ["hyprland/workspaces"],
-  "modules-center": ["custom/network_traffic"],
-  "modules-right": ["pulseaudio", "network", "clock", "custom/notifications"],
-  "hyprland/workspaces": {
-    "format": "{name}",
-    "on-click": "activate",
-    "all-outputs": false,
-    "persistent-only": true,
-    "sort-by": "number",
+    "name": "odyssey-secondary",
 
-    "persistent-workspaces": {
-        "@SECONDARY_OUTPUT@": [@SECONDARY_WORKSPACES@]
+    "layer": "top",
+    "position": "top",
+
+    "output": "@SECONDARY_OUTPUT@",
+
+    "height": 38,
+
+    "margin-top": 7,
+    "margin-left": 10,
+    "margin-right": 10,
+
+    "spacing": 4,
+
+    "modules-left": [
+        "hyprland/workspaces"
+    ],
+
+    "modules-center": [
+        "custom/network_traffic"
+    ],
+
+    "modules-right": [
+        "pulseaudio",
+        "network",
+        "custom/notification",
+        "clock"
+    ],
+
+
+    // ========================================================================
+    // Workspaces 6-10
+    // ========================================================================
+
+    "hyprland/workspaces": {
+        "format": "{name}",
+
+        "all-outputs": false,
+        "persistent-only": true,
+
+        "sort-by": "number",
+
+        "persistent-workspaces": {
+            "@SECONDARY_OUTPUT@": [@SECONDARY_WORKSPACES@]
+        },
+
+        "on-click": "activate",
+
+        "tooltip": true
+    },
+
+
+    // ========================================================================
+    // Network traffic
+    // ========================================================================
+
+    "custom/network_traffic": {
+        "exec":
+            "~/.config/jc-hyprland-dotfiles/bin/network-traffic.sh",
+
+        "return-type": "json",
+
+        "interval": 2,
+
+        "tooltip": true
+    },
+
+
+    // ========================================================================
+    // Audio
+    // ========================================================================
+
+    "pulseaudio": {
+        "scroll-step": 2,
+
+        "format": "{icon} {volume}%",
+
+        "format-muted": "󰝟",
+
+        "format-icons": {
+            "headphone": "",
+            "headset": "",
+            "default": [
+                "",
+                "",
+                ""
+            ]
+        },
+
+        "on-click": "pavucontrol",
+
+        "on-click-right":
+            "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+    },
+
+
+    // ========================================================================
+    // Network
+    // ========================================================================
+
+    "network": {
+        "interval": 3,
+
+        "format-wifi": "",
+
+        "format-ethernet": "󰈀",
+
+        "format-disconnected": "󰖪",
+
+        "tooltip-format-wifi":
+            "{essid}\n{ipaddr}\nSignal: {signalStrength}%",
+
+        "tooltip-format-ethernet":
+            "{ifname}\n{ipaddr}"
+    },
+
+
+    // ========================================================================
+    // Notifications
+    // ========================================================================
+
+    "custom/notification": {
+        "tooltip": true,
+
+        "format":
+            "<span size='15pt'>{icon}</span>",
+
+        "format-icons": {
+            "notification": "󱅫",
+            "none": "󰂜",
+            "dnd-notification": "󰂠",
+            "dnd-none": "󰪓",
+            "inhibited-notification": "󰂛",
+            "inhibited-none": "󰪑",
+            "dnd-inhibited-notification": "󰂛",
+            "dnd-inhibited-none": "󰪑"
+        },
+
+        "return-type": "json",
+
+        "exec-if":
+            "which swaync-client",
+
+        "exec":
+            "swaync-client -swb",
+
+        "on-click":
+            "swaync-client -t -sw",
+
+        "on-click-right":
+            "swaync-client -d -sw",
+
+        "escape": true
+    },
+
+
+    // ========================================================================
+    // Clock
+    // ========================================================================
+
+    "clock": {
+        "interval": 1,
+
+        "format": " {:%H:%M}",
+
+        "format-alt":
+            " {:%d/%m/%Y  %H:%M:%S}",
+
+        "tooltip-format":
+            "{:%A, %d %B %Y}"
     }
-  },
-  "clock": { "format": "{:%H:%M}" },
-  "pulseaudio": { "format": "{icon} {volume}%", "format-muted": "󰝟", "format-icons": { "default": ["", "", ""] } },
-  "network": { "format-wifi": "", "format-ethernet": "󰈀", "format-disconnected": "󰖪" },
-  "custom/network_traffic": { "exec": "~/.config/jc-hyprland-dotfiles/repo/scripts/runtime/network-traffic.sh", "interval": 2, "format": "{}" },
-  "custom/notifications": { "format": "󰂚", "on-click": "swaync-client -t -sw" }
 }

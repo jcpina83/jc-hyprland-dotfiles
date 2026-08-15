@@ -89,6 +89,7 @@ window#waybar {
  * ========================================================================== */
 
 #custom-launcher,
+#custom-amd-gpu,
 #workspaces,
 #window,
 #clock,
@@ -140,6 +141,27 @@ window#waybar {
     color: @accent;
 }
 
+/* ============================================================================
+ * AMD GPU
+ * ========================================================================== */
+
+#custom-amd-gpu {
+    color: @primary;
+}
+
+#custom-amd-gpu:hover {
+    background: @glass-hover;
+}
+
+#custom-amd-gpu.warning {
+    color: @yellow;
+}
+
+#custom-amd-gpu.critical {
+    color: @bg;
+    background: @red;
+    border-color: @red;
+}
 
 /* ============================================================================
  * WORKSPACES
