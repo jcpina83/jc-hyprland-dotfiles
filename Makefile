@@ -13,4 +13,4 @@ apply:
 	./install.sh --apply-hyprland
 
 tree:
-	tree -a -I '.git|docs/screenshots' .
+	./scripts/show-structure.sh 4
