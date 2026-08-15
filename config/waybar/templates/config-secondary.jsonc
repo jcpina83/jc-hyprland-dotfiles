@@ -1,0 +1,19 @@
+{
+  "layer": "top",
+  "position": "top",
+  "output": "@SECONDARY_OUTPUT@",
+  "height": 34,
+  "margin-top": 8,
+  "margin-left": 14,
+  "margin-right": 14,
+  "spacing": 6,
+  "modules-left": ["hyprland/workspaces"],
+  "modules-center": ["custom/network_traffic"],
+  "modules-right": ["pulseaudio", "network", "clock", "custom/notifications"],
+  "hyprland/workspaces": { "format": "{name}", "on-click": "activate", "sort-by-number": true },
+  "clock": { "format": "{:%H:%M}" },
+  "pulseaudio": { "format": "{icon} {volume}%", "format-muted": "󰝟", "format-icons": { "default": ["", "", ""] } },
+  "network": { "format-wifi": "", "format-ethernet": "󰈀", "format-disconnected": "󰖪" },
+  "custom/network_traffic": { "exec": "~/.config/jc-hyprland-dotfiles/repo/scripts/runtime/network-traffic.sh", "interval": 2, "format": "{}" },
+  "custom/notifications": { "format": "󰂚", "on-click": "swaync-client -t -sw" }
+}

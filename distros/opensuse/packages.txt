@@ -1,0 +1,10 @@
+# Baseline package names; availability can vary by openSUSE release/repository.
+hyprland
+waybar
+wofi
+foot
+swaync
+hyprlock
+hypridle
+hyprpaper
+jq

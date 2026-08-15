@@ -1,0 +1,11 @@
+# Local/runtime state
+.local/
+.runtime/
+*.bak
+*.backup
+*.swp
+.DS_Store
+
+# Generated package/runtime files
+*.log
+*.tmp

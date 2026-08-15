@@ -1,0 +1,10 @@
+# Baseline package names; installer validates availability before installing.
+hyprland
+waybar
+wofi
+foot
+swaync
+hyprlock
+hypridle
+hyprpaper
+jq

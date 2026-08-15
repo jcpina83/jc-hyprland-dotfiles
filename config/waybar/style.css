@@ -1,0 +1,43 @@
+@import '../../themes/odyssey-glass/colors.css';
+
+* {
+  border: none;
+  border-radius: 0;
+  font-family: "Symbols Nerd Font Mono", "JetBrainsMono Nerd Font", sans-serif;
+  font-size: 14px;
+  min-height: 0;
+}
+
+window#waybar {
+  background: @bg;
+  color: @text;
+  border: 1px solid alpha(@primary, 0.28);
+  border-radius: 16px;
+}
+
+#workspaces button {
+  padding: 0 8px;
+  color: @muted;
+  border-radius: 10px;
+}
+
+#workspaces button.active {
+  color: @bg;
+  background: @primary;
+}
+
+#workspaces button.urgent { background: @critical; color: @bg; }
+
+#custom-launcher, #clock, #cpu, #memory, #temperature, #pulseaudio,
+#network, #tray, #custom-notifications, #custom-network_traffic, #window {
+  padding: 0 8px;
+  color: @text;
+}
+
+#custom-launcher { color: @primary; font-size: 18px; }
+#cpu { color: @success; }
+#memory { color: @secondary; }
+#temperature { color: @accent; }
+#pulseaudio { color: @secondary; }
+#network { color: @success; }
+#custom-notifications { color: @warning; }

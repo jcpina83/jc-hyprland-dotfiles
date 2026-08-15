@@ -1,0 +1,28 @@
+{
+  "layer": "top",
+  "position": "top",
+  "output": "@MAIN_OUTPUT@",
+  "height": 38,
+  "margin-top": 8,
+  "margin-left": 14,
+  "margin-right": 14,
+  "spacing": 6,
+  "modules-left": ["custom/launcher", "hyprland/workspaces", "hyprland/window"],
+  "modules-center": ["clock"],
+  "modules-right": ["cpu", "memory", "temperature", "pulseaudio", "network", "tray", "custom/notifications"],
+  "hyprland/workspaces": {
+    "format": "{name}",
+    "on-click": "activate",
+    "sort-by-number": true
+  },
+  "hyprland/window": { "format": "{title}", "max-length": 60 },
+  "clock": { "format": "{:%a %d %b  %H:%M}" },
+  "cpu": { "format": "CPU {usage}%" },
+  "memory": { "format": "RAM {percentage}%" },
+  "temperature": { "format": "{temperatureC}°C" },
+  "pulseaudio": { "format": "{icon} {volume}%", "format-muted": "󰝟", "format-icons": { "default": ["", "", ""] } },
+  "network": { "format-wifi": "", "format-ethernet": "󰈀", "format-disconnected": "󰖪", "tooltip-format": "{ifname}: {ipaddr}" },
+  "tray": { "icon-size": 18, "spacing": 6 },
+  "custom/launcher": { "format": "󰣇", "on-click": "wofi --show drun" },
+  "custom/notifications": { "format": "󰂚", "on-click": "swaync-client -t -sw" }
+}
