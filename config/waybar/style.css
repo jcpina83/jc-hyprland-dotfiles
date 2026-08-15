@@ -69,6 +69,7 @@ window#waybar {
 #pulseaudio,
 #tray,
 #idle_inhibitor,
+#custom-shortcuts,
 #custom-power,
 #custom-updates,
 #custom-keyboard-layout,
@@ -468,6 +469,25 @@ window#waybar {
 
 #tray > .needs-attention {
     -gtk-icon-effect: highlight;
+}
+
+
+/* ============================================================================
+ * SHORTCUTS / CHEATSHEET
+ * ========================================================================== */
+
+#custom-shortcuts {
+    min-width: 24px;
+
+    color: @accent;
+
+    font-size: 17px;
+}
+
+#custom-shortcuts:hover {
+    color: @foreground;
+
+    background: @glass-hover;
 }
 
 
