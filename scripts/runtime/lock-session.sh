@@ -16,6 +16,7 @@ template="$repo/config/hyprlock/hyprlock.conf.template"
 generated="$runtime/hyprlock.conf"
 
 theme="$base/theme"
+theme_env="$theme/theme.env"
 theme_colors="$theme/hyprlock.env"
 
 # ------------------------------------------------------------------------------
@@ -33,6 +34,11 @@ theme_colors="$theme/hyprlock.env"
     exit 1
 }
 
+[[ -r "$theme_env" ]] || {
+    echo "Missing active theme metadata: $theme_env" >&2
+    exit 1
+}
+
 [[ -r "$theme_colors" ]] || {
     echo "Missing Hyprlock theme palette: $theme_colors" >&2
     exit 1
@@ -41,6 +47,10 @@ theme_colors="$theme/hyprlock.env"
 # Machine-local configuration.
 # shellcheck disable=SC1091
 source "$local_dir/host.env"
+
+# Active theme metadata.
+# shellcheck disable=SC1090
+source "$theme_env"
 
 # Active theme palette.
 # shellcheck disable=SC1090,SC1091
@@ -58,6 +68,7 @@ source "$theme_colors"
 : "${LOCK_INNER:?LOCK_INNER is required}"
 : "${LOCK_SHADOW:?LOCK_SHADOW is required}"
 : "${LOCK_BORDER_GRADIENT:?LOCK_BORDER_GRADIENT is required}"
+: "${THEME_NAME:?THEME_NAME is required}"
 
 
 # ------------------------------------------------------------------------------
@@ -84,6 +95,7 @@ sed \
     -e "s|@LOCK_INNER@|$LOCK_INNER|g" \
     -e "s|@LOCK_SHADOW@|$LOCK_SHADOW|g" \
     -e "s|@LOCK_BORDER_GRADIENT@|$LOCK_BORDER_GRADIENT|g" \
+    -e "s|@THEME_NAME@|$THEME_NAME|g" \
     "$template" \
     > "$generated"
 

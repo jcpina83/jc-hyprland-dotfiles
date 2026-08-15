@@ -1,0 +1,43 @@
+/* ============================================================================
+ * jc-hyprland-dotfiles
+ * Theme: Cyber Noir
+ * Shared GTK CSS palette
+ * ========================================================================== */
+
+@define-color bg             #090b10;
+@define-color bg-alt         #0f131a;
+@define-color surface        #151a22;
+@define-color surface-alt    #212936;
+
+@define-color foreground     #d8dee9;
+@define-color foreground-alt #aeb8c7;
+@define-color muted          #6b7482;
+
+@define-color primary        #00e5ff;
+@define-color secondary      #ff3cac;
+@define-color accent         #7cff6b;
+
+@define-color green          #4cff9a;
+@define-color yellow         #ffe66d;
+@define-color orange         #ff9f43;
+@define-color red            #ff4d6d;
+@define-color pink           #ff5cc8;
+@define-color teal           #21d4b4;
+@define-color cyan           #00e5ff;
+
+@define-color glass          rgba(9, 11, 16, 0.82);
+@define-color glass-light    rgba(21, 26, 34, 0.90);
+@define-color glass-hover    rgba(33, 41, 54, 0.94);
+@define-color glass-border   rgba(0, 229, 255, 0.28);
+
+
+/* Compatibility aliases */
+
+@define-color bg_alt         @bg-alt;
+@define-color surface_alt    @surface-alt;
+
+@define-color foreground_alt @foreground-alt;
+
+@define-color glass_light    @glass-light;
+@define-color glass_hover    @glass-hover;
+@define-color glass_border   @glass-border;

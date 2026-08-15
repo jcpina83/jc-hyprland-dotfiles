@@ -220,7 +220,7 @@ label {
 label {
     monitor = @SECONDARY_OUTPUT@
 
-    text = ODYSSEY GLASS
+    text = @THEME_NAME@
 
     color = @LOCK_PRIMARY@
 
