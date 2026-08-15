@@ -7,7 +7,9 @@ runtime="${XDG_RUNTIME_DIR:-/tmp}/jc-hyprland-dotfiles-$UID"
 mkdir -p "$runtime"
 
 [[ -r "$localdir/host.env" ]] || { echo "Missing $localdir/host.env" >&2; exit 1; }
-# shellcheck disable=SC1090
+# Machine-local configuration; generated during setup and intentionally
+# excluded from the repository.
+# shellcheck disable=SC1091
 source "$localdir/host.env"
 : "${MAIN_OUTPUT:?MAIN_OUTPUT is required}"
 : "${SECONDARY_OUTPUT:?SECONDARY_OUTPUT is required}"

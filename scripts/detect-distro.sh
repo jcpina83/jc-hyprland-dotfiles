@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+# common.sh is part of this repository and is linted independently.
+# shellcheck disable=SC1091
 source "$(dirname "$0")/lib/common.sh"
 
 [[ -r /etc/os-release ]] || die '/etc/os-release no existe'
