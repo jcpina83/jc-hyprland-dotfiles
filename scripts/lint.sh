@@ -59,4 +59,32 @@ if command -v fish >/dev/null 2>&1; then
     )
 fi
 
+printf '\n==> JSON / JSONC templates\n'
+
+if command -v python3 >/dev/null 2>&1; then
+
+    mapfile -d '' json_files < <(
+        find "$repo_root/config" \
+            -type f \
+            \( \
+                -name '*.json' \
+                -o -name '*.jsonc' \
+                -o -name '*.json.template' \
+            \) \
+            -print0
+    )
+
+    if ((${#json_files[@]} > 0)); then
+        if ! python3 \
+            "$repo_root/scripts/validate-jsonc.py" \
+            "${json_files[@]}"
+        then
+            status=1
+        fi
+    fi
+
+else
+    printf 'WARN python3 not installed; JSON/JSONC validation skipped.\n'
+fi
+
 exit "$status"

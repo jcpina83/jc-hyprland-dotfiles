@@ -205,6 +205,10 @@ ensure_symlink \
     "$repo_root/scripts/runtime/launch-wofi.sh" \
     "$bin_dir/launch-wofi.sh"
 
+ensure_symlink \
+    "$repo_root/scripts/runtime/start-swaync.sh" \
+    "$bin_dir/start-swaync.sh"
+
 # ----------------------------------------------------------------------------
 # Local machine configuration
 #

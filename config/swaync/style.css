@@ -1,0 +1,238 @@
+/* ============================================================================
+ * jc-hyprland-dotfiles
+ * Theme: Odyssey Glass
+ * Component: SwayNotificationCenter
+ * ========================================================================== */
+
+@define-color bg             #11111b;
+@define-color bg_alt         #181825;
+@define-color surface        #1e1e2e;
+@define-color surface_alt    #313244;
+
+@define-color foreground     #cdd6f4;
+@define-color foreground_alt #bac2de;
+@define-color muted          #6c7086;
+
+@define-color primary        #89b4fa;
+@define-color secondary      #cba6f7;
+@define-color accent         #74c7ec;
+
+@define-color green          #a6e3a1;
+@define-color yellow         #f9e2af;
+@define-color red            #f38ba8;
+
+@define-color glass          rgba(17, 17, 27, 0.94);
+@define-color glass_light    rgba(30, 30, 46, 0.94);
+@define-color glass_hover    rgba(49, 50, 68, 0.92);
+@define-color glass_border   rgba(137, 180, 250, 0.28);
+
+
+:root {
+    --notification-icon-size: 48px;
+    --mpris-album-art-icon-size: 90px;
+}
+
+
+* {
+    font-family:
+        "JetBrainsMono Nerd Font",
+        "JetBrains Mono",
+        "Symbols Nerd Font Mono";
+
+    color: @foreground;
+}
+
+
+/* ============================================================================
+ * CONTROL CENTER
+ * ========================================================================== */
+
+.control-center {
+    background: @glass;
+
+    border: 1px solid @glass_border;
+    border-radius: 18px;
+
+    padding: 10px;
+}
+
+
+/* ============================================================================
+ * NOTIFICATION ROW
+ * ========================================================================== */
+
+.notification-row {
+    background: transparent;
+
+    margin: 4px 0;
+
+    outline: none;
+}
+
+
+.notification-row .notification-background {
+    background: @glass_light;
+
+    border: 1px solid @glass_border;
+    border-radius: 14px;
+
+    margin: 4px;
+}
+
+
+.notification-row .notification-background:hover {
+    background: @glass_hover;
+}
+
+
+/* ============================================================================
+ * NOTIFICATION CONTENT
+ * ========================================================================== */
+
+.notification {
+    padding: 8px;
+}
+
+
+.summary {
+    color: @foreground;
+
+    font-weight: 700;
+}
+
+
+.body {
+    color: @foreground_alt;
+}
+
+
+.time {
+    color: @muted;
+}
+
+
+/* ============================================================================
+ * PRIORITY STATES
+ * ========================================================================== */
+
+.notification-row.low .notification-background {
+    border-color: rgba(108, 112, 134, 0.25);
+}
+
+
+.notification-row.normal .notification-background {
+    border-color: @glass_border;
+}
+
+
+.notification-row.critical .notification-background {
+    border-color: @red;
+}
+
+
+/* ============================================================================
+ * CLOSE BUTTON
+ * ========================================================================== */
+
+.close-button {
+    color: @foreground;
+
+    background: @surface_alt;
+
+    border-radius: 999px;
+}
+
+
+.close-button:hover {
+    color: @bg;
+
+    background: @red;
+}
+
+
+/* ============================================================================
+ * TITLE
+ * ========================================================================== */
+
+.widget-title {
+    margin: 6px 6px 10px 6px;
+
+    padding: 8px;
+
+    color: @foreground;
+
+    font-size: 17px;
+    font-weight: 700;
+}
+
+
+.widget-title button {
+    color: @foreground_alt;
+
+    background: @surface_alt;
+
+    border: 1px solid @glass_border;
+    border-radius: 10px;
+
+    padding: 6px 10px;
+}
+
+
+.widget-title button:hover {
+    color: @bg;
+
+    background: @primary;
+}
+
+
+/* ============================================================================
+ * DND
+ * ========================================================================== */
+
+.widget-dnd {
+    margin: 4px 6px 10px 6px;
+
+    padding: 9px 11px;
+
+    background: @glass_light;
+
+    border: 1px solid @glass_border;
+    border-radius: 12px;
+}
+
+
+.widget-dnd > switch {
+    background: @surface_alt;
+
+    border-radius: 999px;
+}
+
+
+.widget-dnd > switch:checked {
+    background: @primary;
+}
+
+
+/* ============================================================================
+ * MPRIS
+ * ========================================================================== */
+
+.widget-mpris {
+    margin: 4px 6px 10px 6px;
+
+    padding: 10px;
+
+    background: @glass_light;
+
+    border: 1px solid @glass_border;
+    border-radius: 14px;
+}
+
+
+/* ============================================================================
+ * NOTIFICATION LIST
+ * ========================================================================== */
+
+.widget-notifications {
+    background: transparent;
+}
