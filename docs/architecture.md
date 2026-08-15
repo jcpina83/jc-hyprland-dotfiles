@@ -25,3 +25,13 @@ jc-hyprland-dotfiles
 ## Compatibilidad Hyprland
 
 La rama inicial usa Hyprlang para Hyprland 0.54.x. La configuración se divide mediante `source =` para mantener módulos pequeños y reemplazables.
+
+## Generaciones de configuración de Hyprland
+
+```text
+config/hypr/
+├── hyprlang/   # implementación activa para 0.54.x
+└── lua/        # frontera reservada para 0.55+
+```
+
+El tema, los perfiles, los adaptadores de distro y la configuración local de host no dependen del lenguaje de configuración de Hyprland.

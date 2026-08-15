@@ -1,9 +1,0 @@
-# Generated integration entrypoint. Keep this file tiny.
-source = ~/.config/jc-hyprland-dotfiles/repo/themes/odyssey-glass/colors.conf
-source = ~/.config/jc-hyprland-dotfiles/local/monitors.conf
-source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/common/appearance.conf
-source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/common/animations.conf
-source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/common/gaming.conf
-source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/common/windowrules.conf
-source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/common/keybindings.conf
-source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/common/autostart.conf

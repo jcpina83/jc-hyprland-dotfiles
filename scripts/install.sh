@@ -44,7 +44,7 @@ fi
 
 integration="$CFG/hypr/jc-dotfiles.conf"
 if [[ ! -e "$integration" ]]; then
-    run cp "$ROOT/config/hypr/templates/jc-dotfiles.conf.template" "$integration"
+    run cp "$ROOT/config/hypr/hyprlang/templates/jc-dotfiles.conf.template" "$integration"
 fi
 
 if (( APPLY_HYPR )); then
