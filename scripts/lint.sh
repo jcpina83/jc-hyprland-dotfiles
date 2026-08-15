@@ -87,40 +87,17 @@ else
     printf 'WARN python3 not installed; JSON/JSONC validation skipped.\n'
 fi
 
-printf '\n==> Foot configuration\n'
+printf '\n==> Themes\n'
 
-foot_base="$repo_root/config/foot/foot.ini"
-foot_theme="$repo_root/themes/odyssey-glass/foot-colors.ini"
-
-
-if command -v foot >/dev/null 2>&1; then
-
-    foot_tmp="$(mktemp)"
-
-    {
-        cat "$foot_base"
-
-        printf '\n'
-
-        cat "$foot_theme"
-    } > "$foot_tmp"
+if ! "$repo_root/scripts/validate-themes.sh"; then
+    status=1
+fi
 
 
-    if foot \
-        --config="$foot_tmp" \
-        --check-config
-    then
-        printf '  Foot OK    base + odyssey-glass\n'
-    else
-        printf '  Foot FAIL  base + odyssey-glass\n' >&2
-        status=1
-    fi
+printf '\n==> Portability\n'
 
-
-    rm -f "$foot_tmp"
-
-else
-    printf 'WARN foot not installed; Foot validation skipped.\n'
+if ! "$repo_root/scripts/portability-check.sh"; then
+    status=1
 fi
 
 exit "$status"

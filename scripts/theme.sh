@@ -53,24 +53,50 @@ EOF
 list_themes() {
     local dir
     local found=false
+    local active
+
+    active="$(current_theme)"
+
 
     if [[ ! -d "$themes_dir" ]]; then
         echo "Themes directory not found: $themes_dir" >&2
         return 1
     fi
 
-    for dir in "$themes_dir"/*; do
-        [[ -d "$dir" ]] || continue
 
-        if [[ ! -f "$dir/theme.env" ]]; then
-            printf 'WARN  skipping %s: missing theme.env\n' \
-                "$(basename "$dir")" >&2
-            continue
+    for dir in "$themes_dir"/*; do
+
+        [[ -d "$dir" ]] || continue
+        [[ -r "$dir/theme.env" ]] || continue
+
+        local name
+        local display_name
+
+        name="$(basename "$dir")"
+
+        display_name="$(
+            bash -c '
+                # shellcheck disable=SC1090
+                source "$1"
+
+                printf "%s" "${THEME_NAME:-}"
+            ' _ "$dir/theme.env"
+        )"
+
+
+        if [[ "$name" == "$active" ]]; then
+            printf '* %-20s %s\n' \
+                "$name" \
+                "$display_name"
+        else
+            printf '  %-20s %s\n' \
+                "$name" \
+                "$display_name"
         fi
 
-        printf '%s\n' "$(basename "$dir")"
         found=true
     done
+
 
     if [[ "$found" != true ]]; then
         echo "No valid themes found in: $themes_dir" >&2

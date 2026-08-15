@@ -290,6 +290,26 @@ if [[ "$apply_hyprland" == true ]]; then
     fi
 fi
 
+# ----------------------------------------------------------------------------
+# Default active theme
+#
+# Only initialize it when no active theme already exists.
+# Never overwrite the user's selected theme during reinstall/update.
+# ----------------------------------------------------------------------------
+
+theme_link="$base/theme"
+default_theme="$repo_root/themes/odyssey-glass"
+
+
+if [[ ! -e "$theme_link" && ! -L "$theme_link" ]]; then
+
+    run ln -s \
+        "$default_theme" \
+        "$theme_link"
+
+else
+    log "Active theme preserved: $theme_link"
+fi
 
 # ============================================================================
 # Summary

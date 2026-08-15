@@ -1,4 +1,4 @@
-.PHONY: help doctor dry-run install apply tree lint waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply
+.PHONY: help doctor dry-run install apply tree lint waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply theme-validate portability-check check
 
 help:
 	@echo "jc-hyprland-dotfiles"
@@ -60,3 +60,19 @@ theme-apply:
 
 wallpaper-apply:
 	~/.config/jc-hyprland-dotfiles/bin/apply-wallpaper.sh	
+
+# ------------------------------------------------------------------------------
+# Quality gates
+# ------------------------------------------------------------------------------
+
+theme-validate:
+	./scripts/validate-themes.sh
+
+portability-check:
+	./scripts/portability-check.sh
+
+check:
+	@$(MAKE) --no-print-directory lint
+	@$(MAKE) --no-print-directory doctor
+	@echo
+	@echo "All jc-hyprland-dotfiles checks passed."	
