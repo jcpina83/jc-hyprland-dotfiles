@@ -109,7 +109,7 @@ hl.layer_rule({
     name = "jc-waybar-blur",
 
     match = {
-        namespace = "^waybar$",
+        namespace = "^jc-(main|secondary)$",
     },
 
     blur = true,
