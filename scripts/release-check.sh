@@ -73,29 +73,8 @@ else
     git status --short
 fi
 
-
-printf '\n==> Tracked machine-specific data\n'
-
-suspicious="$(
-    git grep -nE \
-        '(/home/[^/]+|HNTW[0-9]+|HNTY[0-9]+|0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9])' \
-        -- \
-        ':!README.md' \
-        ':!docs/**' \
-        2>/dev/null \
-        || true
-)"
-
-if [[ -n "$suspicious" ]]; then
-
-    fail "potential machine-specific content detected"
-
-    printf '%s\n' "$suspicious" >&2
-
-else
-    ok "no obvious machine-specific tracked values"
-fi
-
+printf '\n==> Portability\n'
+ok "covered by make check / portability-check.sh"
 
 printf '\n==> Large tracked files\n'
 
