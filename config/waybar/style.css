@@ -104,7 +104,6 @@ window#waybar {
 #custom-updates,
 #custom-keyboard-layout,
 #custom-network_traffic,
-#custom-notifications,
 #custom-notification,
 #custom-media,
 #battery,
@@ -453,20 +452,20 @@ window#waybar {
 
 
 /* ============================================================================
- * NOTIFICATIONS / SWAYNC
- * Supports either custom/notification or custom/notifications.
+ * SwayNC notification indicator
  * ========================================================================== */
 
-#custom-notification,
-#custom-notifications {
+#custom-notification {
+    min-width: 24px;
+
     color: @secondary;
 
     font-size: 16px;
 }
 
-#custom-notification:hover,
-#custom-notifications:hover {
-    color: @pink;
+#custom-notification:hover {
+    color: @foreground;
+
     background: @glass-hover;
 }
 
