@@ -1,4 +1,4 @@
-.PHONY: help doctor dry-run install apply tree lint waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply theme-validate portability-check check
+.PHONY: help doctor dry-run install apply tree lint waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply theme-validate portability-check check release-check version
 
 help:
 	@echo "jc-hyprland-dotfiles"
@@ -76,3 +76,13 @@ check:
 	@$(MAKE) --no-print-directory doctor
 	@echo
 	@echo "All jc-hyprland-dotfiles checks passed."	
+
+# ------------------------------------------------------------------------------
+# Release
+# ------------------------------------------------------------------------------
+
+version:
+	@cat VERSION
+
+release-check:
+	./scripts/release-check.sh	
