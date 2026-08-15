@@ -10,7 +10,25 @@
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["custom/network_traffic"],
   "modules-right": ["pulseaudio", "network", "clock", "custom/notifications"],
-  "hyprland/workspaces": { "format": "{name}", "on-click": "activate", "sort-by-number": true },
+  "hyprland/workspaces": {
+    "format": "{icon}",
+    "on-click": "activate",
+    "all-outputs": false,
+    "persistent-only": true,
+    "sort-by": "number",
+
+    "persistent-workspaces": {
+        "@SECONDARY_OUTPUT@": [@SECONDARY_WORKSPACES@]
+    },
+
+    "format-icons": {
+        "active": "",
+        "persistent": "",
+        "empty": "",
+        "urgent": "",
+        "default": ""
+    }
+  },
   "clock": { "format": "{:%H:%M}" },
   "pulseaudio": { "format": "{icon} {volume}%", "format-muted": "󰝟", "format-icons": { "default": ["", "", ""] } },
   "network": { "format-wifi": "", "format-ethernet": "󰈀", "format-disconnected": "󰖪" },
