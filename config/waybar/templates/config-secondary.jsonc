@@ -11,7 +11,7 @@
   "modules-center": ["custom/network_traffic"],
   "modules-right": ["pulseaudio", "network", "clock", "custom/notifications"],
   "hyprland/workspaces": {
-    "format": "{icon}",
+    "format": "{name}",
     "on-click": "activate",
     "all-outputs": false,
     "persistent-only": true,
@@ -19,14 +19,6 @@
 
     "persistent-workspaces": {
         "@SECONDARY_OUTPUT@": [@SECONDARY_WORKSPACES@]
-    },
-
-    "format-icons": {
-        "active": "",
-        "persistent": "",
-        "empty": "",
-        "urgent": "",
-        "default": ""
     }
   },
   "clock": { "format": "{:%H:%M}" },

@@ -1,43 +1,562 @@
-@import '../../themes/odyssey-glass/colors.css';
+/* ============================================================================
+ * jc-hyprland-dotfiles
+ * Theme: Odyssey Glass
+ * Component: Waybar
+ *
+ * Shared stylesheet for:
+ *   - MAIN Waybar      -> primary monitor
+ *   - SECONDARY Waybar -> secondary monitor
+ * ========================================================================== */
+
+
+/* ============================================================================
+ * ODYSSEY GLASS PALETTE
+ * Catppuccin-inspired dark glass palette
+ * ========================================================================== */
+
+@define-color bg             #11111b;
+@define-color bg-alt         #181825;
+@define-color surface        #1e1e2e;
+@define-color surface-alt    #313244;
+
+@define-color foreground     #cdd6f4;
+@define-color foreground-alt #bac2de;
+@define-color muted          #6c7086;
+
+@define-color primary        #89b4fa;
+@define-color secondary      #cba6f7;
+@define-color accent         #74c7ec;
+
+@define-color green          #a6e3a1;
+@define-color yellow         #f9e2af;
+@define-color orange         #fab387;
+@define-color red            #f38ba8;
+@define-color pink           #f5c2e7;
+
+@define-color glass          rgba(17, 17, 27, 0.78);
+@define-color glass-light    rgba(30, 30, 46, 0.86);
+@define-color glass-hover    rgba(49, 50, 68, 0.90);
+@define-color glass-border   rgba(137, 180, 250, 0.20);
+
+
+/* ============================================================================
+ * GLOBAL
+ * ========================================================================== */
 
 * {
-  border: none;
-  border-radius: 0;
-  font-family: "Symbols Nerd Font Mono", "JetBrainsMono Nerd Font", sans-serif;
-  font-size: 14px;
-  min-height: 0;
+    border: none;
+    border-radius: 0;
+
+    min-height: 0;
+
+    font-family:
+        "JetBrainsMono Nerd Font",
+        "JetBrains Mono",
+        "Symbols Nerd Font Mono";
+
+    font-size: 14px;
+    font-weight: 500;
 }
+
+
+/* ============================================================================
+ * WAYBAR WINDOW
+ * ========================================================================== */
 
 window#waybar {
-  background: @bg;
-  color: @text;
-  border: 1px solid alpha(@primary, 0.28);
-  border-radius: 16px;
+    background: transparent;
+    color: @foreground;
 }
+
+
+/*
+ * Main glass container.
+ *
+ * Waybar itself stays transparent so each group can visually behave
+ * like an independent floating capsule.
+ */
+
+.modules-left,
+.modules-center,
+.modules-right {
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+
+/* ============================================================================
+ * COMMON MODULE CONTAINER
+ * ========================================================================== */
+
+#custom-launcher,
+#workspaces,
+#window,
+#clock,
+#cpu,
+#memory,
+#temperature,
+#network,
+#pulseaudio,
+#tray,
+#idle_inhibitor,
+#custom-power,
+#custom-updates,
+#custom-keyboard-layout,
+#custom-network_traffic,
+#custom-notifications,
+#custom-notification,
+#custom-media,
+#battery,
+#backlight {
+    padding: 0 11px;
+    margin: 0 3px;
+
+    color: @foreground;
+
+    background: @glass;
+
+    border: 1px solid @glass-border;
+    border-radius: 13px;
+}
+
+
+/* ============================================================================
+ * LAUNCHER
+ * ========================================================================== */
+
+#custom-launcher {
+    min-width: 28px;
+
+    padding-left: 11px;
+    padding-right: 11px;
+
+    color: @primary;
+
+    font-size: 19px;
+}
+
+#custom-launcher:hover {
+    background: @glass-hover;
+    color: @accent;
+}
+
+
+/* ============================================================================
+ * WORKSPACES
+ * ========================================================================== */
+
+#workspaces {
+    padding: 3px 5px;
+}
+
+
+/*
+ * Workspace buttons deliberately use numbers instead of circles.
+ *
+ * config-main.jsonc / config-secondary.jsonc should use:
+ *
+ *     "format": "{name}"
+ */
 
 #workspaces button {
-  padding: 0 8px;
-  color: @muted;
-  border-radius: 10px;
+    min-width: 28px;
+    min-height: 27px;
+
+    margin: 2px;
+    padding: 0 6px;
+
+    color: @foreground-alt;
+    background: transparent;
+
+    border-radius: 9px;
+
+    font-weight: 600;
+
+    transition-property:
+        background-color,
+        color,
+        min-width;
+
+    transition-duration: 180ms;
 }
+
+
+/* Empty workspace */
+
+#workspaces button.empty {
+    color: @muted;
+}
+
+
+/* Persistent workspace */
+
+#workspaces button.persistent {
+    color: @foreground-alt;
+}
+
+
+/* Hover */
+
+#workspaces button:hover {
+    color: @foreground;
+
+    background: rgba(137, 180, 250, 0.15);
+}
+
+
+/* Active workspace */
 
 #workspaces button.active {
-  color: @bg;
-  background: @primary;
+    min-width: 38px;
+
+    color: @bg;
+
+    background: @primary;
+
+    border-radius: 10px;
+
+    font-weight: 800;
 }
 
-#workspaces button.urgent { background: @critical; color: @bg; }
 
-#custom-launcher, #clock, #cpu, #memory, #temperature, #pulseaudio,
-#network, #tray, #custom-notifications, #custom-network_traffic, #window {
-  padding: 0 8px;
-  color: @text;
+/* Urgent */
+
+#workspaces button.urgent {
+    color: @bg;
+
+    background: @red;
+
+    font-weight: 800;
 }
 
-#custom-launcher { color: @primary; font-size: 18px; }
-#cpu { color: @success; }
-#memory { color: @secondary; }
-#temperature { color: @accent; }
-#pulseaudio { color: @secondary; }
-#network { color: @success; }
-#custom-notifications { color: @warning; }
+
+/* ============================================================================
+ * ACTIVE WINDOW
+ * ========================================================================== */
+
+#window {
+    color: @foreground-alt;
+
+    padding-left: 13px;
+    padding-right: 13px;
+
+    font-weight: 500;
+}
+
+#window.empty {
+    background: transparent;
+    border-color: transparent;
+}
+
+
+/* ============================================================================
+ * CLOCK
+ * ========================================================================== */
+
+#clock {
+    color: @foreground;
+
+    font-weight: 700;
+
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+#clock:hover {
+    color: @primary;
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * CPU
+ * ========================================================================== */
+
+#cpu {
+    color: @green;
+}
+
+#cpu:hover {
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * MEMORY
+ * ========================================================================== */
+
+#memory {
+    color: @secondary;
+}
+
+#memory:hover {
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * TEMPERATURE
+ * ========================================================================== */
+
+#temperature {
+    color: @accent;
+}
+
+#temperature.critical {
+    color: @bg;
+    background: @red;
+}
+
+
+/* ============================================================================
+ * NETWORK
+ * ========================================================================== */
+
+#network {
+    color: @green;
+}
+
+#network:hover {
+    background: @glass-hover;
+}
+
+#network.disconnected,
+#network.disabled {
+    color: @red;
+}
+
+
+/* ============================================================================
+ * NETWORK TRAFFIC
+ * ========================================================================== */
+
+#custom-network_traffic {
+    color: @accent;
+
+    font-family: "JetBrainsMono Nerd Font", monospace;
+}
+
+#custom-network_traffic:hover {
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * AUDIO
+ * ========================================================================== */
+
+#pulseaudio {
+    color: @secondary;
+}
+
+#pulseaudio:hover {
+    background: @glass-hover;
+}
+
+#pulseaudio.muted {
+    color: @red;
+}
+
+
+/* ============================================================================
+ * BATTERY
+ * Mainly useful when jc-hyprland-dotfiles is used on a laptop.
+ * ========================================================================== */
+
+#battery {
+    color: @green;
+}
+
+#battery.charging,
+#battery.plugged {
+    color: @primary;
+}
+
+#battery.warning:not(.charging) {
+    color: @yellow;
+}
+
+#battery.critical:not(.charging) {
+    color: @red;
+}
+
+
+/* ============================================================================
+ * BACKLIGHT
+ * Mainly useful on laptops.
+ * ========================================================================== */
+
+#backlight {
+    color: @yellow;
+}
+
+
+/* ============================================================================
+ * IDLE INHIBITOR
+ * ========================================================================== */
+
+#idle_inhibitor {
+    color: @muted;
+}
+
+#idle_inhibitor.activated {
+    color: @yellow;
+}
+
+
+/* ============================================================================
+ * PACKAGE UPDATES
+ * ========================================================================== */
+
+#custom-updates {
+    color: @primary;
+}
+
+#custom-updates:hover {
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * KEYBOARD / CHEATSHEET
+ * ========================================================================== */
+
+#custom-keyboard-layout {
+    color: @orange;
+}
+
+#custom-keyboard-layout:hover {
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * NOTIFICATIONS / SWAYNC
+ * Supports either custom/notification or custom/notifications.
+ * ========================================================================== */
+
+#custom-notification,
+#custom-notifications {
+    color: @secondary;
+
+    font-size: 16px;
+}
+
+#custom-notification:hover,
+#custom-notifications:hover {
+    color: @pink;
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * MEDIA
+ * Reserved for future playerctl / MPRIS integration.
+ * ========================================================================== */
+
+#custom-media {
+    color: @accent;
+}
+
+#custom-media:hover {
+    background: @glass-hover;
+}
+
+
+/* ============================================================================
+ * SYSTEM TRAY
+ * ========================================================================== */
+
+#tray {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+}
+
+
+/* ============================================================================
+ * POWER
+ * ========================================================================== */
+
+#custom-power {
+    color: @red;
+
+    padding-left: 12px;
+    padding-right: 12px;
+
+    font-size: 17px;
+}
+
+#custom-power:hover {
+    color: @bg;
+
+    background: @red;
+
+    border-color: @red;
+}
+
+
+/* ============================================================================
+ * TOOLTIPS
+ * ========================================================================== */
+
+tooltip {
+    color: @foreground;
+
+    background: @glass-light;
+
+    border: 1px solid @glass-border;
+    border-radius: 12px;
+}
+
+tooltip label {
+    color: @foreground;
+
+    padding: 7px;
+}
+
+
+/* ============================================================================
+ * SPECIAL STATES
+ * ========================================================================== */
+
+.warning {
+    color: @yellow;
+}
+
+.critical {
+    color: @red;
+}
+
+
+/* ============================================================================
+ * ANIMATIONS
+ * ========================================================================== */
+
+@keyframes blink-critical {
+    0% {
+        color: @foreground;
+        background: @glass;
+    }
+
+    100% {
+        color: @bg;
+        background: @red;
+    }
+}
+
+#battery.critical:not(.charging),
+#temperature.critical {
+    animation-name: blink-critical;
+    animation-duration: 700ms;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}

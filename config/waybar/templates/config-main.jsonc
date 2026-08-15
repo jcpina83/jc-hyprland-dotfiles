@@ -11,7 +11,7 @@
   "modules-center": ["clock"],
   "modules-right": ["cpu", "memory", "temperature", "pulseaudio", "network", "tray", "custom/notifications"],
   "hyprland/workspaces": {
-    "format": "{icon}",
+    "format": "{name}",
     "on-click": "activate",
     "all-outputs": false,
     "persistent-only": true,
@@ -19,14 +19,6 @@
 
     "persistent-workspaces": {
         "@MAIN_OUTPUT@": [@MAIN_WORKSPACES@]
-    },
-
-    "format-icons": {
-        "active": "",
-        "persistent": "",
-        "empty": "",
-        "urgent": "",
-        "default": ""
     }
   },
   "hyprland/window": { "format": "{title}", "max-length": 60 },
