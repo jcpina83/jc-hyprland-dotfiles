@@ -206,6 +206,10 @@ ensure_symlink \
     "$bin_dir/launch-wofi.sh"
 
 ensure_symlink \
+    "$repo_root/scripts/runtime/select-theme.sh" \
+    "$bin_dir/select-theme.sh"
+    
+ensure_symlink \
     "$repo_root/scripts/runtime/start-swaync.sh" \
     "$bin_dir/start-swaync.sh"
     

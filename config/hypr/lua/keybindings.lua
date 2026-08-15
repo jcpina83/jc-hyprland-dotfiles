@@ -4,8 +4,12 @@
 -- =============================================================================
 
 local home = os.getenv("HOME")
+
 local terminal =
     home .. "/.config/jc-hyprland-dotfiles/bin/launch-foot.sh"
+
+local theme_selector =
+    home .. "/.config/jc-hyprland-dotfiles/bin/select-theme.sh"
 
 
 -- -----------------------------------------------------------------------------
@@ -21,6 +25,22 @@ hl.bind(
     "SUPER + RETURN",
     hl.dsp.exec_cmd(terminal)
 )
+
+
+-- -----------------------------------------------------------------------------
+-- Theme selector
+--
+-- SUPER + T
+--     Open theme selector.
+-- -----------------------------------------------------------------------------
+
+hl.unbind("SUPER + T")
+
+hl.bind(
+    "SUPER + T",
+    hl.dsp.exec_cmd(theme_selector)
+)
+
 
 -- =============================================================================
 -- Workspaces

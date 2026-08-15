@@ -251,6 +251,7 @@ runtime_links=(
     "network-traffic.sh:scripts/runtime/network-traffic.sh"
     "amd-gpu.sh:scripts/runtime/amd-gpu.sh"
     "launch-wofi.sh:scripts/runtime/launch-wofi.sh"
+    "select-theme.sh:scripts/runtime/select-theme.sh"
     "start-swaync.sh:scripts/runtime/start-swaync.sh"
     "lock-session.sh:scripts/runtime/lock-session.sh"
     "launch-foot.sh:scripts/runtime/launch-foot.sh"

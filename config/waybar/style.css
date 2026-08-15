@@ -234,9 +234,15 @@ window#waybar {
     font-weight: 500;
 }
 
-#window.empty {
+window#waybar.empty #window {
+    min-width: 0;
+
+    padding: 0;
+    margin: 0;
+
     background: transparent;
-    border-color: transparent;
+
+    border: none;
 }
 
 
