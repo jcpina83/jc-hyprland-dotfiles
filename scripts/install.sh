@@ -216,7 +216,15 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/launch-foot.sh" \
     "$bin_dir/launch-foot.sh"
-            
+
+ensure_symlink \
+    "$repo_root/scripts/runtime/apply-wallpaper.sh" \
+    "$bin_dir/apply-wallpaper.sh"
+
+ensure_symlink \
+    "$repo_root/scripts/theme.sh" \
+    "$bin_dir/jc-theme"
+                
 # ----------------------------------------------------------------------------
 # Local machine configuration
 #
