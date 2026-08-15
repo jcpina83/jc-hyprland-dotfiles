@@ -151,7 +151,6 @@ if [[ -r "$host_env" ]]; then
 
     required_host_vars=(
         PROFILE
-        THEME
         MAIN_OUTPUT
         SECONDARY_OUTPUT
         MAIN_WORKSPACES

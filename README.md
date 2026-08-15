@@ -139,6 +139,7 @@ themes/
 │   ├── theme.env
 │   ├── colors.conf
 │   ├── colors.css
+│   ├── colors.lua
 │   ├── foot-colors.ini
 │   ├── hyprlock.env
 │   └── wallpapers/
@@ -147,6 +148,7 @@ themes/
     ├── theme.env
     ├── colors.conf
     ├── colors.css
+    ├── colors.lua
     ├── foot-colors.ini
     ├── hyprlock.env
     └── wallpapers/
@@ -161,6 +163,19 @@ The active theme is exposed through:
 which is a symlink to the selected theme directory.
 
 Applications do not need to know the actual theme name.
+
+### Theme consumers
+
+Each theme provides component-specific palette formats:
+
+| File | Consumer |
+|---|---|
+| `colors.lua` | Hyprland 0.55+ |
+| `colors.conf` | Legacy Hyprlang compatibility |
+| `colors.css` | Waybar, Wofi and SwayNC |
+| `foot-colors.ini` | Foot terminal |
+| `hyprlock.env` | Hyprlock |
+| `theme.env` | Theme metadata and wallpapers |
 
 ---
 

@@ -165,6 +165,7 @@ validate_theme() {
         "theme.env"
         "colors.conf"
         "colors.css"
+        "colors.lua"
         "foot-colors.ini"
         "hyprlock.env"
     )
@@ -200,6 +201,17 @@ validate_theme() {
         fail "hyprlock.env syntax"
     fi
 
+    if command -v lua >/dev/null 2>&1; then
+
+        if lua -e "assert(loadfile('$theme_dir/colors.lua'))"; then
+            ok "colors.lua syntax"
+        else
+            fail "colors.lua syntax"
+        fi
+
+    else
+        warn "lua executable not available; colors.lua syntax not validated"
+    fi
 
     # --------------------------------------------------------------------------
     # Metadata
