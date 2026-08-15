@@ -69,6 +69,7 @@ required_commands=(
     wofi
     foot
     hyprlock
+    hypridle
     hyprpaper
     swaync
     swaync-client
@@ -282,6 +283,71 @@ for specification in "${runtime_links[@]}"; do
 
 done
 
+
+# ==============================================================================
+# Session lock
+# ==============================================================================
+
+printf '\n==> Session lock\n'
+
+hypridle_conf="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf"
+
+lock_wrapper="$HOME/.config/jc-hyprland-dotfiles/bin/lock-session.sh"
+
+
+if [[ -x "$lock_wrapper" ]]; then
+    ok "lock-session.sh wrapper"
+else
+    fail "lock-session.sh wrapper missing or not executable"
+fi
+
+
+if [[ -r "$hypridle_conf" ]]; then
+
+    ok "$hypridle_conf"
+
+    if grep -Fq \
+        'jc-hyprland-dotfiles/bin/lock-session.sh' \
+        "$hypridle_conf"; then
+
+        ok "Hypridle uses jc lock-session.sh"
+
+    else
+
+        fail "Hypridle does not use jc lock-session.sh"
+
+    fi
+
+else
+
+    fail "Hypridle configuration missing: $hypridle_conf"
+
+fi
+
+
+if pgrep -x hypridle >/dev/null 2>&1; then
+    ok "Hypridle running"
+else
+    warn "Hypridle not running"
+fi
+
+nwgbar_config="$HOME/.config/nwg-launchers/nwgbar/bar.json"
+
+if [[ -r "$nwgbar_config" ]]; then
+
+    if grep -Fq \
+        'jc-hyprland-dotfiles/bin/lock-session.sh' \
+        "$nwgbar_config"; then
+
+        ok "nwgbar Lock uses jc lock-session.sh"
+
+    else
+
+        warn "nwgbar exists but Lock does not use jc lock-session.sh"
+
+    fi
+
+fi
 
 # ==============================================================================
 # Notification daemon

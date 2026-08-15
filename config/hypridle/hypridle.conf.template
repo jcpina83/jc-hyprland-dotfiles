@@ -1,0 +1,20 @@
+# ==============================================================================
+# jc-hyprland-dotfiles
+# Default Hypridle configuration
+#
+# Used only when the target machine does not already provide hypridle.conf.
+# Existing distro/user configurations are patched instead of overwritten.
+# ==============================================================================
+
+general {
+    lock_cmd = pidof hyprlock || sh -lc '$HOME/.config/jc-hyprland-dotfiles/bin/lock-session.sh'
+
+    # Trigger the same lock path before suspend.
+    before_sleep_cmd = loginctl lock-session
+}
+
+listener {
+    # Lock after 5 minutes of inactivity.
+    timeout = 300
+    on-timeout = loginctl lock-session
+}

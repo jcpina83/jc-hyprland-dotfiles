@@ -212,6 +212,18 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/lock-session.sh" \
     "$bin_dir/lock-session.sh"
+
+# ------------------------------------------------------------------------------
+# Hypridle integration
+# ------------------------------------------------------------------------------
+
+log "Configuring Hypridle lock integration..."
+
+if [[ "${DRY_RUN:-false}" == true ]]; then
+    "$repo_root/scripts/configure-hypridle.sh" --dry-run
+else
+    "$repo_root/scripts/configure-hypridle.sh"
+fi
         
 ensure_symlink \
     "$repo_root/scripts/runtime/launch-foot.sh" \

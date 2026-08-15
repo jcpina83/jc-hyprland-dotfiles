@@ -1,4 +1,4 @@
-.PHONY: help doctor dry-run install apply tree lint waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply theme-validate portability-check check release-check version
+.PHONY: help doctor dry-run install apply tree lint waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply theme-validate portability-check check release-check version install-check clean-install-check hypridle-configure
 
 help:
 	@echo "jc-hyprland-dotfiles"
@@ -86,3 +86,15 @@ version:
 
 release-check:
 	./scripts/release-check.sh	
+
+install-check:
+	@echo "==> Installer dry run"
+	./scripts/install.sh --dry-run
+	@echo
+	@echo "Installer dry run passed."	
+
+clean-install-check:
+	./scripts/clean-install-check.sh	
+
+hypridle-configure:
+	./scripts/configure-hypridle.sh	
