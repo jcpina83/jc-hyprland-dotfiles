@@ -201,6 +201,9 @@ ensure_symlink \
     "$repo_root/scripts/runtime/amd-gpu.sh" \
     "$bin_dir/amd-gpu.sh"
 
+ensure_symlink \
+    "$repo_root/scripts/runtime/launch-wofi.sh" \
+    "$bin_dir/launch-wofi.sh"
 
 # ----------------------------------------------------------------------------
 # Local machine configuration

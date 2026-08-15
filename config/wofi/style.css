@@ -1,15 +1,244 @@
+/* ============================================================================
+ * jc-hyprland-dotfiles
+ * Theme: Odyssey Glass
+ * Component: Wofi
+ * ========================================================================== */
+
+
+/* ============================================================================
+ * PALETTE
+ * ========================================================================== */
+
+@define-color bg             #11111b;
+@define-color bg_alt         #181825;
+@define-color surface        #1e1e2e;
+@define-color surface_alt    #313244;
+
+@define-color foreground     #cdd6f4;
+@define-color foreground_alt #bac2de;
+@define-color muted          #6c7086;
+
+@define-color primary        #89b4fa;
+@define-color secondary      #cba6f7;
+@define-color accent         #74c7ec;
+
+@define-color green          #a6e3a1;
+@define-color yellow         #f9e2af;
+@define-color red            #f38ba8;
+
+@define-color glass          rgba(17, 17, 27, 0.92);
+@define-color glass_light    rgba(30, 30, 46, 0.92);
+@define-color glass_hover    rgba(49, 50, 68, 0.90);
+@define-color glass_border   rgba(137, 180, 250, 0.30);
+
+
+/* ============================================================================
+ * GLOBAL
+ * ========================================================================== */
+
+* {
+    font-family:
+        "JetBrainsMono Nerd Font",
+        "JetBrains Mono",
+        "Symbols Nerd Font Mono";
+
+    font-size: 15px;
+
+    color: @foreground;
+}
+
+
+/* ============================================================================
+ * MAIN WINDOW
+ * ========================================================================== */
+
 window {
-  margin: 0;
-  border: 1px solid #89b4fa;
-  border-radius: 18px;
-  background-color: rgba(17, 17, 27, 0.94);
+    margin: 0;
+
+    background-color: @glass;
+
+    border: 1px solid @glass_border;
+    border-radius: 20px;
 }
+
+
+/* ============================================================================
+ * OUTER CONTAINER
+ * ========================================================================== */
+
+#outer-box {
+    margin: 18px;
+
+    padding: 4px;
+
+    background-color: transparent;
+}
+
+
+/* ============================================================================
+ * SEARCH INPUT
+ * ========================================================================== */
+
 #input {
-  margin: 14px;
-  padding: 12px;
-  border-radius: 12px;
-  color: #cdd6f4;
-  background-color: rgba(30, 30, 46, 0.94);
+    margin: 4px 4px 16px 4px;
+
+    padding: 13px 18px;
+
+    color: @foreground;
+
+    background-color: @glass_light;
+
+    border: 1px solid @glass_border;
+    border-radius: 14px;
+
+    box-shadow: none;
+
+    caret-color: @primary;
 }
-#entry { padding: 10px; border-radius: 10px; color: #cdd6f4; }
-#entry:selected { background-color: #89b4fa; color: #11111b; }
+
+#input:focus {
+    border-color: @primary;
+
+    background-color: @surface;
+}
+
+
+/* ============================================================================
+ * SCROLL AREA
+ * ========================================================================== */
+
+#scroll {
+    margin: 0;
+
+    border: none;
+
+    background-color: transparent;
+}
+
+
+/* ============================================================================
+ * ENTRY CONTAINER
+ * ========================================================================== */
+
+#inner-box {
+    margin: 0;
+
+    padding: 0;
+
+    background-color: transparent;
+}
+
+
+/* ============================================================================
+ * APPLICATION ENTRY
+ * ========================================================================== */
+
+#entry {
+    margin: 3px 2px;
+
+    padding: 8px 10px;
+
+    border-radius: 13px;
+
+    background-color: transparent;
+}
+
+
+/* ============================================================================
+ * UNSELECTED ENTRY
+ * ========================================================================== */
+
+#entry #unselected {
+    color: @foreground_alt;
+
+    background-color: transparent;
+}
+
+
+/* ============================================================================
+ * SELECTED ENTRY
+ * ========================================================================== */
+
+#entry:selected {
+    color: @bg;
+
+    background-color: @primary;
+
+    border-radius: 13px;
+}
+
+#entry:selected #text {
+    color: @bg;
+
+    font-weight: 700;
+}
+
+
+/* Some Wofi versions expose #selected explicitly. */
+
+#selected {
+    color: @bg;
+
+    background-color: @primary;
+
+    border-radius: 13px;
+}
+
+#selected #text {
+    color: @bg;
+
+    font-weight: 700;
+}
+
+
+/* ============================================================================
+ * APPLICATION ICONS
+ * ========================================================================== */
+
+#img {
+    margin-right: 14px;
+
+    padding: 3px;
+}
+
+
+/* ============================================================================
+ * APPLICATION TEXT
+ * ========================================================================== */
+
+#text {
+    margin: 0;
+
+    padding: 4px 2px;
+
+    color: @foreground;
+
+    font-weight: 500;
+}
+
+
+/* ============================================================================
+ * ENTRY HOVER
+ * ========================================================================== */
+
+#entry:hover {
+    background-color: @glass_hover;
+}
+
+
+/* ============================================================================
+ * SCROLLBAR
+ * Usually hidden through config, kept styled as fallback.
+ * ========================================================================== */
+
+scrollbar {
+    background-color: transparent;
+}
+
+scrollbar slider {
+    min-width: 4px;
+
+    background-color: @surface_alt;
+
+    border-radius: 999px;
+}

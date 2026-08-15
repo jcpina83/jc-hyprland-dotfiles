@@ -1,10 +1,33 @@
+# ==============================================================================
+# jc-hyprland-dotfiles
+# Odyssey Glass - Wofi
+# ==============================================================================
+
 show=drun
-location=middle
-width=650
-height=550
-always_parse_args=true
-show_all=true
-print_command=true
+
+width=720
+height=560
+
+location=center
 layer=overlay
+
+prompt=Search applications...
+
+allow_images=true
+image_size=42
+
+hide_scroll=true
+close_on_focus_loss=true
+
+matching=fuzzy
 insensitive=true
-prompt=Search
+
+columns=1
+
+gtk_dark=true
+
+term=foot
+
+drun-print_command=false
+drun-display_generic=false
+drun-ignore_metadata=false
