@@ -4,29 +4,6 @@
  * Component: SwayNotificationCenter
  * ========================================================================== */
 
-@define-color bg             #11111b;
-@define-color bg_alt         #181825;
-@define-color surface        #1e1e2e;
-@define-color surface_alt    #313244;
-
-@define-color foreground     #cdd6f4;
-@define-color foreground_alt #bac2de;
-@define-color muted          #6c7086;
-
-@define-color primary        #89b4fa;
-@define-color secondary      #cba6f7;
-@define-color accent         #74c7ec;
-
-@define-color green          #a6e3a1;
-@define-color yellow         #f9e2af;
-@define-color red            #f38ba8;
-
-@define-color glass          rgba(17, 17, 27, 0.94);
-@define-color glass_light    rgba(30, 30, 46, 0.94);
-@define-color glass_hover    rgba(49, 50, 68, 0.92);
-@define-color glass_border   rgba(137, 180, 250, 0.28);
-
-
 :root {
     --notification-icon-size: 48px;
     --mpris-album-art-icon-size: 90px;

@@ -115,6 +115,23 @@ apply_theme() {
         exit 1
     }
 
+    required_theme_files=(
+        "theme.env"
+        "colors.conf"
+        "colors.css"
+        "foot-colors.ini"
+        "hyprlock.env"
+    )
+
+
+    for required in "${required_theme_files[@]}"; do
+
+        if [[ ! -r "$theme_dir/$required" ]]; then
+            echo "Incomplete theme '$theme_name': missing $required" >&2
+            exit 1
+        fi
+
+    done
 
     mkdir -p "$base" "$local_dir"
 
@@ -149,6 +166,32 @@ apply_theme() {
         fi
 
     fi
+
+    # ------------------------------------------------------------------------------
+    # Refresh resident UI components
+    # ------------------------------------------------------------------------------
+
+    waybar_runtime="$repo_root/scripts/runtime/start-waybar.sh"
+    swaync_runtime="$repo_root/scripts/runtime/start-swaync.sh"
+
+
+    if [[ -x "$waybar_runtime" ]]; then
+        echo
+        echo "Refreshing Waybar..."
+
+        "$waybar_runtime"
+    fi
+
+
+    if pgrep -x swaync >/dev/null 2>&1 \
+        && [[ -x "$swaync_runtime" ]]
+    then
+        echo
+        echo "Refreshing SwayNC..."
+
+        "$swaync_runtime" --restart
+    fi
+
 }
 
 

@@ -89,26 +89,38 @@ fi
 
 printf '\n==> Foot configuration\n'
 
-foot_config="$repo_root/config/foot/foot.ini"
+foot_base="$repo_root/config/foot/foot.ini"
+foot_theme="$repo_root/themes/odyssey-glass/foot-colors.ini"
 
-if [[ -f "$foot_config" ]]; then
 
-    if command -v foot >/dev/null 2>&1; then
+if command -v foot >/dev/null 2>&1; then
 
-        if foot \
-            --config="$foot_config" \
-            --check-config
-        then
-            printf '  Foot OK    %s\n' "$foot_config"
-        else
-            printf '  Foot FAIL  %s\n' "$foot_config" >&2
-            status=1
-        fi
+    foot_tmp="$(mktemp)"
 
+    {
+        cat "$foot_base"
+
+        printf '\n'
+
+        cat "$foot_theme"
+    } > "$foot_tmp"
+
+
+    if foot \
+        --config="$foot_tmp" \
+        --check-config
+    then
+        printf '  Foot OK    base + odyssey-glass\n'
     else
-        printf 'WARN foot not installed; Foot validation skipped.\n'
+        printf '  Foot FAIL  base + odyssey-glass\n' >&2
+        status=1
     fi
 
+
+    rm -f "$foot_tmp"
+
+else
+    printf 'WARN foot not installed; Foot validation skipped.\n'
 fi
 
 exit "$status"

@@ -1,17 +1,24 @@
 # ==============================================================================
 # jc-hyprland-dotfiles
-# Theme: Odyssey Glass
-# Component: Hyprlock
+# Hyprlock template
 #
 # Monitor roles:
-#   MAIN_OUTPUT      -> authentication / primary lock screen
-#   SECONDARY_OUTPUT -> ambient lock screen
+#   MAIN_OUTPUT      -> authentication screen
+#   SECONDARY_OUTPUT -> ambient screen
+#
+# Colors are injected by:
+#   themes/<active-theme>/hyprlock.env
 # ==============================================================================
 
+
+# ==============================================================================
+# GENERAL
+# ==============================================================================
 
 general {
     hide_cursor = true
     ignore_empty_input = true
+
     fail_timeout = 1800
 }
 
@@ -20,8 +27,9 @@ general {
 # BACKGROUNDS
 # ==============================================================================
 
+
 # ------------------------------------------------------------------------------
-# Main monitor
+# Main output
 # ------------------------------------------------------------------------------
 
 background {
@@ -41,7 +49,7 @@ background {
 
 
 # ------------------------------------------------------------------------------
-# Secondary monitor
+# Secondary output
 # ------------------------------------------------------------------------------
 
 background {
@@ -75,14 +83,14 @@ label {
 
     text = $TIME
 
-    color = rgba(205, 214, 244, 1.0)
+    color = @LOCK_FG@
 
     font_size = 88
     font_family = JetBrainsMono Nerd Font
 
     shadow_passes = 2
     shadow_size = 5
-    shadow_color = rgba(17, 17, 27, 0.65)
+    shadow_color = @LOCK_SHADOW@
 
     position = 0, 190
 
@@ -100,7 +108,7 @@ label {
 
     text = cmd[update:60000] date "+%A, %d %B %Y"
 
-    color = rgba(186, 194, 222, 1.0)
+    color = @LOCK_FG_ALT@
 
     font_size = 19
     font_family = JetBrainsMono Nerd Font
@@ -121,7 +129,7 @@ label {
 
     text =   $USER
 
-    color = rgba(137, 180, 250, 1.0)
+    color = @LOCK_PRIMARY@
 
     font_size = 18
     font_family = JetBrainsMono Nerd Font
@@ -150,26 +158,26 @@ input-field {
 
     rounding = 18
 
-    outer_color = rgba(137, 180, 250, 0.70) rgba(203, 166, 247, 0.70) 45deg
-    inner_color = rgba(17, 17, 27, 0.78)
+    outer_color = @LOCK_BORDER_GRADIENT@
+    inner_color = @LOCK_INNER@
 
-    font_color = rgba(205, 214, 244, 1.0)
+    font_color = @LOCK_FG@
     font_family = JetBrainsMono Nerd Font
 
     fade_on_empty = false
 
-    placeholder_text = <span foreground="##bac2de">Password...</span>
+    placeholder_text = Password...
 
-    check_color = rgba(166, 227, 161, 1.0)
-    fail_color = rgba(243, 139, 168, 1.0)
+    check_color = @LOCK_GREEN@
+    fail_color = @LOCK_RED@
 
     fail_text = <i>$FAIL <b>($ATTEMPTS)</b></i>
 
-    capslock_color = rgba(249, 226, 175, 1.0)
+    capslock_color = @LOCK_YELLOW@
 
     shadow_passes = 2
     shadow_size = 8
-    shadow_color = rgba(17, 17, 27, 0.75)
+    shadow_color = @LOCK_SHADOW@
 
     position = 0, -65
 
@@ -187,7 +195,7 @@ label {
 
     text =   $LAYOUT
 
-    color = rgba(108, 112, 134, 1.0)
+    color = @LOCK_MUTED@
 
     font_size = 13
     font_family = JetBrainsMono Nerd Font
@@ -214,7 +222,7 @@ label {
 
     text = ODYSSEY GLASS
 
-    color = rgba(137, 180, 250, 0.85)
+    color = @LOCK_PRIMARY@
 
     font_size = 15
     font_family = JetBrainsMono Nerd Font
@@ -235,14 +243,14 @@ label {
 
     text = $TIME
 
-    color = rgba(205, 214, 244, 0.92)
+    color = @LOCK_FG@
 
     font_size = 64
     font_family = JetBrainsMono Nerd Font
 
     shadow_passes = 2
     shadow_size = 5
-    shadow_color = rgba(17, 17, 27, 0.65)
+    shadow_color = @LOCK_SHADOW@
 
     position = 0, 55
 
@@ -260,7 +268,7 @@ label {
 
     text = cmd[update:60000] date "+%A, %d %B"
 
-    color = rgba(186, 194, 222, 0.82)
+    color = @LOCK_FG_ALT@
 
     font_size = 17
     font_family = JetBrainsMono Nerd Font
@@ -273,7 +281,7 @@ label {
 
 
 # ------------------------------------------------------------------------------
-# Machine
+# Host
 # ------------------------------------------------------------------------------
 
 label {
@@ -281,7 +289,7 @@ label {
 
     text = cmd[update:60000] printf "󰌢  %s" "$(hostname)"
 
-    color = rgba(108, 112, 134, 0.90)
+    color = @LOCK_MUTED@
 
     font_size = 14
     font_family = JetBrainsMono Nerd Font
@@ -294,7 +302,7 @@ label {
 
 
 # ------------------------------------------------------------------------------
-# Status
+# Session status
 # ------------------------------------------------------------------------------
 
 label {
@@ -302,7 +310,7 @@ label {
 
     text = 󰌾  Session locked
 
-    color = rgba(166, 227, 161, 0.75)
+    color = @LOCK_GREEN@
 
     font_size = 13
     font_family = JetBrainsMono Nerd Font

@@ -1,11 +1,48 @@
-@define-color bg rgba(17, 17, 27, 0.78);
-@define-color surface rgba(24, 24, 37, 0.88);
-@define-color surface2 rgba(30, 30, 46, 0.92);
-@define-color text #cdd6f4;
-@define-color muted #6c7086;
-@define-color primary #89b4fa;
-@define-color secondary #cba6f7;
-@define-color accent #74c7ec;
-@define-color success #a6e3a1;
-@define-color warning #f9e2af;
-@define-color critical #f38ba8;
+/* ============================================================================
+ * jc-hyprland-dotfiles
+ * Theme: Odyssey Glass
+ * Shared GTK CSS palette
+ * ========================================================================== */
+
+@define-color bg             #11111b;
+@define-color bg-alt         #181825;
+@define-color surface        #1e1e2e;
+@define-color surface-alt    #313244;
+
+@define-color foreground     #cdd6f4;
+@define-color foreground-alt #bac2de;
+@define-color muted          #6c7086;
+
+@define-color primary        #89b4fa;
+@define-color secondary      #cba6f7;
+@define-color accent         #74c7ec;
+
+@define-color green          #a6e3a1;
+@define-color yellow         #f9e2af;
+@define-color orange         #fab387;
+@define-color red            #f38ba8;
+@define-color pink           #f5c2e7;
+@define-color teal           #94e2d5;
+@define-color cyan           #89dceb;
+
+@define-color glass          rgba(17, 17, 27, 0.78);
+@define-color glass-light    rgba(30, 30, 46, 0.86);
+@define-color glass-hover    rgba(49, 50, 68, 0.90);
+@define-color glass-border   rgba(137, 180, 250, 0.20);
+
+
+/*
+ * Compatibility aliases.
+ *
+ * Wofi and SwayNC currently use some underscore-based names while Waybar uses
+ * hyphenated names. Keep both available while component CSS is normalized.
+ */
+
+@define-color bg_alt         @bg-alt;
+@define-color surface_alt    @surface-alt;
+
+@define-color foreground_alt @foreground-alt;
+
+@define-color glass_light    @glass-light;
+@define-color glass_hover    @glass-hover;
+@define-color glass_border   @glass-border;

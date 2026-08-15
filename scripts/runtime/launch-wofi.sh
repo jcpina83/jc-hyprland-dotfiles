@@ -3,17 +3,28 @@ set -euo pipefail
 
 # ==============================================================================
 # jc-hyprland-dotfiles
-# Odyssey Glass - Wofi launcher
+# Managed Wofi launcher
 # ==============================================================================
 
 base="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles"
 repo="$base/repo"
 local_dir="$base/local"
 
-config="$repo/config/wofi/config"
-style="$repo/config/wofi/style.css"
+runtime="${XDG_RUNTIME_DIR:-/tmp}/jc-hyprland-dotfiles-${UID}"
 
-monitor=""
+host_env="$local_dir/host.env"
+
+config="$repo/config/wofi/config"
+
+theme_style="$base/theme/colors.css"
+component_style="$repo/config/wofi/style.css"
+
+generated_style="$runtime/wofi-style.css"
+
+
+# ------------------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------------------
 
 usage() {
     cat <<'EOF'
@@ -23,35 +34,65 @@ Usage:
   launch-wofi.sh --secondary
   launch-wofi.sh --monitor OUTPUT
   launch-wofi.sh --help
+
+Without a monitor option, Wofi decides which output to use.
 EOF
 }
 
 
-if [[ -r "$local_dir/host.env" ]]; then
-    # Machine-local runtime configuration.
-    # This file intentionally lives outside the repository.
-    # shellcheck disable=SC1091
-    source "$local_dir/host.env"
+die() {
+    printf 'ERROR: %s\n' "$*" >&2
+    exit 1
+}
+
+
+# ------------------------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------------------------
+
+command -v wofi >/dev/null 2>&1 \
+    || die "wofi is not installed"
+
+
+# ------------------------------------------------------------------------------
+# Optional machine-local configuration
+# ------------------------------------------------------------------------------
+
+if [[ -r "$host_env" ]]; then
+    # Machine-local configuration.
+    # This file is resolved dynamically at runtime.
+    # shellcheck disable=SC1090
+    source "$host_env"
 fi
 
+
+# ------------------------------------------------------------------------------
+# Arguments
+# ------------------------------------------------------------------------------
+
+monitor=""
 
 while (($# > 0)); do
     case "$1" in
         --main)
             monitor="${MAIN_OUTPUT:-}"
+
+            [[ -n "$monitor" ]] \
+                || die "MAIN_OUTPUT is not configured in $host_env"
             ;;
 
         --secondary)
             monitor="${SECONDARY_OUTPUT:-}"
+
+            [[ -n "$monitor" ]] \
+                || die "SECONDARY_OUTPUT is not configured in $host_env"
             ;;
 
         --monitor)
             shift
 
-            (($# > 0)) || {
-                echo "Missing monitor after --monitor" >&2
-                exit 2
-            }
+            (($# > 0)) \
+                || die "Missing monitor after --monitor"
 
             monitor="$1"
             ;;
@@ -62,9 +103,7 @@ while (($# > 0)); do
             ;;
 
         *)
-            echo "Unknown option: $1" >&2
-            usage >&2
-            exit 2
+            die "Unknown option: $1"
             ;;
     esac
 
@@ -72,25 +111,52 @@ while (($# > 0)); do
 done
 
 
-[[ -r "$config" ]] || {
-    echo "Missing Wofi config: $config" >&2
-    exit 1
-}
+# ------------------------------------------------------------------------------
+# Validate configuration
+# ------------------------------------------------------------------------------
 
-[[ -r "$style" ]] || {
-    echo "Missing Wofi stylesheet: $style" >&2
-    exit 1
-}
+[[ -r "$config" ]] \
+    || die "Missing Wofi configuration: $config"
 
+[[ -r "$theme_style" ]] \
+    || die "Missing active theme CSS: $theme_style"
+
+[[ -r "$component_style" ]] \
+    || die "Missing Wofi component CSS: $component_style"
+
+
+# ------------------------------------------------------------------------------
+# Generate active stylesheet
+#
+# theme/colors.css
+#       +
+# config/wofi/style.css
+#       ↓
+# runtime/wofi-style.css
+# ------------------------------------------------------------------------------
+
+mkdir -p "$runtime"
+
+cat \
+    "$theme_style" \
+    "$component_style" \
+    > "$generated_style"
+
+
+# ------------------------------------------------------------------------------
+# Launch
+# ------------------------------------------------------------------------------
 
 args=(
     --conf "$config"
-    --style "$style"
+    --style "$generated_style"
 )
 
 
 if [[ -n "$monitor" ]]; then
-    args+=(--monitor "$monitor")
+    args+=(
+        --monitor "$monitor"
+    )
 fi
 
 

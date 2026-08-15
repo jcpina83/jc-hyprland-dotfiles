@@ -3,19 +3,19 @@ set -euo pipefail
 
 # ==============================================================================
 # jc-hyprland-dotfiles
-# Odyssey Glass - Foot launcher
+# Foot runtime launcher
 # ==============================================================================
 
 base="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles"
 repo="$base/repo"
+theme="$base/theme"
 
-config="$repo/config/foot/foot.ini"
+runtime="${XDG_RUNTIME_DIR:-/tmp}/jc-hyprland-dotfiles-${UID}"
 
+base_config="$repo/config/foot/foot.ini"
+theme_colors="$theme/foot-colors.ini"
 
-if [[ ! -r "$config" ]]; then
-    echo "Missing Foot configuration: $config" >&2
-    exit 1
-fi
+generated="$runtime/foot.ini"
 
 
 if ! command -v foot >/dev/null 2>&1; then
@@ -24,6 +24,30 @@ if ! command -v foot >/dev/null 2>&1; then
 fi
 
 
+[[ -r "$base_config" ]] || {
+    echo "Missing Foot base configuration: $base_config" >&2
+    exit 1
+}
+
+
+[[ -r "$theme_colors" ]] || {
+    echo "Missing Foot theme palette: $theme_colors" >&2
+    exit 1
+}
+
+
+mkdir -p "$runtime"
+
+
+{
+    cat "$base_config"
+
+    printf '\n'
+
+    cat "$theme_colors"
+} > "$generated"
+
+
 exec foot \
-    --config="$config" \
+    --config="$generated" \
     "$@"
