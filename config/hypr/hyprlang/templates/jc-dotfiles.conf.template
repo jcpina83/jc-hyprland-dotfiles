@@ -14,3 +14,7 @@ source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/hyprlang/common/appeara
 
 # Animations
 source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/hyprlang/common/animations.conf
+
+
+# Autostart
+source = ~/.config/jc-hyprland-dotfiles/repo/config/hypr/hyprlang/common/autostart.conf

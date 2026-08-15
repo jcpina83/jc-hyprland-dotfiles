@@ -1,0 +1,314 @@
+# ==============================================================================
+# jc-hyprland-dotfiles
+# Theme: Odyssey Glass
+# Component: Hyprlock
+#
+# Monitor roles:
+#   MAIN_OUTPUT      -> authentication / primary lock screen
+#   SECONDARY_OUTPUT -> ambient lock screen
+# ==============================================================================
+
+
+general {
+    hide_cursor = true
+    ignore_empty_input = true
+    fail_timeout = 1800
+}
+
+
+# ==============================================================================
+# BACKGROUNDS
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Main monitor
+# ------------------------------------------------------------------------------
+
+background {
+    monitor = @MAIN_OUTPUT@
+
+    path = screenshot
+
+    blur_passes = 3
+    blur_size = 7
+
+    brightness = 0.72
+    contrast = 0.92
+
+    vibrancy = 0.16
+    vibrancy_darkness = 0.05
+}
+
+
+# ------------------------------------------------------------------------------
+# Secondary monitor
+# ------------------------------------------------------------------------------
+
+background {
+    monitor = @SECONDARY_OUTPUT@
+
+    path = screenshot
+
+    blur_passes = 3
+    blur_size = 7
+
+    brightness = 0.62
+    contrast = 0.90
+
+    vibrancy = 0.12
+    vibrancy_darkness = 0.05
+}
+
+
+# ==============================================================================
+# MAIN OUTPUT
+# Authentication screen
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# Clock
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @MAIN_OUTPUT@
+
+    text = $TIME
+
+    color = rgba(205, 214, 244, 1.0)
+
+    font_size = 88
+    font_family = JetBrainsMono Nerd Font
+
+    shadow_passes = 2
+    shadow_size = 5
+    shadow_color = rgba(17, 17, 27, 0.65)
+
+    position = 0, 190
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# Date
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @MAIN_OUTPUT@
+
+    text = cmd[update:60000] date "+%A, %d %B %Y"
+
+    color = rgba(186, 194, 222, 1.0)
+
+    font_size = 19
+    font_family = JetBrainsMono Nerd Font
+
+    position = 0, 110
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# User
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @MAIN_OUTPUT@
+
+    text =   $USER
+
+    color = rgba(137, 180, 250, 1.0)
+
+    font_size = 18
+    font_family = JetBrainsMono Nerd Font
+
+    position = 0, 28
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# Password
+# ------------------------------------------------------------------------------
+
+input-field {
+    monitor = @MAIN_OUTPUT@
+
+    size = 330, 58
+
+    outline_thickness = 2
+
+    dots_size = 0.22
+    dots_spacing = 0.22
+    dots_center = true
+
+    rounding = 18
+
+    outer_color = rgba(137, 180, 250, 0.70) rgba(203, 166, 247, 0.70) 45deg
+    inner_color = rgba(17, 17, 27, 0.78)
+
+    font_color = rgba(205, 214, 244, 1.0)
+    font_family = JetBrainsMono Nerd Font
+
+    fade_on_empty = false
+
+    placeholder_text = <span foreground="##bac2de">Password...</span>
+
+    check_color = rgba(166, 227, 161, 1.0)
+    fail_color = rgba(243, 139, 168, 1.0)
+
+    fail_text = <i>$FAIL <b>($ATTEMPTS)</b></i>
+
+    capslock_color = rgba(249, 226, 175, 1.0)
+
+    shadow_passes = 2
+    shadow_size = 8
+    shadow_color = rgba(17, 17, 27, 0.75)
+
+    position = 0, -65
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# Keyboard layout
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @MAIN_OUTPUT@
+
+    text =   $LAYOUT
+
+    color = rgba(108, 112, 134, 1.0)
+
+    font_size = 13
+    font_family = JetBrainsMono Nerd Font
+
+    position = 0, -125
+
+    halign = center
+    valign = center
+}
+
+
+# ==============================================================================
+# SECONDARY OUTPUT
+# Ambient lock screen
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# Theme identity
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @SECONDARY_OUTPUT@
+
+    text = ODYSSEY GLASS
+
+    color = rgba(137, 180, 250, 0.85)
+
+    font_size = 15
+    font_family = JetBrainsMono Nerd Font
+
+    position = 0, 150
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# Clock
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @SECONDARY_OUTPUT@
+
+    text = $TIME
+
+    color = rgba(205, 214, 244, 0.92)
+
+    font_size = 64
+    font_family = JetBrainsMono Nerd Font
+
+    shadow_passes = 2
+    shadow_size = 5
+    shadow_color = rgba(17, 17, 27, 0.65)
+
+    position = 0, 55
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# Date
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @SECONDARY_OUTPUT@
+
+    text = cmd[update:60000] date "+%A, %d %B"
+
+    color = rgba(186, 194, 222, 0.82)
+
+    font_size = 17
+    font_family = JetBrainsMono Nerd Font
+
+    position = 0, -10
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# Machine
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @SECONDARY_OUTPUT@
+
+    text = cmd[update:60000] printf "󰌢  %s" "$(hostname)"
+
+    color = rgba(108, 112, 134, 0.90)
+
+    font_size = 14
+    font_family = JetBrainsMono Nerd Font
+
+    position = 0, -75
+
+    halign = center
+    valign = center
+}
+
+
+# ------------------------------------------------------------------------------
+# Status
+# ------------------------------------------------------------------------------
+
+label {
+    monitor = @SECONDARY_OUTPUT@
+
+    text = 󰌾  Session locked
+
+    color = rgba(166, 227, 161, 0.75)
+
+    font_size = 13
+    font_family = JetBrainsMono Nerd Font
+
+    position = 0, -115
+
+    halign = center
+    valign = center
+}

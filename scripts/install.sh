@@ -208,7 +208,11 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/start-swaync.sh" \
     "$bin_dir/start-swaync.sh"
-
+    
+ensure_symlink \
+    "$repo_root/scripts/runtime/lock-session.sh" \
+    "$bin_dir/lock-session.sh"
+        
 # ----------------------------------------------------------------------------
 # Local machine configuration
 #
