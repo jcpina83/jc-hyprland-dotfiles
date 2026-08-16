@@ -17,6 +17,13 @@ local_dir="$base/local"
 bin_dir="$base/bin"
 
 host_env="$local_dir/host.env"
+wallpaper_env="$local_dir/wallpaper.env"
+
+systemd_user_dir="$config_home/systemd/user"
+
+wallpaper_rotation_service="$systemd_user_dir/jc-wallpaper-rotation.service"
+wallpaper_rotation_timer="$systemd_user_dir/jc-wallpaper-rotation.timer"
+wallpaper_rotation_dropin="$systemd_user_dir/jc-wallpaper-rotation.timer.d/interval.conf"
 
 errors=0
 warnings=0
@@ -260,6 +267,7 @@ runtime_links=(
     "launch-foot.sh:scripts/runtime/launch-foot.sh"
     "apply-wallpaper.sh:scripts/runtime/apply-wallpaper.sh"
     "wallpaper-manager.sh:scripts/runtime/wallpaper-manager.sh"
+    "rotate-wallpaper.sh:scripts/runtime/rotate-wallpaper.sh"
     "jc-theme:scripts/theme.sh"
 )
 
@@ -287,6 +295,197 @@ for specification in "${runtime_links[@]}"; do
 
 done
 
+
+# ==============================================================================
+# Wallpaper rotation
+# ==============================================================================
+
+section "Wallpaper rotation"
+
+rotation_service_expected="$repo_root/config/systemd/user/jc-wallpaper-rotation.service"
+rotation_timer_expected="$repo_root/config/systemd/user/jc-wallpaper-rotation.timer"
+
+
+# ------------------------------------------------------------------------------
+# Local configuration
+# ------------------------------------------------------------------------------
+
+if [[ -r "$wallpaper_env" ]]; then
+
+    ok "$wallpaper_env"
+
+    WALLPAPER_ROTATION_ENABLED=false
+    WALLPAPER_ROTATION_MODE=next
+    WALLPAPER_ROTATION_TARGET=both
+    WALLPAPER_ROTATION_INTERVAL=30m
+
+    # Machine-local configuration.
+    # shellcheck disable=SC1090
+    source "$wallpaper_env"
+
+    case "${WALLPAPER_ROTATION_ENABLED:-}" in
+        true|false)
+            ok "WALLPAPER_ROTATION_ENABLED=$WALLPAPER_ROTATION_ENABLED"
+            ;;
+        *)
+            fail \
+                "invalid WALLPAPER_ROTATION_ENABLED: " \
+                "${WALLPAPER_ROTATION_ENABLED:-<unset>}"
+            ;;
+    esac
+
+    case "${WALLPAPER_ROTATION_MODE:-}" in
+        next|random)
+            ok "WALLPAPER_ROTATION_MODE=$WALLPAPER_ROTATION_MODE"
+            ;;
+        *)
+            fail \
+                "invalid WALLPAPER_ROTATION_MODE: " \
+                "${WALLPAPER_ROTATION_MODE:-<unset>}"
+            ;;
+    esac
+
+    case "${WALLPAPER_ROTATION_TARGET:-}" in
+        main|secondary|both)
+            ok "WALLPAPER_ROTATION_TARGET=$WALLPAPER_ROTATION_TARGET"
+            ;;
+        *)
+            fail \
+                "invalid WALLPAPER_ROTATION_TARGET: " \
+                "${WALLPAPER_ROTATION_TARGET:-<unset>}"
+            ;;
+    esac
+
+    if command -v systemd-analyze >/dev/null 2>&1 &&
+        systemd-analyze timespan \
+            "${WALLPAPER_ROTATION_INTERVAL:-}" \
+            >/dev/null 2>&1
+    then
+        ok "WALLPAPER_ROTATION_INTERVAL=$WALLPAPER_ROTATION_INTERVAL"
+    else
+        fail \
+            "invalid WALLPAPER_ROTATION_INTERVAL: " \
+            "${WALLPAPER_ROTATION_INTERVAL:-<unset>}"
+    fi
+
+else
+    fail "wallpaper configuration missing: $wallpaper_env"
+fi
+
+
+# ------------------------------------------------------------------------------
+# systemd user unit links
+# ------------------------------------------------------------------------------
+
+for specification in \
+    "$wallpaper_rotation_service:$rotation_service_expected" \
+    "$wallpaper_rotation_timer:$rotation_timer_expected"
+do
+    link="${specification%%:*}"
+    expected="${specification#*:}"
+
+    if [[ ! -L "$link" ]]; then
+        fail "missing systemd user symlink: $link"
+        continue
+    fi
+
+    actual="$(readlink -f "$link" 2>/dev/null || true)"
+    expected="$(readlink -f "$expected" 2>/dev/null || true)"
+
+    if [[ "$actual" == "$expected" ]]; then
+        ok "$(basename "$link")"
+    else
+        fail "$(basename "$link") points to unexpected target: $actual"
+    fi
+done
+
+
+# ------------------------------------------------------------------------------
+# Generated interval drop-in
+# ------------------------------------------------------------------------------
+
+if [[ -r "$wallpaper_rotation_dropin" ]]; then
+
+    ok "timer drop-in: $wallpaper_rotation_dropin"
+
+    if grep -Fqx \
+        "OnActiveSec=${WALLPAPER_ROTATION_INTERVAL:-}" \
+        "$wallpaper_rotation_dropin" &&
+        grep -Fqx \
+            "OnUnitActiveSec=${WALLPAPER_ROTATION_INTERVAL:-}" \
+            "$wallpaper_rotation_dropin"
+    then
+        ok "timer interval synchronized"
+    else
+        fail "timer drop-in does not match wallpaper.env interval"
+    fi
+
+else
+    fail "wallpaper rotation timer drop-in missing: $wallpaper_rotation_dropin"
+fi
+
+
+# ------------------------------------------------------------------------------
+# systemd lifecycle
+# ------------------------------------------------------------------------------
+
+if command -v systemctl >/dev/null 2>&1; then
+
+    timer_enabled="$(
+        systemctl --user is-enabled \
+            jc-wallpaper-rotation.timer \
+            2>/dev/null ||
+            true
+    )"
+
+    timer_active="$(
+        systemctl --user is-active \
+            jc-wallpaper-rotation.timer \
+            2>/dev/null ||
+            true
+    )"
+
+    if [[ "${WALLPAPER_ROTATION_ENABLED:-false}" == true ]]; then
+
+        if [[ "$timer_enabled" == enabled ]]; then
+            ok "wallpaper rotation timer enabled"
+        else
+            fail \
+                "wallpaper rotation expected enabled; " \
+                "systemd state: $timer_enabled"
+        fi
+
+        if [[ "$timer_active" == active ]]; then
+            ok "wallpaper rotation timer active"
+        else
+            fail \
+                "wallpaper rotation expected active; " \
+                "systemd state: $timer_active"
+        fi
+
+    else
+
+        if [[ "$timer_enabled" == linked ]]; then
+            ok "wallpaper rotation timer linked but disabled"
+        else
+            fail \
+                "wallpaper rotation expected linked; " \
+                "systemd state: $timer_enabled"
+        fi
+
+        if [[ "$timer_active" == inactive ]]; then
+            ok "wallpaper rotation timer inactive"
+        else
+            fail \
+                "wallpaper rotation expected inactive; " \
+                "systemd state: $timer_active"
+        fi
+
+    fi
+
+else
+    fail "systemctl unavailable"
+fi
 
 # ==============================================================================
 # Session lock

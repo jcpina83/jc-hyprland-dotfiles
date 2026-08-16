@@ -1,0 +1,11 @@
+[Unit]
+Description=JC Hyprland wallpaper rotation timer
+
+[Timer]
+OnActiveSec=30m
+OnUnitActiveSec=30m
+AccuracySec=1s
+Unit=jc-wallpaper-rotation.service
+
+[Install]
+WantedBy=timers.target

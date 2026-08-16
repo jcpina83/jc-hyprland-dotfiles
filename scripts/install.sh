@@ -24,6 +24,12 @@ base="$config_home/jc-hyprland-dotfiles"
 local_dir="$base/local"
 bin_dir="$base/bin"
 
+systemd_user_dir="$config_home/systemd/user"
+
+wallpaper_rotation_service="$repo_root/config/systemd/user/jc-wallpaper-rotation.service"
+wallpaper_rotation_timer="$repo_root/config/systemd/user/jc-wallpaper-rotation.timer"
+wallpaper_rotation_configurator="$repo_root/scripts/configure-wallpaper-rotation.sh"
+
 hypr_dir="$config_home/hypr"
 
 host_template="$repo_root/hosts/example/host.env"
@@ -150,6 +156,15 @@ ensure_local_file() {
 [[ -f "$wallpaper_template" ]] \
     || die "Missing wallpaper template: $wallpaper_template"
 
+[[ -f "$wallpaper_rotation_service" ]] \
+    || die "Missing wallpaper rotation service: $wallpaper_rotation_service"
+
+[[ -f "$wallpaper_rotation_timer" ]] \
+    || die "Missing wallpaper rotation timer: $wallpaper_rotation_timer"
+
+[[ -x "$wallpaper_rotation_configurator" ]] \
+    || die "Wallpaper rotation configurator is not executable: $wallpaper_rotation_configurator"
+
 [[ -f "$hypr_bridge_template" ]] \
     || die "Missing Hyprland bridge template: $hypr_bridge_template"
 
@@ -171,7 +186,8 @@ log "Distro: $distro"
 run mkdir -p \
     "$local_dir" \
     "$bin_dir" \
-    "$hypr_dir"
+    "$hypr_dir" \
+    "$systemd_user_dir"
 
 
 # ----------------------------------------------------------------------------
@@ -266,6 +282,10 @@ ensure_symlink \
     "$bin_dir/wallpaper-manager.sh"
 
 ensure_symlink \
+    "$repo_root/scripts/runtime/rotate-wallpaper.sh" \
+    "$bin_dir/rotate-wallpaper.sh"
+
+ensure_symlink \
     "$repo_root/scripts/theme.sh" \
     "$bin_dir/jc-theme"
 
@@ -288,6 +308,29 @@ ensure_local_file \
 ensure_local_file \
     "$wallpaper_template" \
     "$local_dir/wallpaper.env"
+
+# ----------------------------------------------------------------------------
+# Wallpaper rotation systemd user integration
+#
+# Unit files are managed by the repository.
+# Machine-local interval and lifecycle are managed by wallpaper.env.
+# ----------------------------------------------------------------------------
+
+log "Configuring wallpaper rotation systemd integration..."
+
+ensure_symlink \
+    "$wallpaper_rotation_service" \
+    "$systemd_user_dir/jc-wallpaper-rotation.service"
+
+ensure_symlink \
+    "$wallpaper_rotation_timer" \
+    "$systemd_user_dir/jc-wallpaper-rotation.timer"
+
+# The initial reload is required on a fresh installation so systemd can see
+# the newly linked units before the configurator validates them.
+run systemctl --user daemon-reload
+
+run "$wallpaper_rotation_configurator"
 
 # ----------------------------------------------------------------------------
 # Hyprland integration bridge

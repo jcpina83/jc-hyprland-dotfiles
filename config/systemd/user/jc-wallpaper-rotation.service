@@ -1,0 +1,7 @@
+[Unit]
+Description=JC Hyprland wallpaper rotation
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/jc-hyprland-dotfiles/bin/rotate-wallpaper.sh
