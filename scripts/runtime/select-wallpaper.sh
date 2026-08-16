@@ -5,11 +5,19 @@ set -euo pipefail
 # jc-hyprland-dotfiles
 # Interactive wallpaper selector
 #
+# Features:
+#   - Manual wallpaper selection
+#   - Random wallpaper selection
+#   - Deterministic "next" navigation
+#   - Restore theme defaults
+#
 # Sources:
 #   - Wallpapers shipped by the active theme
 #   - User wallpaper library
 #
-# The actual preference persistence is delegated to wallpaper-manager.sh.
+# Preference persistence and wallpaper application are delegated to:
+#
+#   wallpaper-manager.sh
 # ==============================================================================
 
 base="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles"
@@ -50,6 +58,18 @@ select_menu() {
         "$wofi_launcher" \
             --dmenu \
             --prompt "$prompt"
+}
+
+
+run_manager_action() {
+    local action="$1"
+    local target="$2"
+
+    "$wallpaper_manager" "$action" "$target"
+
+    notify \
+        "Wallpaper ${action}" \
+        "${THEME_ID} · ${target^^}"
 }
 
 
@@ -99,9 +119,15 @@ WALLPAPER_LIBRARY_DIR="${WALLPAPER_LIBRARY_DIR/#\~/$HOME}"
 # ------------------------------------------------------------------------------
 
 actions=(
-    "MAIN monitor"
-    "SECONDARY monitor"
-    "BOTH monitors"
+    "Select MAIN wallpaper"
+    "Select SECONDARY wallpaper"
+    "Select BOTH wallpapers"
+    "Random MAIN wallpaper"
+    "Random SECONDARY wallpaper"
+    "Random BOTH wallpapers"
+    "Next MAIN wallpaper"
+    "Next SECONDARY wallpaper"
+    "Next BOTH wallpapers"
     "Restore MAIN theme wallpaper"
     "Restore SECONDARY theme wallpaper"
     "Restore ALL theme wallpapers"
@@ -115,17 +141,50 @@ selection="$(select_menu "Wallpaper · ${THEME_ID}" "${actions[@]}")" \
 
 case "$selection" in
 
-    "MAIN monitor")
+    "Select MAIN wallpaper")
         target="main"
         ;;
 
-    "SECONDARY monitor")
+    "Select SECONDARY wallpaper")
         target="secondary"
         ;;
 
-    "BOTH monitors")
+    "Select BOTH wallpapers")
         target="both"
         ;;
+
+
+    "Random MAIN wallpaper")
+        run_manager_action random main
+        exit 0
+        ;;
+
+    "Random SECONDARY wallpaper")
+        run_manager_action random secondary
+        exit 0
+        ;;
+
+    "Random BOTH wallpapers")
+        run_manager_action random both
+        exit 0
+        ;;
+
+
+    "Next MAIN wallpaper")
+        run_manager_action next main
+        exit 0
+        ;;
+
+    "Next SECONDARY wallpaper")
+        run_manager_action next secondary
+        exit 0
+        ;;
+
+    "Next BOTH wallpapers")
+        run_manager_action next both
+        exit 0
+        ;;
+
 
     "Restore MAIN theme wallpaper")
         "$wallpaper_manager" reset main
@@ -153,7 +212,7 @@ esac
 
 
 # ------------------------------------------------------------------------------
-# Discover wallpapers
+# Discover wallpapers for manual selection
 # ------------------------------------------------------------------------------
 
 labels=()
@@ -244,7 +303,7 @@ fi
 
 
 # ------------------------------------------------------------------------------
-# Wallpaper menu
+# Manual wallpaper menu
 # ------------------------------------------------------------------------------
 
 wallpaper_selection="$(

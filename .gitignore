@@ -81,7 +81,7 @@ hosts/*/wallpaper.env
 
 !hosts/example/host.env
 !hosts/example/monitors.conf
-
+!hosts/example/wallpaper.env
 
 # ------------------------------------------------------------------------------
 # Backups

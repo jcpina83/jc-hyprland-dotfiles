@@ -72,6 +72,42 @@ awww_resize_mode() {
     esac
 }
 
+resolve_transition_preset() {
+    local preset="$1"
+
+    case "$preset" in
+        theme)
+            preset="${THEME_WALLPAPER_TRANSITION_PRESET:-default}"
+            ;;
+    esac
+
+    case "$preset" in
+        cyber-noir)
+            TRANSITION_PRESET_TYPE=wipe
+            TRANSITION_PRESET_DURATION=1.6
+            TRANSITION_PRESET_FPS=60
+            ;;
+
+        odyssey-glass)
+            TRANSITION_PRESET_TYPE=fade
+            TRANSITION_PRESET_DURATION=1.8
+            TRANSITION_PRESET_FPS=60
+            ;;
+
+        default|fade)
+            TRANSITION_PRESET_TYPE=fade
+            TRANSITION_PRESET_DURATION=1.2
+            TRANSITION_PRESET_FPS=60
+            ;;
+
+        *)
+            die "Unsupported wallpaper transition preset: $preset"
+            ;;
+    esac
+
+    TRANSITION_PRESET_NAME="$preset"
+}
+
 daemon_running() {
     pgrep -x "$1" >/dev/null 2>&1
 }
@@ -136,9 +172,14 @@ secondary_wallpaper="$(resolve_wallpaper "$secondary_value")"
     || die "Secondary wallpaper not found: $secondary_wallpaper"
 
 wallpaper_engine="${WALLPAPER_ENGINE_OVERRIDE:-${WALLPAPER_ENGINE:-auto}}"
-transition_type="${WALLPAPER_TRANSITION_TYPE_OVERRIDE:-${WALLPAPER_TRANSITION_TYPE:-fade}}"
-transition_duration="${WALLPAPER_TRANSITION_DURATION_OVERRIDE:-${WALLPAPER_TRANSITION_DURATION:-1.2}}"
-transition_fps="${WALLPAPER_TRANSITION_FPS_OVERRIDE:-${WALLPAPER_TRANSITION_FPS:-60}}"
+
+transition_preset="${WALLPAPER_TRANSITION_PRESET_OVERRIDE:-${WALLPAPER_TRANSITION_PRESET:-theme}}"
+
+resolve_transition_preset "$transition_preset"
+
+transition_type="${WALLPAPER_TRANSITION_TYPE_OVERRIDE:-${WALLPAPER_TRANSITION_TYPE:-$TRANSITION_PRESET_TYPE}}"
+transition_duration="${WALLPAPER_TRANSITION_DURATION_OVERRIDE:-${WALLPAPER_TRANSITION_DURATION:-$TRANSITION_PRESET_DURATION}}"
+transition_fps="${WALLPAPER_TRANSITION_FPS_OVERRIDE:-${WALLPAPER_TRANSITION_FPS:-$TRANSITION_PRESET_FPS}}"
 
 case "$wallpaper_engine" in
     auto)
@@ -227,6 +268,8 @@ apply_awww() {
     printf 'Applying wallpapers with awww:\n'
     printf '  MAIN       %s -> %s\n' "$MAIN_OUTPUT" "$main_wallpaper"
     printf '  SECONDARY  %s -> %s\n' "$SECONDARY_OUTPUT" "$secondary_wallpaper"
+    printf '  PRESET     %s\n' "$TRANSITION_PRESET_NAME"
+
     printf '  TRANSITION %s / %ss / %s FPS\n' \
         "$transition_type" \
         "$transition_duration" \

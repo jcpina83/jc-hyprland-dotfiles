@@ -28,6 +28,7 @@ hypr_dir="$config_home/hypr"
 
 host_template="$repo_root/hosts/example/host.env"
 monitors_template="$repo_root/hosts/example/monitors.conf"
+wallpaper_template="$repo_root/hosts/example/wallpaper.env"
 
 hypr_bridge_template="$repo_root/config/hypr/hyprlang/templates/jc-dotfiles.conf.template"
 hypr_bridge="$hypr_dir/jc-dotfiles.conf"
@@ -145,6 +146,9 @@ ensure_local_file() {
 
 [[ -f "$monitors_template" ]] \
     || die "Missing monitor template: $monitors_template"
+
+[[ -f "$wallpaper_template" ]] \
+    || die "Missing wallpaper template: $wallpaper_template"
 
 [[ -f "$hypr_bridge_template" ]] \
     || die "Missing Hyprland bridge template: $hypr_bridge_template"
@@ -281,6 +285,9 @@ ensure_local_file \
     "$monitors_template" \
     "$local_dir/monitors.conf"
 
+ensure_local_file \
+    "$wallpaper_template" \
+    "$local_dir/wallpaper.env"
 
 # ----------------------------------------------------------------------------
 # Hyprland integration bridge
