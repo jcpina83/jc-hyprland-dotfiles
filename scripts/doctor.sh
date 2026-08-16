@@ -254,6 +254,7 @@ runtime_links=(
     "select-theme.sh:scripts/runtime/select-theme.sh"
     "start-swaync.sh:scripts/runtime/start-swaync.sh"
     "lock-session.sh:scripts/runtime/lock-session.sh"
+    "suspend-session.sh:scripts/runtime/suspend-session.sh"
     "launch-foot.sh:scripts/runtime/launch-foot.sh"
     "apply-wallpaper.sh:scripts/runtime/apply-wallpaper.sh"
     "jc-theme:scripts/theme.sh"
@@ -344,6 +345,32 @@ if [[ -r "$nwgbar_config" ]]; then
     else
 
         warn "nwgbar exists but Lock does not use jc lock-session.sh"
+
+    fi
+
+
+    if grep -Fq \
+        'jc-hyprland-dotfiles/bin/suspend-session.sh' \
+        "$nwgbar_config"; then
+
+        ok "nwgbar Suspend uses jc suspend-session.sh"
+
+    else
+
+        warn "nwgbar exists but Suspend does not use jc suspend-session.sh"
+
+    fi
+
+
+    if grep -Fq \
+        '"exec": "uwsm stop"' \
+        "$nwgbar_config"; then
+
+        ok "nwgbar Logout uses uwsm stop"
+
+    else
+
+        warn "nwgbar exists but Logout does not use uwsm stop"
 
     fi
 

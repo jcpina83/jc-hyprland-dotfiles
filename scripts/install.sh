@@ -208,7 +208,7 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/select-theme.sh" \
     "$bin_dir/select-theme.sh"
-    
+
 ensure_symlink \
     "$repo_root/scripts/runtime/start-swaync.sh" \
     "$bin_dir/start-swaync.sh"
@@ -216,6 +216,10 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/lock-session.sh" \
     "$bin_dir/lock-session.sh"
+
+ensure_symlink \
+    "$repo_root/scripts/runtime/suspend-session.sh" \
+    "$bin_dir/suspend-session.sh"    
 
 # ------------------------------------------------------------------------------
 # Hypridle integration
@@ -229,6 +233,18 @@ else
     "$repo_root/scripts/configure-hypridle.sh"
 fi
         
+# ------------------------------------------------------------------------------
+# nwgbar integration
+# ------------------------------------------------------------------------------
+
+log "Configuring nwgbar session integration..."
+
+if [[ "${DRY_RUN:-false}" == true ]]; then
+    "$repo_root/scripts/configure-nwgbar.sh" --dry-run
+else
+    "$repo_root/scripts/configure-nwgbar.sh"
+fi
+
 ensure_symlink \
     "$repo_root/scripts/runtime/launch-foot.sh" \
     "$bin_dir/launch-foot.sh"

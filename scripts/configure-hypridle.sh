@@ -32,7 +32,7 @@ fi
 
 
 log() {
-    printf '%s\n' "$*"
+    printf '[jc-hyprland-dotfiles] %s\n' "$*"
 }
 
 
