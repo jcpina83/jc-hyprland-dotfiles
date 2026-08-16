@@ -16,6 +16,9 @@ base="$config_home/jc-hyprland-dotfiles"
 local_dir="$base/local"
 bin_dir="$base/bin"
 
+quickshell_config="$config_home/quickshell/jc-hyprland"
+quickshell_config_expected="$repo_root/config/quickshell/jc-hyprland"
+
 host_env="$local_dir/host.env"
 wallpaper_env="$local_dir/wallpaper.env"
 
@@ -81,6 +84,7 @@ required_commands=(
     awww-daemon
     swaync
     swaync-client
+    qs
 )
 
 for command_name in "${required_commands[@]}"; do
@@ -249,6 +253,78 @@ fi
 
 
 # ==============================================================================
+# Quickshell
+# ==============================================================================
+
+section "Quickshell"
+
+if command -v qs >/dev/null 2>&1; then
+
+    quickshell_version="$(qs --version 2>/dev/null | head -1 || true)"
+
+    if [[ -n "$quickshell_version" ]]; then
+        ok "$quickshell_version"
+    else
+        warn "unable to read Quickshell version"
+    fi
+
+else
+    fail "qs unavailable"
+fi
+
+
+if [[ -L "$quickshell_config" ]]; then
+
+    quickshell_actual="$(readlink -f "$quickshell_config" 2>/dev/null || true)"
+    quickshell_expected="$(readlink -f "$quickshell_config_expected" 2>/dev/null || true)"
+
+    if [[ "$quickshell_actual" == "$quickshell_expected" ]]; then
+        ok "jc-hyprland config symlink"
+    else
+        fail "Quickshell config points to unexpected target: $quickshell_actual"
+    fi
+
+elif [[ -e "$quickshell_config" ]]; then
+
+    fail "Quickshell config exists but is not a symlink: $quickshell_config"
+
+else
+
+    fail "Quickshell config missing: $quickshell_config"
+
+fi
+
+
+quickshell_required_files=(
+    "shell.qml"
+    "Main.qml"
+    "services/MonitorService.qml"
+    "modules/displays/DisplayPopup.qml"
+)
+
+for relative in "${quickshell_required_files[@]}"; do
+
+    if [[ -r "$quickshell_config/$relative" ]]; then
+        ok "quickshell/$relative"
+    else
+        fail "missing Quickshell runtime file: $relative"
+    fi
+
+done
+
+
+if command -v qs >/dev/null 2>&1; then
+
+    if qs -c jc-hyprland ipc show >/dev/null 2>&1; then
+        ok "Quickshell IPC responsive"
+    else
+        warn "Quickshell shell is not running or IPC is unavailable"
+    fi
+
+fi
+
+
+# ==============================================================================
 # Runtime links
 # ==============================================================================
 
@@ -256,6 +332,8 @@ section "Runtime links"
 
 runtime_links=(
     "start-waybar.sh:scripts/runtime/start-waybar.sh"
+    "start-quickshell.sh:scripts/runtime/start-quickshell.sh"
+    "jc-control-center:scripts/runtime/jc-control-center.sh"
     "network-traffic.sh:scripts/runtime/network-traffic.sh"
     "amd-gpu.sh:scripts/runtime/amd-gpu.sh"
     "launch-wofi.sh:scripts/runtime/launch-wofi.sh"

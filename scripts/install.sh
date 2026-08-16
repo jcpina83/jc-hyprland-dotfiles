@@ -32,6 +32,13 @@ wallpaper_rotation_configurator="$repo_root/scripts/configure-wallpaper-rotation
 
 hypr_dir="$config_home/hypr"
 
+quickshell_dir="$config_home/quickshell"
+quickshell_config_source="$repo_root/config/quickshell/jc-hyprland"
+quickshell_config_target="$quickshell_dir/jc-hyprland"
+
+quickshell_launcher="$repo_root/scripts/runtime/start-quickshell.sh"
+control_center_wrapper="$repo_root/scripts/runtime/jc-control-center.sh"
+
 host_template="$repo_root/hosts/example/host.env"
 monitors_template="$repo_root/hosts/example/monitors.conf"
 wallpaper_template="$repo_root/hosts/example/wallpaper.env"
@@ -168,6 +175,15 @@ ensure_local_file() {
 [[ -f "$hypr_bridge_template" ]] \
     || die "Missing Hyprland bridge template: $hypr_bridge_template"
 
+[[ -r "$quickshell_config_source/shell.qml" ]] \
+    || die "Missing Quickshell configuration: $quickshell_config_source"
+
+[[ -x "$quickshell_launcher" ]] \
+    || die "Quickshell launcher is not executable: $quickshell_launcher"
+
+[[ -x "$control_center_wrapper" ]] \
+    || die "Control Center wrapper is not executable: $control_center_wrapper"
+
 
 # ============================================================================
 # Installation
@@ -187,6 +203,7 @@ run mkdir -p \
     "$local_dir" \
     "$bin_dir" \
     "$hypr_dir" \
+    "$quickshell_dir" \
     "$systemd_user_dir"
 
 
@@ -210,6 +227,14 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/start-waybar.sh" \
     "$bin_dir/start-waybar.sh"
+
+ensure_symlink \
+    "$quickshell_launcher" \
+    "$bin_dir/start-quickshell.sh"
+
+ensure_symlink \
+    "$control_center_wrapper" \
+    "$bin_dir/jc-control-center"
 
 ensure_symlink \
     "$repo_root/scripts/runtime/network-traffic.sh" \
@@ -288,6 +313,19 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/theme.sh" \
     "$bin_dir/jc-theme"
+
+# ------------------------------------------------------------------------------
+# Quickshell configuration
+#
+# ~/.config/quickshell/jc-hyprland
+#       ->
+# repository config/quickshell/jc-hyprland
+# ------------------------------------------------------------------------------
+
+ensure_symlink \
+    "$quickshell_config_source" \
+    "$quickshell_config_target"
+
 
 # ----------------------------------------------------------------------------
 # Local machine configuration
@@ -413,8 +451,14 @@ echo
 echo "Runtime:"
 echo "  $base/repo"
 echo "  $bin_dir/start-waybar.sh"
+echo "  $bin_dir/start-quickshell.sh"
+echo "  $bin_dir/jc-control-center"
 echo "  $bin_dir/network-traffic.sh"
 echo "  $bin_dir/amd-gpu.sh"
+
+echo
+echo "Quickshell:"
+echo "  $quickshell_config_target"
 
 echo
 echo "Local machine config:"

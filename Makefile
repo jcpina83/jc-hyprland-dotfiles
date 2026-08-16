@@ -1,4 +1,4 @@
-.PHONY: help doctor dry-run install apply tree lint waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply theme-validate portability-check check release-check version install-check clean-install-check hypridle-configure
+.PHONY: help doctor dry-run install apply tree lint quickshell-validate quickshell-test waybar-test waybar-stop waybar-replace theme-list theme-current theme-apply wallpaper-apply theme-validate portability-check check release-check version install-check clean-install-check hypridle-configure
 
 help:
 	@echo "jc-hyprland-dotfiles"
@@ -9,6 +9,8 @@ help:
 	@echo "  make install    	  				Install dotfiles"
 	@echo "  make apply      	  				Install and integrate Hyprland"
 	@echo "  make tree       	  				Show project structure"
+	@echo "  make quickshell-validate            Validate Quickshell structure and Phase 1A safety"
+	@echo "  make quickshell-test                Check Quickshell IPC for the running shell"
 	@echo "  make waybar-test     				Start Odyssey Glass bars without killing existing Waybar"
 	@echo "  make waybar-stop     				Stop only Odyssey Glass bars"
 	@echo "  make waybar-replace  				Replace existing Waybar with Odyssey Glass"	
@@ -34,6 +36,12 @@ tree:
 
 lint:
 	./scripts/lint.sh
+
+quickshell-validate:
+	./scripts/validate-quickshell.sh
+
+quickshell-test:
+	~/.config/jc-hyprland-dotfiles/bin/jc-control-center ipc-show
 
 waybar-test:
 	~/.config/jc-hyprland-dotfiles/bin/start-waybar.sh

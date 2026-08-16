@@ -87,6 +87,13 @@ else
     printf 'WARN python3 not installed; JSON/JSONC validation skipped.\n'
 fi
 
+printf '\n==> Quickshell\n'
+
+if ! "$repo_root/scripts/validate-quickshell.sh"; then
+    status=1
+fi
+
+
 printf '\n==> Themes\n'
 
 if ! "$repo_root/scripts/validate-themes.sh"; then

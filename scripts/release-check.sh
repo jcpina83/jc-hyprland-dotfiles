@@ -84,8 +84,9 @@ fi
 
 printf '\n==> Git diff validation\n'
 
-if git diff --check; then
+if git diff --check && git diff --cached --check; then
     ok "git diff --check"
+    ok "git diff --cached --check"
 else
     fail "Git whitespace errors detected"
 fi

@@ -25,35 +25,77 @@ It does **not**:
 - alter Waybar,
 - alter wallpaper services.
 
-## Local install
+## Installation
+
+The repository installer owns the runtime symlinks.
 
 From the repository root:
 
 ```bash
-mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
-
-ln -sfn \
-  "$PWD/config/quickshell/jc-hyprland" \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/jc-hyprland"
+./install.sh
 ```
 
-Start it:
+It installs:
 
-```bash
-./bin/start-quickshell.sh
+```text
+~/.config/quickshell/jc-hyprland
+    -> <repo>/config/quickshell/jc-hyprland
+
+~/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh
+    -> <repo>/scripts/runtime/start-quickshell.sh
+
+~/.config/jc-hyprland-dotfiles/bin/jc-control-center
+    -> <repo>/scripts/runtime/jc-control-center.sh
 ```
 
-## IPC
-
-With the shell running:
+## Start Quickshell
 
 ```bash
-qs ipc show
-qs ipc call controlCenter showDisplays
-qs ipc call controlCenter hideDisplays
-qs ipc call controlCenter toggleDisplays
-qs ipc call controlCenter refreshDisplays
-qs ipc call controlCenter displaysAreVisible
+~/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh
+```
+
+## Control Center IPC
+
+Preferred interface:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-control-center ipc-show
+~/.config/jc-hyprland-dotfiles/bin/jc-control-center show
+~/.config/jc-hyprland-dotfiles/bin/jc-control-center hide
+~/.config/jc-hyprland-dotfiles/bin/jc-control-center toggle
+~/.config/jc-hyprland-dotfiles/bin/jc-control-center refresh
+~/.config/jc-hyprland-dotfiles/bin/jc-control-center status
+```
+
+Direct Quickshell IPC remains available for diagnostics:
+
+```bash
+qs -c jc-hyprland ipc show
+qs -c jc-hyprland ipc call controlCenter showDisplays
+qs -c jc-hyprland ipc call controlCenter hideDisplays
+qs -c jc-hyprland ipc call controlCenter toggleDisplays
+qs -c jc-hyprland ipc call controlCenter refreshDisplays
+qs -c jc-hyprland ipc call controlCenter displaysAreVisible
+```
+
+## Quality gates
+
+Static Quickshell validation:
+
+```bash
+make quickshell-validate
+```
+
+Full repository quality gate:
+
+```bash
+make check
+```
+
+Runtime IPC smoke test, with Quickshell already running:
+
+```bash
+make quickshell-test
 ```
 
 ## Development
