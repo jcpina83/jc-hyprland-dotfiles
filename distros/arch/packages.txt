@@ -7,4 +7,5 @@ swaync
 hyprlock
 hypridle
 hyprpaper
+qt6-imageformats
 jq

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+theme_dir="/usr/share/sddm/themes/jc-hyprland"
+theme_conf="$theme_dir/theme.conf"
+
+die() {
+    printf 'ERROR: %s\n' "$*" >&2
+    exit 1
+}
+
+if (( EUID != 0 )); then
+    die "this helper must run as root"
+fi
+
+if [[ "$#" -ne 1 ]]; then
+    die "usage: $(basename "$0") {odyssey-glass|cyber-noir}"
+fi
+
+theme="$1"
+
+case "$theme" in
+    odyssey-glass|cyber-noir)
+        ;;
+    *)
+        die "unsupported theme: $theme"
+        ;;
+esac
+
+profile="$theme_dir/profiles/$theme.conf"
+background="$theme_dir/assets/$theme/background.webp"
+
+[[ -f "$profile" && ! -L "$profile" ]] \
+    || die "invalid or missing profile: $profile"
+
+[[ -f "$background" && ! -L "$background" ]] \
+    || die "invalid or missing background: $background"
+
+grep -Fqx "Variant=$theme" "$profile" \
+    || die "profile Variant does not match requested theme"
+
+grep -Fqx "Background=assets/$theme/background.webp" "$profile" \
+    || die "profile Background does not match installed asset"
+
+if cmp -s "$profile" "$theme_conf"; then
+    printf '[jc-hyprland-dotfiles] SDDM profile already active: %s\n' "$theme"
+    exit 0
+fi
+
+tmp_conf="$(mktemp "$theme_dir/.theme.conf.XXXXXX")"
+
+cleanup() {
+    rm -f -- "${tmp_conf:-}"
+}
+
+trap cleanup EXIT
+
+install \
+    -o root \
+    -g root \
+    -m 0644 \
+    "$profile" \
+    "$tmp_conf"
+
+mv -f -- "$tmp_conf" "$theme_conf"
+tmp_conf=""
+
+printf '[jc-hyprland-dotfiles] SDDM profile selected: %s\n' "$theme"
+printf '[jc-hyprland-dotfiles] It will be used by the next SDDM greeter.\n'

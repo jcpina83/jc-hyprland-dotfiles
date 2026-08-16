@@ -174,6 +174,46 @@ apply_theme() {
 
     echo "Active theme: $theme_name"
 
+    # ------------------------------------------------------------------------------
+    # Prepare and synchronize SDDM theme
+    #
+    # The generated artifact remains unprivileged and is useful for development
+    # and validation.
+    #
+    # If the system integration has been installed, the active SDDM profile is
+    # switched through a root-owned helper. The sudoers rule only permits the
+    # explicitly supported jc themes, so no user-controlled QML is copied as root
+    # during a normal theme switch.
+    # ------------------------------------------------------------------------------
+
+    sddm_prepare="$repo_root/scripts/runtime/prepare-sddm-theme.sh"
+    sddm_switch="/usr/local/libexec/jc-hyprland-sddm-switch"
+
+
+    if [[ -x "$sddm_prepare" ]]; then
+
+        echo
+        echo "Preparing SDDM theme..."
+
+        if ! "$sddm_prepare"; then
+            echo
+            echo "Theme activated, but SDDM theme preparation failed." >&2
+        fi
+
+    fi
+
+
+    if [[ -x "$sddm_switch" ]]; then
+
+        echo
+        echo "Synchronizing SDDM profile..."
+
+        if ! sudo -n "$sddm_switch" "$theme_name"; then
+            echo
+            echo "Theme activated, but SDDM profile synchronization failed." >&2
+        fi
+
+    fi
 
     # Reload Hyprland colors / appearance.
     if command -v hyprctl >/dev/null 2>&1; then
