@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_NAME="${JC_QUICKSHELL_CONFIG:-jc-hyprland}"
+
+if ! command -v qs >/dev/null 2>&1; then
+  echo "ERROR: quickshell (qs) is not installed or not in PATH." >&2
+  exit 1
+fi
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  jc-control-center show
+  jc-control-center hide
+  jc-control-center toggle
+  jc-control-center refresh
+  jc-control-center status
+  jc-control-center ipc-show
+USAGE
+}
+
+action="${1:-}"
+
+case "$action" in
+  show)
+    exec qs -c "$CONFIG_NAME" ipc call controlCenter showDisplays
+    ;;
+  hide)
+    exec qs -c "$CONFIG_NAME" ipc call controlCenter hideDisplays
+    ;;
+  toggle)
+    exec qs -c "$CONFIG_NAME" ipc call controlCenter toggleDisplays
+    ;;
+  refresh)
+    exec qs -c "$CONFIG_NAME" ipc call controlCenter refreshDisplays
+    ;;
+  status)
+    exec qs -c "$CONFIG_NAME" ipc call controlCenter displaysAreVisible
+    ;;
+  ipc-show)
+    exec qs -c "$CONFIG_NAME" ipc show
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
