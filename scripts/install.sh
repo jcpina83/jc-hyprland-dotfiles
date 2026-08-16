@@ -210,16 +210,20 @@ ensure_symlink \
     "$bin_dir/select-theme.sh"
 
 ensure_symlink \
+    "$repo_root/scripts/runtime/select-wallpaper.sh" \
+    "$bin_dir/select-wallpaper.sh"
+
+ensure_symlink \
     "$repo_root/scripts/runtime/start-swaync.sh" \
     "$bin_dir/start-swaync.sh"
-    
+
 ensure_symlink \
     "$repo_root/scripts/runtime/lock-session.sh" \
     "$bin_dir/lock-session.sh"
 
 ensure_symlink \
     "$repo_root/scripts/runtime/suspend-session.sh" \
-    "$bin_dir/suspend-session.sh"    
+    "$bin_dir/suspend-session.sh"
 
 # ------------------------------------------------------------------------------
 # Hypridle integration
@@ -232,7 +236,7 @@ if [[ "${DRY_RUN:-false}" == true ]]; then
 else
     "$repo_root/scripts/configure-hypridle.sh"
 fi
-        
+
 # ------------------------------------------------------------------------------
 # nwgbar integration
 # ------------------------------------------------------------------------------
@@ -254,9 +258,13 @@ ensure_symlink \
     "$bin_dir/apply-wallpaper.sh"
 
 ensure_symlink \
+    "$repo_root/scripts/runtime/wallpaper-manager.sh" \
+    "$bin_dir/wallpaper-manager.sh"
+
+ensure_symlink \
     "$repo_root/scripts/theme.sh" \
     "$bin_dir/jc-theme"
-                
+
 # ----------------------------------------------------------------------------
 # Local machine configuration
 #

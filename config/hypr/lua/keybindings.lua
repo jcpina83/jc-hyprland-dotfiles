@@ -11,6 +11,8 @@ local terminal =
 local theme_selector =
     home .. "/.config/jc-hyprland-dotfiles/bin/select-theme.sh"
 
+local wallpaper_selector =
+    home .. "/.config/jc-hyprland-dotfiles/bin/select-wallpaper.sh"
 
 -- -----------------------------------------------------------------------------
 -- Terminal
@@ -39,6 +41,21 @@ hl.unbind("SUPER + T")
 hl.bind(
     "SUPER + T",
     hl.dsp.exec_cmd(theme_selector)
+)
+
+
+-- -----------------------------------------------------------------------------
+-- Wallpaper selector
+--
+-- SUPER + W
+--     Open wallpaper selector.
+-- -----------------------------------------------------------------------------
+
+hl.unbind("SUPER + W")
+
+hl.bind(
+    "SUPER + W",
+    hl.dsp.exec_cmd(wallpaper_selector)
 )
 
 

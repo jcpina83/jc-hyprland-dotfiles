@@ -33,9 +33,15 @@ Usage:
   launch-wofi.sh --main
   launch-wofi.sh --secondary
   launch-wofi.sh --monitor OUTPUT
+
+  launch-wofi.sh --dmenu [--prompt TEXT]
+  launch-wofi.sh --dmenu [--prompt TEXT] --main
+  launch-wofi.sh --dmenu [--prompt TEXT] --secondary
+
   launch-wofi.sh --help
 
 Without a monitor option, Wofi decides which output to use.
+In dmenu mode, menu entries are read from standard input.
 EOF
 }
 
@@ -71,6 +77,8 @@ fi
 # ------------------------------------------------------------------------------
 
 monitor=""
+dmenu=false
+prompt=""
 
 while (($# > 0)); do
     case "$1" in
@@ -95,6 +103,19 @@ while (($# > 0)); do
                 || die "Missing monitor after --monitor"
 
             monitor="$1"
+            ;;
+
+        --dmenu)
+            dmenu=true
+            ;;
+
+        --prompt)
+            shift
+
+            (($# > 0)) \
+                || die "Missing text after --prompt"
+
+            prompt="$1"
             ;;
 
         --help|-h)
@@ -152,6 +173,17 @@ args=(
     --style "$generated_style"
 )
 
+if [[ "$dmenu" == true ]]; then
+    args+=(
+        --dmenu
+    )
+
+    if [[ -n "$prompt" ]]; then
+        args+=(
+            --prompt "$prompt"
+        )
+    fi
+fi
 
 if [[ -n "$monitor" ]]; then
     args+=(

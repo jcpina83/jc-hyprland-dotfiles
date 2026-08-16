@@ -6,6 +6,7 @@ foot
 swaync
 hyprlock
 hypridle
+awww
 hyprpaper
 qt6-imageformats
 jq

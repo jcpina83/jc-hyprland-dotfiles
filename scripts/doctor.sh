@@ -70,7 +70,8 @@ required_commands=(
     foot
     hyprlock
     hypridle
-    hyprpaper
+    awww
+    awww-daemon
     swaync
     swaync-client
 )
@@ -252,11 +253,13 @@ runtime_links=(
     "amd-gpu.sh:scripts/runtime/amd-gpu.sh"
     "launch-wofi.sh:scripts/runtime/launch-wofi.sh"
     "select-theme.sh:scripts/runtime/select-theme.sh"
+    "select-wallpaper.sh:scripts/runtime/select-wallpaper.sh"
     "start-swaync.sh:scripts/runtime/start-swaync.sh"
     "lock-session.sh:scripts/runtime/lock-session.sh"
     "suspend-session.sh:scripts/runtime/suspend-session.sh"
     "launch-foot.sh:scripts/runtime/launch-foot.sh"
     "apply-wallpaper.sh:scripts/runtime/apply-wallpaper.sh"
+    "wallpaper-manager.sh:scripts/runtime/wallpaper-manager.sh"
     "jc-theme:scripts/theme.sh"
 )
 
@@ -412,20 +415,87 @@ fi
 
 section "Wallpaper daemon"
 
-wpaperd_running=false
+awww_running=false
 hyprpaper_running=false
+wpaperd_running=false
+swww_running=false
+swaybg_running=false
+mpvpaper_running=false
 
-pgrep -x wpaperd >/dev/null 2>&1 && wpaperd_running=true
+
+pgrep -x awww-daemon >/dev/null 2>&1 && awww_running=true
 pgrep -x hyprpaper >/dev/null 2>&1 && hyprpaper_running=true
+pgrep -x wpaperd >/dev/null 2>&1 && wpaperd_running=true
+pgrep -x swww-daemon >/dev/null 2>&1 && swww_running=true
+pgrep -x swaybg >/dev/null 2>&1 && swaybg_running=true
+pgrep -x mpvpaper >/dev/null 2>&1 && mpvpaper_running=true
 
 
-if [[ "$wpaperd_running" == true && "$hyprpaper_running" == true ]]; then
+running_count=0
 
-    fail "wpaperd and hyprpaper are running simultaneously"
+for running in \
+    "$awww_running" \
+    "$hyprpaper_running" \
+    "$wpaperd_running" \
+    "$swww_running" \
+    "$swaybg_running" \
+    "$mpvpaper_running"
+do
+    if [[ "$running" == true ]]; then
+        ((running_count += 1))
+    fi
+done
+
+
+if (( running_count > 1 )); then
+
+    fail "multiple wallpaper daemons are running simultaneously"
+
+    [[ "$awww_running" == true ]] \
+        && printf '      awww-daemon\n'
+
+    [[ "$hyprpaper_running" == true ]] \
+        && printf '      hyprpaper\n'
+
+    [[ "$wpaperd_running" == true ]] \
+        && printf '      wpaperd\n'
+
+    [[ "$swww_running" == true ]] \
+        && printf '      swww-daemon\n'
+
+    [[ "$swaybg_running" == true ]] \
+        && printf '      swaybg\n'
+
+    [[ "$mpvpaper_running" == true ]] \
+        && printf '      mpvpaper\n'
+
+
+elif [[ "$awww_running" == true ]]; then
+
+    ok "awww-daemon running"
+
+    active_wallpapers="$(
+        awww query 2>/dev/null ||
+            true
+    )"
+
+    if [[ -n "$active_wallpapers" ]]; then
+        printf '%s\n' "$active_wallpapers" |
+            sed 's/^/      /'
+    else
+        warn "awww has no active wallpaper information"
+    fi
+
+    if command -v hyprpaper >/dev/null 2>&1; then
+        ok "hyprpaper fallback available"
+    else
+        warn "hyprpaper fallback is not installed"
+    fi
+
 
 elif [[ "$hyprpaper_running" == true ]]; then
 
-    ok "hyprpaper running"
+    warn "hyprpaper fallback active; awww is the preferred backend"
 
     active_wallpapers="$(
         hyprctl hyprpaper listactive 2>/dev/null ||
@@ -439,12 +509,31 @@ elif [[ "$hyprpaper_running" == true ]]; then
         warn "hyprpaper has no active wallpaper information"
     fi
 
+
 elif [[ "$wpaperd_running" == true ]]; then
 
-    warn "wpaperd running; jc-hyprland-dotfiles expects hyprpaper"
+    warn "wpaperd running; jc-hyprland-dotfiles expects awww"
+
+
+elif [[ "$swww_running" == true ]]; then
+
+    warn "swww-daemon running; jc-hyprland-dotfiles expects awww"
+
+
+elif [[ "$swaybg_running" == true ]]; then
+
+    warn "swaybg running; jc-hyprland-dotfiles expects awww"
+
+
+elif [[ "$mpvpaper_running" == true ]]; then
+
+    warn "mpvpaper running; jc-hyprland-dotfiles expects awww"
+
 
 else
+
     warn "no wallpaper daemon detected"
+
 fi
 
 
