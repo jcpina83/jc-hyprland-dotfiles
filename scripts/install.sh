@@ -237,6 +237,10 @@ ensure_symlink \
     "$bin_dir/jc-control-center"
 
 ensure_symlink \
+    "$repo_root/scripts/runtime/jc-mpv.sh" \
+    "$bin_dir/jc-mpv"
+
+ensure_symlink \
     "$repo_root/scripts/runtime/network-traffic.sh" \
     "$bin_dir/network-traffic.sh"
 

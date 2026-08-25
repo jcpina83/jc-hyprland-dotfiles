@@ -21,6 +21,13 @@ require("jc-dotfiles/appearance")
 
 
 -- -----------------------------------------------------------------------------
+-- Gaming / HDR rendering
+-- -----------------------------------------------------------------------------
+
+require("jc-dotfiles/gaming")
+
+
+-- -----------------------------------------------------------------------------
 -- Animations
 -- -----------------------------------------------------------------------------
 
@@ -32,6 +39,31 @@ require("jc-dotfiles/animations")
 -- -----------------------------------------------------------------------------
 
 require("jc-dotfiles/autostart")
+
+
+-- -----------------------------------------------------------------------------
+-- Machine-local monitor configuration
+--
+-- Hardware-specific monitor descriptors, serials, modes and layout remain
+-- outside the Git repository.
+-- -----------------------------------------------------------------------------
+
+local home = os.getenv("HOME")
+
+if home then
+    local monitors_file =
+        home .. "/.config/jc-hyprland-dotfiles/local/monitors.lua"
+
+    local monitors_chunk, monitors_error = loadfile(monitors_file)
+
+    if monitors_chunk then
+        monitors_chunk()
+    elseif monitors_error
+        and not monitors_error:match("No such file or directory")
+    then
+        error(monitors_error)
+    end
+end
 
 
 -- -----------------------------------------------------------------------------
