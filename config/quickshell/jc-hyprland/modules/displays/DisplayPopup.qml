@@ -9,15 +9,17 @@ PanelWindow {
 
     property var targetScreen
     property var monitorService
+    property var draftStore
     property var theme
 
     signal closeRequested()
     signal refreshRequested()
+    signal resetRequested()
 
     screen: targetScreen
 
-    implicitWidth: 760
-    implicitHeight: 600
+    implicitWidth: 820
+    implicitHeight: 680
 
     color: "transparent"
     focusable: true
@@ -62,16 +64,38 @@ PanelWindow {
                     }
 
                     Text {
-                        text: root.monitorService
-                            ? root.monitorService.activeCount
+                        text: {
+                            if (!root.monitorService)
+                                return "Monitor service unavailable";
+
+                            const base =
+                                root.monitorService.activeCount
                                 + " active / "
                                 + root.monitorService.count
-                                + " detected"
-                            : "Monitor service unavailable"
+                                + " detected";
+
+                            if (root.draftStore && root.draftStore.hasDirty) {
+                                return base
+                                    + " · "
+                                    + root.draftStore.dirtyCount
+                                    + " draft change(s)";
+                            }
+
+                            return base;
+                        }
 
                         color: root.theme ? root.theme.textSecondary : "#b8b8c0"
                         font.pixelSize: 12
                     }
+                }
+
+                Components.JcButton {
+                    visible: root.draftStore && root.draftStore.hasDirty
+
+                    theme: root.theme
+                    text: "Reset"
+
+                    onClicked: root.resetRequested()
                 }
 
                 Components.JcButton {
@@ -83,6 +107,7 @@ PanelWindow {
 
                     controlEnabled:
                         !(root.monitorService && root.monitorService.loading)
+                        && !(root.draftStore && root.draftStore.hasDirty)
 
                     onClicked: root.refreshRequested()
                 }
@@ -96,7 +121,7 @@ PanelWindow {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                implicitHeight: 1
                 color: root.theme ? root.theme.border : "#3b3b43"
             }
 
@@ -107,6 +132,21 @@ PanelWindow {
                 Layout.fillWidth: true
                 text: root.monitorService ? root.monitorService.errorMessage : ""
                 color: root.theme ? root.theme.error : "#f38ba8"
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                visible: root.draftStore
+                    && root.draftStore.observedChangedWhileDirty
+
+                Layout.fillWidth: true
+
+                text:
+                    "Hyprland monitor state changed while a draft was being "
+                    + "edited. Reset the draft before continuing."
+
+                color: root.theme ? root.theme.warning : "#f9e2af"
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
             }
@@ -152,8 +192,10 @@ PanelWindow {
 
                         delegate: DisplayCard {
                             width: contentColumn.width
+
                             theme: root.theme
                             monitor: modelData
+                            draftStore: root.draftStore
                         }
                     }
                 }
@@ -165,17 +207,25 @@ PanelWindow {
                 Text {
                     Layout.fillWidth: true
 
-                    text: root.monitorService
-                            && root.monitorService.lastRefresh.length > 0
-                        ? "Last refresh: " + root.monitorService.lastRefresh
-                        : "Read-only mode"
+                    text: {
+                        if (root.draftStore && root.draftStore.hasDirty)
+                            return "Draft changes are local to the UI.";
+
+                        if (root.monitorService
+                                && root.monitorService.lastRefresh.length > 0) {
+                            return "Last refresh: "
+                                + root.monitorService.lastRefresh;
+                        }
+
+                        return "No system changes are executed.";
+                    }
 
                     color: root.theme ? root.theme.textSecondary : "#b8b8c0"
                     font.pixelSize: 11
                 }
 
                 Text {
-                    text: "Phase 1A · Read only"
+                    text: "Phase 1B.1 · Draft only"
                     color: root.theme ? root.theme.accent : "#89b4fa"
                     font.pixelSize: 11
                     font.bold: true

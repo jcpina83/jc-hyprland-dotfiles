@@ -26,12 +26,33 @@ Scope {
         return Quickshell.screens[0];
     }
 
+    function showDisplays() {
+        root.displaysVisible = true;
+        monitorService.refresh();
+    }
+
+    function hideDisplays() {
+        root.displaysVisible = false;
+        displayDraftStore.reset();
+    }
+
     Theme.Theme {
         id: theme
     }
 
+    Services.MonitorModeParser {
+        id: monitorModeParser
+    }
+
     Services.MonitorService {
         id: monitorService
+    }
+
+    Services.DisplayDraftStore {
+        id: displayDraftStore
+
+        monitorService: monitorService
+        modeParser: monitorModeParser
     }
 
     Displays.DisplayPopup {
@@ -39,34 +60,37 @@ Scope {
 
         visible: root.displaysVisible
         targetScreen: root.resolveScreen(monitorService.focusedOutputName)
+
         monitorService: monitorService
+        draftStore: displayDraftStore
         theme: theme
 
-        onCloseRequested: root.displaysVisible = false
+        onCloseRequested: root.hideDisplays()
         onRefreshRequested: monitorService.refresh()
+        onResetRequested: displayDraftStore.reset()
     }
 
     IpcHandler {
         target: "controlCenter"
 
         function toggleDisplays(): void {
-            root.displaysVisible = !root.displaysVisible;
-
             if (root.displaysVisible)
-                monitorService.refresh();
+                root.hideDisplays();
+            else
+                root.showDisplays();
         }
 
         function showDisplays(): void {
-            root.displaysVisible = true;
-            monitorService.refresh();
+            root.showDisplays();
         }
 
         function hideDisplays(): void {
-            root.displaysVisible = false;
+            root.hideDisplays();
         }
 
         function refreshDisplays(): void {
-            monitorService.refresh();
+            if (!displayDraftStore.hasDirty)
+                monitorService.refresh();
         }
 
         function displaysAreVisible(): bool {

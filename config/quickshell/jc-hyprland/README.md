@@ -1,65 +1,145 @@
-# JC Hyprland Quickshell — Phase 1A
+# JC Hyprland Quickshell
 
-Initial read-only Quickshell control-center foundation.
+Custom Quickshell control-center implementation for `jc-hyprland-dotfiles`.
 
-## Responsibilities
+## Current milestone
 
-- `shell.qml`: shell entrypoint only.
-- `Main.qml`: composition root, popup visibility, screen selection and IPC.
-- `services/MonitorService.qml`: Hyprland adapter and normalized monitor model.
-- `modules/displays/DisplayPopup.qml`: display popup composition only.
-- `modules/displays/DisplayLayout.qml`: read-only topology visualization.
-- `modules/displays/DisplayCard.qml`: one monitor's read-only details.
-- `components/`: reusable visual primitives.
-- `theme/Theme.qml`: design tokens.
+### Phase 1B.1 — editable display draft
 
-## Phase 1A constraints
+The displays module can now:
 
-This phase is intentionally read-only.
+- discover monitors from Hyprland,
+- normalize live monitor state,
+- read real `availableModes`,
+- visualize topology,
+- create one independent draft per output,
+- change draft resolution,
+- constrain refresh-rate choices to the selected resolution,
+- track dirty state,
+- reset draft changes.
 
-It does **not**:
+This milestone is still intentionally **read-only with respect to Hyprland**.
 
-- run `hyprctl keyword monitor`,
-- write `monitors.conf`,
-- change resolution, scale or refresh rate,
-- alter Waybar,
-- alter wallpaper services.
-
-## Installation
-
-The repository installer owns the runtime symlinks.
-
-From the repository root:
-
-```bash
-./install.sh
-```
-
-It installs:
+It does not execute:
 
 ```text
-~/.config/quickshell/jc-hyprland
-    -> <repo>/config/quickshell/jc-hyprland
-
-~/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh
-    -> <repo>/scripts/runtime/start-quickshell.sh
-
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center
-    -> <repo>/scripts/runtime/jc-control-center.sh
+hyprctl keyword monitor ...
 ```
 
-## Start Quickshell
+and it does not write:
+
+```text
+~/.config/jc-hyprland-dotfiles/local/monitors.conf
+```
+
+## Architecture
+
+```text
+Hyprland
+   │
+   ▼
+MonitorService                  observed state
+   │
+   ▼
+MonitorModeParser
+   │
+   ▼
+DisplayDraftStore               editable state
+   │
+   ▼
+DisplayPopup / DisplayCard      presentation
+```
+
+Observed state and draft state are intentionally separate.
+
+## Files
+
+```text
+jc-hyprland/
+├── shell.qml
+├── Main.qml
+├── components/
+│   ├── JcButton.qml
+│   ├── JcCard.qml
+│   └── JcChoiceGroup.qml
+├── services/
+│   ├── MonitorService.qml
+│   ├── MonitorModeParser.qml
+│   └── DisplayDraftStore.qml
+├── modules/
+│   └── displays/
+│       ├── DisplayPopup.qml
+│       ├── DisplayLayout.qml
+│       └── DisplayCard.qml
+└── theme/
+    └── Theme.qml
+```
+
+## Mode model
+
+A Hyprland mode such as:
+
+```text
+3440x1440@165.00Hz
+```
+
+is normalized into:
+
+```text
+raw
+width
+height
+refreshRate
+resolutionKey
+```
+
+Exact duplicate mode strings are removed. Close-but-different refresh rates such
+as `120.00 Hz` and `119.88 Hz` remain independent modes.
+
+## Resolution / refresh relationship
+
+Refresh rate is not treated as an independent global list.
+
+```text
+selected resolution
+        │
+        ▼
+valid modes for resolution
+        │
+        ▼
+refresh-rate choices
+```
+
+This prevents the UI from constructing a mode that the monitor did not report.
+
+## Draft lifecycle
+
+```text
+MonitorService refresh
+        │
+        ▼
+DisplayDraftStore
+        │
+        ├── edit resolution
+        ├── edit refresh mode
+        ├── dirty
+        └── reset
+```
+
+If Hyprland monitor state changes while a draft is dirty, the draft is preserved
+and marked stale instead of being overwritten silently.
+
+## Runtime
+
+Start:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh
 ```
 
-## Control Center IPC
-
-Preferred interface:
+Control:
 
 ```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center ipc-show
 ~/.config/jc-hyprland-dotfiles/bin/jc-control-center show
 ~/.config/jc-hyprland-dotfiles/bin/jc-control-center hide
 ~/.config/jc-hyprland-dotfiles/bin/jc-control-center toggle
@@ -67,38 +147,27 @@ Preferred interface:
 ~/.config/jc-hyprland-dotfiles/bin/jc-control-center status
 ```
 
-Direct Quickshell IPC remains available for diagnostics:
-
-```bash
-qs -c jc-hyprland ipc show
-qs -c jc-hyprland ipc call controlCenter showDisplays
-qs -c jc-hyprland ipc call controlCenter hideDisplays
-qs -c jc-hyprland ipc call controlCenter toggleDisplays
-qs -c jc-hyprland ipc call controlCenter refreshDisplays
-qs -c jc-hyprland ipc call controlCenter displaysAreVisible
-```
-
-## Quality gates
-
-Static Quickshell validation:
+## Validation
 
 ```bash
 make quickshell-validate
-```
-
-Full repository quality gate:
-
-```bash
+make quickshell-test
 make check
 ```
 
-Runtime IPC smoke test, with Quickshell already running:
+## Next milestone
 
-```bash
-make quickshell-test
+Phase 1B.2 will introduce a dedicated runtime apply boundary:
+
+```text
+DisplayDraftStore
+        │
+        ▼
+ApplyService
+        │
+        ▼
+Hyprland
 ```
 
-## Development
-
-Create an empty `.qmlls.ini` next to `shell.qml` if you want Quickshell
-to manage QML language-server configuration. It is ignored by Git.
+That service will be added only after Phase 1B.1 is validated visually and at
+runtime.

@@ -7,6 +7,22 @@ Components.JcCard {
     id: root
 
     property var monitor
+    property var draftStore
+
+    readonly property var draft:
+        root.monitor && root.draftStore
+            ? root.draftStore.draftFor(root.monitor.output)
+            : null
+
+    readonly property var resolutionOptions:
+        root.monitor && root.draftStore
+            ? root.draftStore.resolutionOptionsFor(root.monitor.output)
+            : []
+
+    readonly property var refreshOptions:
+        root.monitor && root.draftStore
+            ? root.draftStore.refreshOptionsFor(root.monitor.output)
+            : []
 
     implicitHeight: content.implicitHeight + 28
 
@@ -45,7 +61,9 @@ Components.JcCard {
             }
 
             Text {
-                text: root.monitor && root.monitor.disabled ? "Disabled" : "Active"
+                text: root.monitor && root.monitor.disabled
+                    ? "Disabled"
+                    : "Active"
 
                 color: root.monitor && root.monitor.disabled
                     ? (root.theme ? root.theme.warning : "#f9e2af")
@@ -82,7 +100,7 @@ Components.JcCard {
             rowSpacing: 6
 
             Text {
-                text: "Mode"
+                text: "Current mode"
                 color: root.theme ? root.theme.textSecondary : "#b8b8c0"
                 font.pixelSize: 12
             }
@@ -154,6 +172,91 @@ Components.JcCard {
                 color: root.theme ? root.theme.textPrimary : "#f2f2f4"
                 font.pixelSize: 12
             }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 1
+            color: root.theme ? root.theme.border : "#3b3b43"
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Text {
+                Layout.fillWidth: true
+
+                text: "Draft settings"
+                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
+                font.pixelSize: 13
+                font.bold: true
+            }
+
+            Text {
+                text: root.draft && root.draft.dirty
+                    ? "Modified"
+                    : "Matches current"
+
+                color: root.draft && root.draft.dirty
+                    ? (root.theme ? root.theme.warning : "#f9e2af")
+                    : (root.theme ? root.theme.success : "#a6e3a1")
+
+                font.pixelSize: 11
+                font.bold: true
+            }
+        }
+
+        Text {
+            text: "Resolution"
+            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+            font.pixelSize: 11
+        }
+
+        Components.JcChoiceGroup {
+            Layout.fillWidth: true
+
+            theme: root.theme
+            options: root.resolutionOptions
+            selectedValue: root.draft ? root.draft.resolutionKey : ""
+            emptyText: "No valid resolutions reported"
+
+            onValueSelected: value => {
+                if (root.monitor && root.draftStore)
+                    root.draftStore.setResolution(root.monitor.output, value);
+            }
+        }
+
+        Text {
+            text: "Refresh rate"
+            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+            font.pixelSize: 11
+        }
+
+        Components.JcChoiceGroup {
+            Layout.fillWidth: true
+
+            theme: root.theme
+            options: root.refreshOptions
+            selectedValue: root.draft ? root.draft.modeRaw : ""
+            emptyText: "No valid refresh rates reported"
+
+            onValueSelected: value => {
+                if (root.monitor && root.draftStore)
+                    root.draftStore.setRefreshMode(root.monitor.output, value);
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+
+            text: root.draft
+                ? "Draft: "
+                    + root.draft.width + "×" + root.draft.height
+                    + " @ " + root.draft.refreshRate.toFixed(2) + " Hz"
+                : "Draft unavailable"
+
+            color: root.theme ? root.theme.accent : "#89b4fa"
+            font.pixelSize: 11
         }
     }
 }
