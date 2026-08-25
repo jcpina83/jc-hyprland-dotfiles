@@ -237,8 +237,8 @@ ensure_symlink \
     "$bin_dir/jc-control-center"
 
 ensure_symlink \
-    "$repo_root/scripts/runtime/jc-mpv.sh" \
-    "$bin_dir/jc-mpv"
+    "$repo_root/scripts/runtime/jc-displayctl.sh" \
+    "$bin_dir/jc-displayctl"
 
 ensure_symlink \
     "$repo_root/scripts/runtime/network-traffic.sh" \
@@ -457,6 +457,7 @@ echo "  $base/repo"
 echo "  $bin_dir/start-waybar.sh"
 echo "  $bin_dir/start-quickshell.sh"
 echo "  $bin_dir/jc-control-center"
+echo "  $bin_dir/jc-displayctl"
 echo "  $bin_dir/network-traffic.sh"
 echo "  $bin_dir/amd-gpu.sh"
 

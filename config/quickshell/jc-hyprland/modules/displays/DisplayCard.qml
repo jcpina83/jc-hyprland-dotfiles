@@ -8,6 +8,7 @@ Components.JcCard {
 
     property var monitor
     property var draftStore
+    property bool editorEnabled: true
 
     readonly property var draft:
         root.monitor && root.draftStore
@@ -218,6 +219,7 @@ Components.JcCard {
             theme: root.theme
             options: root.resolutionOptions
             selectedValue: root.draft ? root.draft.resolutionKey : ""
+            controlEnabled: root.editorEnabled
             emptyText: "No valid resolutions reported"
 
             onValueSelected: value => {
@@ -238,6 +240,7 @@ Components.JcCard {
             theme: root.theme
             options: root.refreshOptions
             selectedValue: root.draft ? root.draft.modeRaw : ""
+            controlEnabled: root.editorEnabled
             emptyText: "No valid refresh rates reported"
 
             onValueSelected: value => {

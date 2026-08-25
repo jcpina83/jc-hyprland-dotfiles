@@ -55,6 +55,13 @@ Scope {
         modeParser: monitorModeParser
     }
 
+    Services.MonitorApplyService {
+        id: monitorApplyService
+
+        monitorService: monitorService
+        draftStore: displayDraftStore
+    }
+
     Displays.DisplayPopup {
         id: displayPopup
 
@@ -63,11 +70,13 @@ Scope {
 
         monitorService: monitorService
         draftStore: displayDraftStore
+        applyService: monitorApplyService
         theme: theme
 
         onCloseRequested: root.hideDisplays()
         onRefreshRequested: monitorService.refresh()
         onResetRequested: displayDraftStore.reset()
+        onApplyRequested: monitorApplyService.applyDirty()
     }
 
     IpcHandler {

@@ -1,173 +1,161 @@
 # JC Hyprland Quickshell
 
-Custom Quickshell control-center implementation for `jc-hyprland-dotfiles`.
+Custom Quickshell Control Center for `jc-hyprland-dotfiles`.
 
 ## Current milestone
 
-### Phase 1B.1 — editable display draft
+### Phase 1B.2 — runtime display apply
 
-The displays module can now:
+The displays module now supports:
 
-- discover monitors from Hyprland,
-- normalize live monitor state,
-- read real `availableModes`,
-- visualize topology,
-- create one independent draft per output,
-- change draft resolution,
-- constrain refresh-rate choices to the selected resolution,
-- track dirty state,
-- reset draft changes.
+- live monitor discovery,
+- real `availableModes`,
+- topology visualization,
+- editable per-output draft state,
+- resolution selection,
+- refresh-rate selection constrained by resolution,
+- dirty/reset handling,
+- runtime-only apply for one monitor at a time.
 
-This milestone is still intentionally **read-only with respect to Hyprland**.
+Persistence remains separate and is **not modified** in this phase.
 
-It does not execute:
+## Mutation boundary
 
 ```text
-hyprctl keyword monitor ...
+Display UI
+    │
+    ▼
+DisplayDraftStore
+    │
+    ▼
+MonitorApplyService
+    │
+    ▼
+~/.config/jc-hyprland-dotfiles/bin/jc-displayctl
+    │
+    ▼
+hyprctl eval / hl.monitor(...)
+    │
+    ▼
+Hyprland runtime
 ```
 
-and it does not write:
+The QML UI never runs `hyprctl` directly.
+
+## Why jc-displayctl preserves the persistent rule
+
+Hyprland 0.55+ uses Lua monitor rules:
+
+```lua
+hl.monitor({
+    output = "DP-1",
+    mode = "1920x1080@144",
+    position = "0x0",
+    scale = 1
+})
+```
+
+Monitor rules also contain fields such as:
+
+```text
+transform
+bitdepth
+cm
+vrr
+sdrbrightness
+sdrsaturation
+...
+```
+
+Phase 1B.2 changes only `mode`.
+
+`jc-displayctl` therefore reads the existing machine-local Hyprlang monitor rule
+from:
 
 ```text
 ~/.config/jc-hyprland-dotfiles/local/monitors.conf
 ```
 
-## Architecture
+and reconstructs the runtime Lua rule while preserving supported extra fields.
+
+The file is never written by Phase 1B.2.
+
+If an unknown monitor option is present, `jc-displayctl` refuses the apply rather
+than silently dropping it.
+
+## One-monitor transaction
+
+This first runtime mutation milestone applies exactly one dirty output at a time.
 
 ```text
-Hyprland
-   │
-   ▼
-MonitorService                  observed state
-   │
-   ▼
-MonitorModeParser
-   │
-   ▼
-DisplayDraftStore               editable state
-   │
-   ▼
-DisplayPopup / DisplayCard      presentation
+dirtyCount = 0  -> nothing to apply
+dirtyCount = 1  -> Apply enabled
+dirtyCount > 1  -> Apply blocked
 ```
 
-Observed state and draft state are intentionally separate.
+This keeps the first mutation boundary simple and avoids partial multi-output
+transactions before rollback support exists.
 
-## Files
+## Runtime backend
 
-```text
-jc-hyprland/
-├── shell.qml
-├── Main.qml
-├── components/
-│   ├── JcButton.qml
-│   ├── JcCard.qml
-│   └── JcChoiceGroup.qml
-├── services/
-│   ├── MonitorService.qml
-│   ├── MonitorModeParser.qml
-│   └── DisplayDraftStore.qml
-├── modules/
-│   └── displays/
-│       ├── DisplayPopup.qml
-│       ├── DisplayLayout.qml
-│       └── DisplayCard.qml
-└── theme/
-    └── Theme.qml
-```
-
-## Mode model
-
-A Hyprland mode such as:
-
-```text
-3440x1440@165.00Hz
-```
-
-is normalized into:
-
-```text
-raw
-width
-height
-refreshRate
-resolutionKey
-```
-
-Exact duplicate mode strings are removed. Close-but-different refresh rates such
-as `120.00 Hz` and `119.88 Hz` remain independent modes.
-
-## Resolution / refresh relationship
-
-Refresh rate is not treated as an independent global list.
-
-```text
-selected resolution
-        │
-        ▼
-valid modes for resolution
-        │
-        ▼
-refresh-rate choices
-```
-
-This prevents the UI from constructing a mode that the monitor did not report.
-
-## Draft lifecycle
-
-```text
-MonitorService refresh
-        │
-        ▼
-DisplayDraftStore
-        │
-        ├── edit resolution
-        ├── edit refresh mode
-        ├── dirty
-        └── reset
-```
-
-If Hyprland monitor state changes while a draft is dirty, the draft is preserved
-and marked stale instead of being overwritten silently.
-
-## Runtime
-
-Start:
+Preflight without modifying Hyprland:
 
 ```bash
-~/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh
+~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
+    preflight \
+    --output DP-1 \
+    --mode 3440x1440@165.00
 ```
 
-Control:
+Apply runtime-only:
 
 ```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center show
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center hide
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center toggle
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center refresh
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center status
+~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
+    apply \
+    --output DP-1 \
+    --mode 3440x1440@165.00
 ```
+
+Normal use should happen through the Control Center UI.
 
 ## Validation
 
 ```bash
 make quickshell-validate
-make quickshell-test
+make lint
 make check
 ```
 
+## Phase boundary
+
+Phase 1B.2 does not provide:
+
+- confirmation countdown,
+- automatic rollback,
+- scale editing,
+- orientation editing,
+- position editing,
+- monitor enable/disable,
+- persistent `monitors.conf` writes.
+
+Those remain separate milestones.
+
 ## Next milestone
 
-Phase 1B.2 will introduce a dedicated runtime apply boundary:
+Phase 1B.3 will add Safe Apply:
 
 ```text
-DisplayDraftStore
-        │
-        ▼
-ApplyService
-        │
-        ▼
-Hyprland
+Observed snapshot
+      │
+      ▼
+Temporary runtime apply
+      │
+      ▼
+Confirmation countdown
+      │
+      ├── Keep
+      └── Rollback
 ```
 
-That service will be added only after Phase 1B.1 is validated visually and at
-runtime.
+Only after Safe Apply is proven will higher-risk fields such as scale,
+orientation and topology be exposed.

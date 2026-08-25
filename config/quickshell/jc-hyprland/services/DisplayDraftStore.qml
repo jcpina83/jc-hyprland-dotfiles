@@ -126,6 +126,30 @@ Scope {
         return index >= 0 ? root.drafts[index] : null;
     }
 
+    function dirtyDrafts() {
+        const result = [];
+
+        for (let i = 0; i < root.drafts.length; ++i) {
+            if (root.drafts[i].dirty)
+                result.push(root.drafts[i]);
+        }
+
+        return result;
+    }
+
+    function prepareForRefreshAfterApply() {
+        const next = [];
+
+        for (let i = 0; i < root.drafts.length; ++i) {
+            const current = root.copyDraft(root.drafts[i]);
+            current.dirty = false;
+            next.push(current);
+        }
+
+        root.drafts = next;
+        root.observedChangedWhileDirty = false;
+    }
+
     function isDirty(draft) {
         if (!draft)
             return false;

@@ -45,6 +45,7 @@ printf '==> Clean-install source validation\n'
 quickshell_config="$repo_root/config/quickshell/jc-hyprland"
 quickshell_launcher="$repo_root/scripts/runtime/start-quickshell.sh"
 control_center_wrapper="$repo_root/scripts/runtime/jc-control-center.sh"
+display_controller="$repo_root/scripts/runtime/jc-displayctl.sh"
 
 if [[ -r "$quickshell_config/shell.qml" ]]; then
     ok "Quickshell config source"
@@ -62,6 +63,12 @@ if [[ -x "$control_center_wrapper" ]]; then
     ok "Control Center wrapper source"
 else
     fail "missing or non-executable wrapper: $control_center_wrapper"
+fi
+
+if [[ -x "$display_controller" ]]; then
+    ok "Display controller source"
+else
+    fail "missing or non-executable controller: $display_controller"
 fi
 
 
@@ -93,6 +100,7 @@ expected_targets=(
     "$test_home/.config/quickshell/jc-hyprland"
     "$test_home/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-control-center"
+    "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displayctl"
 )
 
 for target in "${expected_targets[@]}"; do
@@ -116,6 +124,7 @@ unexpected_links=(
     "$test_home/.config/quickshell/jc-hyprland"
     "$test_home/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-control-center"
+    "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displayctl"
 )
 
 for target in "${unexpected_links[@]}"; do

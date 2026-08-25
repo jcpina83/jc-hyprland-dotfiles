@@ -8,6 +8,7 @@ Item {
     property var options: []
     property string selectedValue: ""
     property string emptyText: "No options"
+    property bool controlEnabled: true
 
     signal valueSelected(string value)
 
@@ -41,6 +42,7 @@ Item {
 
                 text: String(modelData.label)
                 checked: String(modelData.value) === root.selectedValue
+                controlEnabled: root.controlEnabled
 
                 onClicked: root.valueSelected(String(modelData.value))
             }

@@ -334,7 +334,7 @@ runtime_links=(
     "start-waybar.sh:scripts/runtime/start-waybar.sh"
     "start-quickshell.sh:scripts/runtime/start-quickshell.sh"
     "jc-control-center:scripts/runtime/jc-control-center.sh"
-    "jc-mpv:scripts/runtime/jc-mpv.sh"
+    "jc-displayctl:scripts/runtime/jc-displayctl.sh"
     "network-traffic.sh:scripts/runtime/network-traffic.sh"
     "amd-gpu.sh:scripts/runtime/amd-gpu.sh"
     "launch-wofi.sh:scripts/runtime/launch-wofi.sh"

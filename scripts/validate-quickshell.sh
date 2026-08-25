@@ -38,6 +38,7 @@ required_files=(
     "services/MonitorService.qml"
     "services/MonitorModeParser.qml"
     "services/DisplayDraftStore.qml"
+    "services/MonitorApplyService.qml"
     "modules/displays/DisplayPopup.qml"
     "modules/displays/DisplayLayout.qml"
     "modules/displays/DisplayCard.qml"
@@ -76,6 +77,52 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Display runtime backend\n'
+
+display_controller="$repo_root/scripts/runtime/jc-displayctl.sh"
+
+if [[ -x "$display_controller" ]]; then
+    ok "jc-displayctl.sh executable"
+else
+    fail "missing or non-executable display controller"
+fi
+
+if grep -Fq 'hyprctl -r eval' "$display_controller" 2>/dev/null; then
+    ok "Hyprland 0.55+ Lua runtime apply path"
+else
+    fail "display controller does not use hyprctl eval"
+fi
+
+if grep -Fq 'local/monitors.conf' "$display_controller" 2>/dev/null; then
+    ok "runtime apply preserves machine-local monitor rule"
+else
+    fail "display controller does not reference local/monitors.conf"
+fi
+
+
+if grep -Fq 'hyprctl -j monitors all' "$display_controller" 2>/dev/null; then
+    ok "live connector-to-description resolution"
+else
+    fail "display controller does not resolve live monitor identity"
+fi
+
+if grep -Fq "description_selector=\"desc:\$description\"" \
+    "$display_controller" 2>/dev/null
+then
+    ok "desc:<description> persistent selector support"
+else
+    fail "display controller does not support desc:<description> rules"
+fi
+
+if grep -Fq "lua_quote \"\$configured_selector\"" \
+    "$display_controller" 2>/dev/null
+then
+    ok "persistent monitor selector preserved during apply"
+else
+    fail "runtime apply does not preserve persistent monitor selector"
 fi
 
 
@@ -172,24 +219,41 @@ do
 done
 
 
-printf '\n==> Phase 1B.1 safety\n'
+printf '\n==> Monitor apply contract\n'
 
-write_patterns='hyprctl[[:space:]].*keyword[[:space:]]+monitor|keyword[[:space:]]+monitor'
+apply_service="$config_dir/services/MonitorApplyService.qml"
 
-write_matches="$(
+for apply_contract in \
+    'function applyDirty(): void' \
+    'function validateDraft' \
+    'dirty.length !== 1' \
+    'prepareForRefreshAfterApply' \
+    'jc-displayctl'
+do
+    if grep -Fq "$apply_contract" "$apply_service" 2>/dev/null; then
+        ok "$apply_contract"
+    else
+        fail "MonitorApplyService contract missing: $apply_contract"
+    fi
+done
+
+
+printf '\n==> Phase 1B.2 safety\n'
+
+mutation_matches="$(
     grep -RInE \
         --include='*.qml' \
-        "$write_patterns" \
+        'hyprctl[^\n]*(eval|keyword[[:space:]]+monitor)|hl\.monitor[[:space:]]*\(' \
         "$config_dir" \
         2>/dev/null ||
         true
 )"
 
-if [[ -z "$write_matches" ]]; then
-    ok "no monitor write/apply command found"
+if [[ -z "$mutation_matches" ]]; then
+    ok "QML contains no direct Hyprland monitor mutation"
 else
-    fail "Phase 1B.1 must remain runtime read-only:"
-    printf '%s\n' "$write_matches" >&2
+    fail "QML must delegate monitor mutation to jc-displayctl:"
+    printf '%s\n' "$mutation_matches" >&2
 fi
 
 ui_shell_matches="$(

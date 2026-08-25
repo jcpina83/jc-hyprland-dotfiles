@@ -10,11 +10,13 @@ PanelWindow {
     property var targetScreen
     property var monitorService
     property var draftStore
+    property var applyService
     property var theme
 
     signal closeRequested()
     signal refreshRequested()
     signal resetRequested()
+    signal applyRequested()
 
     screen: targetScreen
 
@@ -94,8 +96,28 @@ PanelWindow {
 
                     theme: root.theme
                     text: "Reset"
+                    controlEnabled:
+                        !(root.applyService && root.applyService.applying)
 
                     onClicked: root.resetRequested()
+                }
+
+                Components.JcButton {
+                    visible: root.draftStore && root.draftStore.hasDirty
+
+                    theme: root.theme
+
+                    text: root.applyService && root.applyService.applying
+                        ? "Applying…"
+                        : "Apply"
+
+                    controlEnabled:
+                        root.draftStore
+                        && root.draftStore.dirtyCount === 1
+                        && !root.draftStore.observedChangedWhileDirty
+                        && !(root.applyService && root.applyService.applying)
+
+                    onClicked: root.applyRequested()
                 }
 
                 Components.JcButton {
@@ -108,6 +130,7 @@ PanelWindow {
                     controlEnabled:
                         !(root.monitorService && root.monitorService.loading)
                         && !(root.draftStore && root.draftStore.hasDirty)
+                        && !(root.applyService && root.applyService.applying)
 
                     onClicked: root.refreshRequested()
                 }
@@ -115,6 +138,8 @@ PanelWindow {
                 Components.JcButton {
                     theme: root.theme
                     text: "Close"
+                    controlEnabled:
+                        !(root.applyService && root.applyService.applying)
                     onClicked: root.closeRequested()
                 }
             }
@@ -147,6 +172,45 @@ PanelWindow {
                     + "edited. Reset the draft before continuing."
 
                 color: root.theme ? root.theme.warning : "#f9e2af"
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                visible: root.draftStore
+                    && root.draftStore.dirtyCount > 1
+
+                Layout.fillWidth: true
+
+                text:
+                    "Phase 1B.2 applies one monitor at a time. "
+                    + "Reset one draft before applying."
+
+                color: root.theme ? root.theme.warning : "#f9e2af"
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                visible: root.applyService
+                    && root.applyService.errorMessage.length > 0
+
+                Layout.fillWidth: true
+                text: root.applyService ? root.applyService.errorMessage : ""
+
+                color: root.theme ? root.theme.error : "#f38ba8"
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                visible: root.applyService
+                    && root.applyService.statusMessage.length > 0
+
+                Layout.fillWidth: true
+                text: root.applyService ? root.applyService.statusMessage : ""
+
+                color: root.theme ? root.theme.success : "#a6e3a1"
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
             }
@@ -196,6 +260,8 @@ PanelWindow {
                             theme: root.theme
                             monitor: modelData
                             draftStore: root.draftStore
+                            editorEnabled:
+                                !(root.applyService && root.applyService.applying)
                         }
                     }
                 }
@@ -209,7 +275,7 @@ PanelWindow {
 
                     text: {
                         if (root.draftStore && root.draftStore.hasDirty)
-                            return "Draft changes are local to the UI.";
+                            return "Draft changes are ready for runtime apply.";
 
                         if (root.monitorService
                                 && root.monitorService.lastRefresh.length > 0) {
@@ -217,7 +283,7 @@ PanelWindow {
                                 + root.monitorService.lastRefresh;
                         }
 
-                        return "No system changes are executed.";
+                        return "No persistent monitor configuration is modified.";
                     }
 
                     color: root.theme ? root.theme.textSecondary : "#b8b8c0"
@@ -225,7 +291,7 @@ PanelWindow {
                 }
 
                 Text {
-                    text: "Phase 1B.1 · Draft only"
+                    text: "Phase 1B.2 · Runtime only"
                     color: root.theme ? root.theme.accent : "#89b4fa"
                     font.pixelSize: 11
                     font.bold: true
