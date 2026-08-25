@@ -165,6 +165,7 @@ PanelWindow {
                     controlEnabled:
                         root.draftStore
                         && root.draftStore.dirtyCount === 1
+                        && root.draftStore.topologyValid
                         && !root.draftStore.observedChangedWhileDirty
                         && !(root.applyService && root.applyService.busy)
 
@@ -299,6 +300,26 @@ PanelWindow {
                 wrapMode: Text.Wrap
             }
 
+
+            Text {
+                visible:
+                    root.draftStore
+                    && !root.draftStore.topologyValid
+                    && !(root.applyService
+                        && root.applyService.pendingConfirmation)
+
+                Layout.fillWidth: true
+
+                text: root.draftStore
+                    ? root.draftStore.topologyError
+                    : ""
+
+                color: root.theme ? root.theme.error : "#f38ba8"
+                font.pixelSize: 12
+                font.bold: true
+                wrapMode: Text.Wrap
+            }
+
             Text {
                 visible:
                     root.draftStore
@@ -355,12 +376,16 @@ PanelWindow {
                     width: parent.width
                     spacing: root.theme ? root.theme.spacingMd : 16
 
-                    DisplayLayout {
+                    DisplayLayoutEditor {
                         width: contentColumn.width
+
                         theme: root.theme
-                        monitors: root.monitorService
-                            ? root.monitorService.monitors
-                            : []
+                        draftStore: root.draftStore
+
+                        editorEnabled:
+                            !(root.applyService && root.applyService.busy)
+                            && !(root.applyService
+                                && root.applyService.pendingConfirmation)
                     }
 
                     Text {
@@ -409,7 +434,9 @@ PanelWindow {
                         }
 
                         if (root.draftStore && root.draftStore.hasDirty)
-                            return "Draft mode, scale or orientation is ready for Safe Apply.";
+                            return root.draftStore.topologyValid
+                                ? "Draft display state is ready for Safe Apply."
+                                : "Resolve the visual layout conflict before Safe Apply.";
 
                         if (root.monitorService
                                 && root.monitorService.lastRefresh.length > 0) {
@@ -425,7 +452,7 @@ PanelWindow {
                 }
 
                 Text {
-                    text: "Phase 1B.4 · Scale + Orientation"
+                    text: "Phase 1B.5 · Visual Layout"
                     color: root.theme ? root.theme.accent : "#89b4fa"
                     font.pixelSize: 11
                     font.bold: true

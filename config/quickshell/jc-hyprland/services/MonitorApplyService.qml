@@ -116,42 +116,13 @@ Scope {
             return "Display transform must be an integer from 0 to 7.";
         }
 
-        // Position editing remains outside Phase 1B.4.
-        if (Number(draft.x) !== Number(draft.observed.x)
-                || Number(draft.y) !== Number(draft.observed.y)) {
-            return "Phase 1B.4 does not allow manual position changes.";
+        if (!Number.isInteger(Number(draft.x))
+                || !Number.isInteger(Number(draft.y))) {
+            return "Display position must use integer logical coordinates.";
         }
 
-        const projected = root.draftStore.logicalSize(
-            draft.width,
-            draft.height,
-            scale,
-            transform
-        );
-
-        for (let i = 0; i < root.monitorService.monitors.length; ++i) {
-            const other = root.monitorService.monitors[i];
-
-            if (!other
-                    || other.output === draft.output
-                    || other.disabled) {
-                continue;
-            }
-
-            if (root.draftStore.rectanglesOverlap(
-                    Number(draft.x),
-                    Number(draft.y),
-                    projected.width,
-                    projected.height,
-                    Number(other.x),
-                    Number(other.y),
-                    Number(other.logicalWidth),
-                    Number(other.logicalHeight))) {
-                return "Projected display geometry overlaps "
-                    + other.output
-                    + ". Layout editing is required for this combination.";
-            }
-        }
+        if (!root.draftStore.topologyValid)
+            return root.draftStore.topologyError;
 
         return "";
     }
@@ -301,10 +272,10 @@ Scope {
 
         if (reason === "timeout") {
             root.statusMessage =
-                "Confirmation timed out. Restoring previous display mode…";
+                "Confirmation timed out. Restoring previous display state…";
         } else {
             root.statusMessage =
-                "Restoring previous display mode…";
+                "Restoring previous display state…";
         }
 
         rollbackProcess.exec([

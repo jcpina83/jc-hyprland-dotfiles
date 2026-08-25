@@ -27,6 +27,12 @@ Scope {
             return Boolean(draft.dirty);
         }).length
 
+    readonly property string topologyError:
+        root.topologyValidationError()
+
+    readonly property bool topologyValid:
+        root.topologyError.length === 0
+
     property bool observedChangedWhileDirty: false
 
     signal draftChanged(string output)
@@ -252,6 +258,139 @@ Scope {
             && ay + ah > by;
     }
 
+    function projectedMonitor(draft) {
+        if (!draft)
+            return null;
+
+        const logical = root.logicalSize(
+            draft.width,
+            draft.height,
+            draft.scale,
+            draft.transform
+        );
+
+        const observedMonitor = root.monitorService
+            ? root.monitorService.monitors.find(function(monitor) {
+                return monitor.output === draft.output;
+            })
+            : null;
+
+        return {
+            output: draft.output,
+            description: draft.description,
+            x: Number(draft.x),
+            y: Number(draft.y),
+            width: Number(draft.width),
+            height: Number(draft.height),
+            logicalWidth: logical.width,
+            logicalHeight: logical.height,
+            refreshRate: Number(draft.refreshRate),
+            scale: Number(draft.scale),
+            transform: Number(draft.transform),
+            dirty: Boolean(draft.dirty),
+            focused: observedMonitor ? Boolean(observedMonitor.focused) : false,
+            disabled: observedMonitor ? Boolean(observedMonitor.disabled) : false
+        };
+    }
+
+    function projectedMonitors() {
+        const result = [];
+
+        for (let i = 0; i < root.drafts.length; ++i) {
+            const projected = root.projectedMonitor(root.drafts[i]);
+
+            if (projected)
+                result.push(projected);
+        }
+
+        return result;
+    }
+
+    function projectedMonitorFor(output) {
+        const draft = root.draftFor(output);
+
+        return root.projectedMonitor(draft);
+    }
+
+    function outputHasOverlap(output) {
+        const projected = root.projectedMonitorFor(output);
+
+        if (!projected || projected.disabled)
+            return false;
+
+        const all = root.projectedMonitors();
+
+        for (let i = 0; i < all.length; ++i) {
+            const other = all[i];
+
+            if (!other
+                    || other.output === output
+                    || other.disabled) {
+                continue;
+            }
+
+            if (root.rectanglesOverlap(
+                    projected.x,
+                    projected.y,
+                    projected.logicalWidth,
+                    projected.logicalHeight,
+                    other.x,
+                    other.y,
+                    other.logicalWidth,
+                    other.logicalHeight)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function topologyValidationError() {
+        const all = root.projectedMonitors();
+
+        for (let i = 0; i < all.length; ++i) {
+            const current = all[i];
+
+            if (!current || current.disabled)
+                continue;
+
+            if (!Number.isInteger(current.x)
+                    || !Number.isInteger(current.y)) {
+                return current.output
+                    + " has a non-integer layout position.";
+            }
+
+            if (current.logicalWidth <= 0 || current.logicalHeight <= 0) {
+                return current.output
+                    + " has invalid logical geometry.";
+            }
+
+            for (let j = i + 1; j < all.length; ++j) {
+                const other = all[j];
+
+                if (!other || other.disabled)
+                    continue;
+
+                if (root.rectanglesOverlap(
+                        current.x,
+                        current.y,
+                        current.logicalWidth,
+                        current.logicalHeight,
+                        other.x,
+                        other.y,
+                        other.logicalWidth,
+                        other.logicalHeight)) {
+                    return current.output
+                        + " overlaps "
+                        + other.output
+                        + ". Move one display before Safe Apply.";
+                }
+            }
+        }
+
+        return "";
+    }
+
     function wouldOverlap(
         output,
         width,
@@ -261,11 +400,6 @@ Scope {
         x,
         y
     ) {
-        if (!root.monitorService
-                || !Array.isArray(root.monitorService.monitors)) {
-            return false;
-        }
-
         const projected = root.logicalSize(
             width,
             height,
@@ -273,8 +407,10 @@ Scope {
             transform
         );
 
-        for (let i = 0; i < root.monitorService.monitors.length; ++i) {
-            const other = root.monitorService.monitors[i];
+        const all = root.projectedMonitors();
+
+        for (let i = 0; i < all.length; ++i) {
+            const other = all[i];
 
             if (!other
                     || other.output === output
@@ -398,20 +534,11 @@ Scope {
             return;
         }
 
-        if (root.wouldOverlap(
-                current.output,
-                current.width,
-                current.height,
-                numericScale,
-                current.transform,
-                current.x,
-                current.y)) {
-            return;
-        }
-
         const updated = root.copyDraft(current);
         updated.scale = numericScale;
 
+        // Phase 1B.5 permits a temporarily invalid topology draft. The visual
+        // editor can then reposition the monitor before Safe Apply.
         root.replaceDraft(index, updated);
     }
 
@@ -430,21 +557,151 @@ Scope {
             return;
         }
 
-        if (root.wouldOverlap(
-                current.output,
-                current.width,
-                current.height,
-                current.scale,
-                numericTransform,
-                current.x,
-                current.y)) {
-            return;
-        }
-
         const updated = root.copyDraft(current);
         updated.transform = numericTransform;
 
+        // A rotation may require a layout change. Keep it as draft state and
+        // block Safe Apply until topologyValidationError() is empty.
         root.replaceDraft(index, updated);
+    }
+
+    function setPosition(output, xValue, yValue) {
+        const index = root.draftIndex(output);
+
+        if (index < 0)
+            return;
+
+        const x = Math.round(Number(xValue));
+        const y = Math.round(Number(yValue));
+
+        if (!Number.isFinite(x) || !Number.isFinite(y))
+            return;
+
+        const updated = root.copyDraft(root.drafts[index]);
+
+        updated.x = x;
+        updated.y = y;
+
+        root.replaceDraft(index, updated);
+    }
+
+    function snapPosition(output, xValue, yValue, threshold) {
+        const target = root.projectedMonitorFor(output);
+
+        if (!target) {
+            return {
+                x: Math.round(Number(xValue)),
+                y: Math.round(Number(yValue))
+            };
+        }
+
+        const proposedX = Number(xValue);
+        const proposedY = Number(yValue);
+        const snapThreshold = Math.max(1, Number(threshold || 32));
+
+        let snappedX = proposedX;
+        let snappedY = proposedY;
+        let bestXDistance = snapThreshold + 1;
+        let bestYDistance = snapThreshold + 1;
+
+        const all = root.projectedMonitors();
+
+        for (let i = 0; i < all.length; ++i) {
+            const other = all[i];
+
+            if (!other
+                    || other.output === output
+                    || other.disabled) {
+                continue;
+            }
+
+            const xCandidates = [
+                other.x - target.logicalWidth,
+                other.x + other.logicalWidth,
+                other.x,
+                other.x + other.logicalWidth - target.logicalWidth,
+                other.x
+                    + (other.logicalWidth - target.logicalWidth) / 2
+            ];
+
+            const yCandidates = [
+                other.y - target.logicalHeight,
+                other.y + other.logicalHeight,
+                other.y,
+                other.y + other.logicalHeight - target.logicalHeight,
+                other.y
+                    + (other.logicalHeight - target.logicalHeight) / 2
+            ];
+
+            for (let xIndex = 0; xIndex < xCandidates.length; ++xIndex) {
+                const distance =
+                    Math.abs(proposedX - xCandidates[xIndex]);
+
+                if (distance <= snapThreshold
+                        && distance < bestXDistance) {
+                    snappedX = xCandidates[xIndex];
+                    bestXDistance = distance;
+                }
+            }
+
+            for (let yIndex = 0; yIndex < yCandidates.length; ++yIndex) {
+                const distance =
+                    Math.abs(proposedY - yCandidates[yIndex]);
+
+                if (distance <= snapThreshold
+                        && distance < bestYDistance) {
+                    snappedY = yCandidates[yIndex];
+                    bestYDistance = distance;
+                }
+            }
+        }
+
+        return {
+            x: Math.round(snappedX),
+            y: Math.round(snappedY)
+        };
+    }
+
+    function snapRelative(output, anchorOutput, relation) {
+        const target = root.projectedMonitorFor(output);
+        const anchor = root.projectedMonitorFor(anchorOutput);
+
+        if (!target || !anchor || output === anchorOutput)
+            return;
+
+        let x = target.x;
+        let y = target.y;
+
+        switch (String(relation)) {
+        case "left":
+            x = anchor.x - target.logicalWidth;
+            y = anchor.y
+                + (anchor.logicalHeight - target.logicalHeight) / 2;
+            break;
+
+        case "right":
+            x = anchor.x + anchor.logicalWidth;
+            y = anchor.y
+                + (anchor.logicalHeight - target.logicalHeight) / 2;
+            break;
+
+        case "above":
+            x = anchor.x
+                + (anchor.logicalWidth - target.logicalWidth) / 2;
+            y = anchor.y - target.logicalHeight;
+            break;
+
+        case "below":
+            x = anchor.x
+                + (anchor.logicalWidth - target.logicalWidth) / 2;
+            y = anchor.y + anchor.logicalHeight;
+            break;
+
+        default:
+            return;
+        }
+
+        root.setPosition(output, x, y);
     }
 
     function resolutionOptionsFor(output) {
@@ -530,7 +787,7 @@ Scope {
 
         for (let i = 0; i < values.length; ++i) {
             const scale = values[i];
-            const overlaps = root.wouldOverlap(
+            const requiresLayout = root.wouldOverlap(
                 draft.output,
                 draft.width,
                 draft.height,
@@ -543,8 +800,8 @@ Scope {
             options.push({
                 value: String(scale),
                 label: String(scale) + "×"
-                    + (overlaps ? " · layout needed" : ""),
-                enabled: !overlaps
+                    + (requiresLayout ? " · move required" : ""),
+                enabled: true
             });
         }
 
@@ -585,7 +842,7 @@ Scope {
         const options = [];
 
         for (let transform = 0; transform <= 7; ++transform) {
-            const overlaps = root.wouldOverlap(
+            const requiresLayout = root.wouldOverlap(
                 draft.output,
                 draft.width,
                 draft.height,
@@ -598,8 +855,8 @@ Scope {
             options.push({
                 value: String(transform),
                 label: root.transformLabel(transform)
-                    + (overlaps ? " · layout needed" : ""),
-                enabled: !overlaps
+                    + (requiresLayout ? " · move required" : ""),
+                enabled: true
             });
         }
 

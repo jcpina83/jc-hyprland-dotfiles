@@ -352,8 +352,8 @@ Components.JcCard {
             Layout.fillWidth: true
 
             text:
-                "Options marked “layout needed” are disabled because the "
-                + "projected logical rectangle would overlap another monitor."
+                "Options marked “move required” can be selected. Use the "
+                + "visual layout editor to resolve any overlap before Safe Apply."
 
             color: root.theme ? root.theme.textSecondary : "#b8b8c0"
             font.pixelSize: 10

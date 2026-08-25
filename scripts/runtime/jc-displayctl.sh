@@ -5,9 +5,9 @@ set -euo pipefail
 # jc-hyprland-dotfiles
 # Display runtime controller
 #
-# Phase 1B.4:
+# Phase 1B.5:
 # - resolves live connector names to persistent desc:<description> rules
-# - Safe Applies mode + scale + transform while preserving position
+# - Safe Applies mode + scale + transform + logical position
 # - snapshots mode + position + scale + transform for rollback
 # - validates whole logical pixels and projected monitor overlap
 # - uses an external systemd user rollback watchdog
@@ -70,7 +70,7 @@ Safe Apply:
   4. applies the requested runtime display state,
   5. waits for Keep or Rollback.
 
-No command in Phase 1B.4 writes local/monitors.conf.
+No command in Phase 1B.5 writes local/monitors.conf.
 EOF
 }
 
@@ -156,6 +156,11 @@ parse_mode_args() {
                 (($# >= 2)) || die "--position requires a value"
                 requested_position="$2"
                 shift 2
+                ;;
+
+            --position=*)
+                requested_position="${1#--position=}"
+                shift
                 ;;
 
             --timeout)

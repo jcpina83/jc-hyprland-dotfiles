@@ -4,127 +4,165 @@ Custom Quickshell control-center implementation for `jc-hyprland-dotfiles`.
 
 ## Current milestone
 
-### Phase 1B.4 — Scale + Orientation
+### Phase 1B.5 — Visual Monitor Layout Editor
 
-The displays module now supports Safe Apply for:
+The display control center now supports draft editing for:
 
 - resolution,
 - refresh rate,
 - scale,
 - transform / orientation,
-- one monitor per transaction.
+- logical x/y position through a visual layout editor.
 
-It still does **not** persist changes to `local/monitors.conf`.
+Persistent monitor configuration is still intentionally unchanged.
 
-## State boundaries
+## Hyprland layout model
+
+Hyprland positions displays in one virtual logical coordinate space.
+
+Position is calculated from the monitor's top-left corner and uses the
+**scaled and transformed** resolution.
+
+Negative x/y coordinates are valid.
+
+Two active monitors must not overlap.
 
 ```text
-Hyprland
-   │
-   ▼
-Observed state
-   │
-   ▼
-DisplayDraftStore
-   │
-   ├── mode
-   ├── scale
-   ├── transform
-   └── x/y observed only
-   │
-   ▼
-MonitorApplyService
-   │
-   ▼
-jc-displayctl safe-apply
-   │
-   ├── validate
-   ├── snapshot
-   ├── watchdog
-   └── runtime mutation
+physical mode
+    │
+    ├── scale
+    └── transform
+         │
+         ▼
+logical rectangle
+         │
+         ├── x
+         └── y
+         │
+         ▼
+virtual monitor layout
 ```
 
-Observed state, draft state, runtime-applied state and persistent state remain
-separate.
+## Visual editor
 
-## Scale validation
-
-Hyprland expects scale to produce whole logical pixels.
-
-The Control Center uses a conservative common scale set:
+`DisplayLayoutEditor.qml` renders the draft topology, not only the observed
+Hyprland state.
 
 ```text
-1.00
-1.25
-1.50
-1.75
-2.00
+┌──────────────────────────────────────────┐
+│              Visual layout               │
+│                                          │
+│           ┌──────────────┐               │
+│           │     DP-1     │               │
+│           │ 3440 × 1440  │               │
+│           └──────────────┘               │
+│                                          │
+│     ┌────────────────────────────┐       │
+│     │            DP-3            │       │
+│     │        5120 × 2160         │       │
+│     └────────────────────────────┘       │
+└──────────────────────────────────────────┘
 ```
 
-and only exposes candidates that divide the selected physical resolution into
-whole logical pixels.
-
-For example:
+A monitor can be dragged. The gesture itself does not mutate Hyprland.
 
 ```text
-3440 × 1440 / 1.25 = 2752 × 1152   valid
-3440 × 1440 / 1.50 = 2293.33 × 960 invalid
+DragHandler
+    │
+    ▼
+visual translation
+    │
+ release
+    ▼
+snapPosition()
+    │
+    ▼
+DisplayDraftStore.setPosition()
 ```
 
-The backend validates this again before mutation.
+The editor uses `DragHandler { target: null }`; the input handler therefore
+does not own monitor state.
 
-## Orientation / transform
+## Snapping
 
-Hyprland transform values are represented directly:
+On drag release, nearby logical coordinates snap against another monitor's:
+
+- left/right edges,
+- top/bottom edges,
+- horizontal center,
+- vertical center.
+
+The editor also provides deterministic relative placement:
 
 ```text
-0  Normal
-1  90°
-2  180°
-3  270°
-4  Flipped
-5  Flipped + 90°
-6  Flipped + 180°
-7  Flipped + 270°
+← Left
+Right →
+↑ Above
+↓ Below
 ```
 
-Transforms `1`, `3`, `5` and `7` exchange logical width and height.
+Relative placement centers the moved monitor on the orthogonal axis.
 
-## Topology guard
-
-Phase 1B.4 intentionally does not edit position.
-
-Before a scale or transform can be selected/applied, the projected logical
-rectangle is compared with every other active monitor.
+For example, placing a 2752-wide logical monitor centered above a 5120-wide
+monitor calculates:
 
 ```text
-target logical rectangle
+x = anchor.x + (5120 - 2752) / 2
+```
+
+## Scale / orientation interaction
+
+Phase 1B.4 disabled scale or orientation choices that immediately caused an
+overlap.
+
+Phase 1B.5 now allows those choices as **draft state** and labels them
+`move required`.
+
+Example:
+
+```text
+Normal
+90° · move required
+180°
+270° · move required
+```
+
+After selecting a rotation, move the display in the visual editor until the
+topology becomes valid.
+
+Safe Apply remains disabled while any two projected monitors overlap.
+
+## Topology validation
+
+`DisplayDraftStore` is the UI/domain source of truth for projected topology.
+
+It validates:
+
+- integer logical x/y,
+- positive logical dimensions,
+- pairwise overlap.
+
+The backend independently validates the same target against live Hyprland
+monitor geometry before mutation.
+
+```text
+Draft topology invalid
+        │
+        ├── visual red conflict
+        ├── error explanation
+        └── Safe Apply disabled
+
+Draft topology valid
         │
         ▼
-overlaps another monitor?
-   │             │
-  yes            no
-   │             │
-disabled /       Safe Apply
-rejected
+Safe Apply enabled
 ```
 
-An option that requires repositioning is shown as:
+## Transaction boundary
 
-```text
-90° · layout needed
-```
+Safe Apply continues to change one monitor at a time.
 
-and is disabled.
-
-The backend performs the same overlap validation independently of the UI.
-
-This avoids introducing invalid monitor overlap while the visual layout editor
-is not yet available.
-
-## Safe Apply snapshot
-
-Rollback now snapshots the complete mutable runtime state used by this phase:
+The transaction snapshot includes:
 
 ```text
 mode
@@ -133,85 +171,71 @@ scale
 transform
 ```
 
-This is important after `Keep`: a later Safe Apply preserves the current runtime
-scale and transform instead of falling back to the persistent rule.
-
-Persistent monitor options such as VRR, color-management and bit-depth fields
-continue to be preserved from the machine-local monitor rule.
-
-## Safe Apply lifecycle
+The external `systemd --user` watchdog is scheduled before mutation.
 
 ```text
-Draft
-  │
-  ▼
-Validate mode + scale + transform + topology
-  │
-  ▼
-Snapshot current runtime display state
-  │
-  ▼
-Schedule systemd --user rollback watchdog
-  │
-  ▼
-Apply temporary state
-  │
-  ▼
-15 second confirmation
-  │
-  ├── Keep
-  │      └── retain runtime state
-  │
-  └── Rollback / timeout
-         └── restore snapshot
+Visual draft
+    │
+    ▼
+Topology validation
+    │
+    ▼
+Snapshot current runtime state
+    │
+    ▼
+systemd rollback watchdog
+    │
+    ▼
+Temporary runtime mutation
+    │
+    ▼
+15 s
+ ┌──┴──────────────┐
+ ▼                 ▼
+Keep            Rollback
 ```
 
-The external watchdog remains independent from Quickshell.
+If Quickshell exits during confirmation, the external watchdog remains
+responsible for restoring the snapshot.
 
-## CLI examples
+## Runtime CLI
 
-Existing mode-only preflight remains valid and preserves current runtime scale,
-transform and position:
-
-```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    preflight \
-    --output DP-1 \
-    --mode 3440x1440@165.00
-```
-
-Scale preflight:
+Position preflight:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
     preflight \
     --output DP-1 \
     --mode 3440x1440@165.00 \
-    --scale 1.25
+    --scale 1 \
+    --transform 0 \
+    --position 840x0
 ```
 
-Transform preflight:
+Negative coordinates are supported:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
     preflight \
     --output DP-1 \
     --mode 3440x1440@165.00 \
-    --transform 2
+    --scale 1 \
+    --transform 1 \
+    --position -1440x800
 ```
 
-The Control Center supplies the full draft state during Safe Apply.
+The Control Center passes the complete draft display state to `safe-apply`.
 
-## Still intentionally blocked
+## Safety boundaries still in place
 
-Phase 1B.4 does not expose:
+Phase 1B.5 intentionally does not enable:
 
-- manual x/y position,
-- drag/drop monitor layout,
-- enable/disable,
-- persistent save to `monitors.conf`.
+- monitor enable/disable,
+- mirror mode,
+- multi-monitor atomic mutation,
+- persistent writes to `local/monitors.conf`.
 
-A rotation that needs repositioning is rejected until the layout phase.
+Only one dirty display can be applied at a time.
 
 ## Validation
 
@@ -223,5 +247,7 @@ make check
 
 ## Next milestone
 
-Phase 1B.5 can build a visual position/layout editor on top of the same
-transactional Safe Apply boundary.
+Once visual positioning and rollback are validated on the real workstation,
+Phase 1B.6 can add monitor enable/disable semantics.
+
+Persistent `monitors.conf` writes remain Phase 1C.

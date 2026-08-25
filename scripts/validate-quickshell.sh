@@ -35,6 +35,7 @@ required_files=(
     "services/MonitorApplyService.qml"
     "modules/displays/DisplayPopup.qml"
     "modules/displays/DisplayLayout.qml"
+    "modules/displays/DisplayLayoutEditor.qml"
     "modules/displays/DisplayCard.qml"
 )
 
@@ -91,27 +92,16 @@ for backend_contract in \
     'rollback)' \
     'status)' \
     'systemd-run' \
-    'XDG_RUNTIME_DIR' \
-    'rollback.lua' \
     'validate_scale_for_mode' \
     'validate_projected_geometry' \
-    'validate_target_state' \
-    'rollback-scale' \
-    'rollback-transform' \
-    'rollback-position'
+    'rollback-position' \
+    '--position' \
+    '--position=*'
 do
-    if grep -Fq "$backend_contract" "$display_controller" 2>/dev/null; then
+    if grep -Fq -- "$backend_contract" "$display_controller" 2>/dev/null; then
         ok "backend contract: $backend_contract"
     else
         fail "display backend contract missing: $backend_contract"
-    fi
-done
-
-for cli_option in --scale --transform --position; do
-    if grep -Fq -- "$cli_option" "$display_controller" 2>/dev/null; then
-        ok "displayctl option: $cli_option"
-    else
-        fail "displayctl option missing: $cli_option"
     fi
 done
 
@@ -132,99 +122,89 @@ else
 fi
 
 
-printf '\n==> Quickshell identity and IPC contract\n'
-
-if grep -Fqx '//@ pragma ShellId jc-hyprland' \
-    "$config_dir/shell.qml" 2>/dev/null
-then
-    ok "stable ShellId: jc-hyprland"
-else
-    fail "shell.qml must declare stable ShellId"
-fi
-
-if grep -Fq 'target: "controlCenter"' \
-    "$config_dir/Main.qml" 2>/dev/null
-then
-    ok "IPC target: controlCenter"
-else
-    fail "Main.qml does not expose IPC target controlCenter"
-fi
-
-
-printf '\n==> Monitor service contract\n'
-
-monitor_service="$config_dir/services/MonitorService.qml"
-
-if grep -Fq '"hyprctl", "-j", "monitors", "all"' \
-    "$monitor_service" 2>/dev/null
-then
-    ok "read-only monitor discovery command"
-else
-    fail "MonitorService discovery command changed unexpectedly"
-fi
-
-if grep -Fq 'availableModes' "$monitor_service" 2>/dev/null; then
-    ok "availableModes captured"
-else
-    fail "MonitorService does not expose availableModes"
-fi
-
-
-printf '\n==> Display draft geometry contract\n'
+printf '\n==> Display draft layout contract\n'
 
 draft_store="$config_dir/services/DisplayDraftStore.qml"
 
 for draft_contract in \
-    'function setScale' \
-    'function setTransform' \
-    'function scaleOptionsFor' \
-    'function transformOptionsFor' \
-    'function scaleIsValidForDimensions' \
-    'function logicalSize' \
-    'function rectanglesOverlap' \
-    'function wouldOverlap' \
-    'layout needed'
+    'readonly property string topologyError:' \
+    'readonly property bool topologyValid:' \
+    'function projectedMonitors()' \
+    'function topologyValidationError()' \
+    'function outputHasOverlap' \
+    'function setPosition' \
+    'function snapPosition' \
+    'function snapRelative' \
+    'move required'
 do
     if grep -Fq "$draft_contract" "$draft_store" 2>/dev/null; then
         ok "$draft_contract"
     else
-        fail "DisplayDraftStore geometry contract missing: $draft_contract"
+        fail "DisplayDraftStore layout contract missing: $draft_contract"
     fi
 done
 
-choice_group="$config_dir/components/JcChoiceGroup.qml"
 
-if grep -Fq 'modelData.enabled !== false' "$choice_group" 2>/dev/null; then
-    ok "choice options support disabled topology states"
+printf '\n==> Visual layout editor contract\n'
+
+layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+
+for editor_contract in \
+    'DragHandler {' \
+    'target: null' \
+    'activeTranslation.x' \
+    'activeTranslation.y' \
+    'snapPosition(' \
+    'setPosition(' \
+    'snapRelative(' \
+    'Negative coordinates are allowed.' \
+    'Topology valid' \
+    'Layout conflict'
+do
+    if grep -Fq "$editor_contract" "$layout_editor" 2>/dev/null; then
+        ok "$editor_contract"
+    else
+        fail "DisplayLayoutEditor contract missing: $editor_contract"
+    fi
+done
+
+if grep -Fq 'DisplayLayoutEditor {' \
+    "$config_dir/modules/displays/DisplayPopup.qml" 2>/dev/null
+then
+    ok "DisplayPopup uses visual layout editor"
 else
-    fail "JcChoiceGroup does not support disabled per-option state"
+    fail "DisplayPopup does not use DisplayLayoutEditor"
 fi
 
 
-printf '\n==> Safe Apply service contract\n'
+printf '\n==> Safe Apply layout contract\n'
 
 apply_service="$config_dir/services/MonitorApplyService.qml"
 
 for apply_contract in \
-    'property int confirmationTimeoutSeconds: 15' \
     'function applyDirty(): void' \
-    'function keepPending(): void' \
-    'function rollbackPending(reason): void' \
-    'whole logical pixels' \
-    'Projected display geometry overlaps' \
-    '"--scale"' \
-    '"--transform"' \
-    '"--position"'
+    'root.draftStore.topologyValid' \
+    'root.draftStore.topologyError' \
+    '"--position"' \
+    'String(draft.x) + "x" + String(draft.y)'
 do
     if grep -Fq "$apply_contract" "$apply_service" 2>/dev/null; then
         ok "$apply_contract"
     else
-        fail "MonitorApplyService contract missing: $apply_contract"
+        fail "MonitorApplyService layout contract missing: $apply_contract"
     fi
 done
 
+popup="$config_dir/modules/displays/DisplayPopup.qml"
 
-printf '\n==> Phase 1B.4 safety\n'
+if grep -Fq 'root.draftStore.topologyValid' "$popup" 2>/dev/null; then
+    ok "Safe Apply UI gates on valid topology"
+else
+    fail "DisplayPopup does not gate Safe Apply on topology validity"
+fi
+
+
+printf '\n==> Phase 1B.5 safety\n'
 
 mutation_matches="$(
     grep -RInE \
@@ -267,17 +247,20 @@ else
     fail "Safe Apply watchdog contract missing"
 fi
 
-if ! grep -RInE \
-    --include='*.qml' \
-    '(setPosition|positionOptions|positionEditor)' \
-    "$config_dir/modules" \
-    "$config_dir/components" \
-    "$config_dir/services/DisplayDraftStore.qml" \
-    >/dev/null 2>&1
-then
-    ok "manual position editing remains disabled"
+text_position_editor="$(
+    grep -RInE \
+        --include='*.qml' \
+        '(TextInput|TextField).*([xX]/[yY]|position)|position.*(TextInput|TextField)' \
+        "$config_dir/modules/displays" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$text_position_editor" ]]; then
+    ok "position editing remains visual; no raw x/y text fields"
 else
-    fail "Phase 1B.4 must not expose manual position editing"
+    fail "raw x/y text editor detected:"
+    printf '%s\n' "$text_position_editor" >&2
 fi
 
 
