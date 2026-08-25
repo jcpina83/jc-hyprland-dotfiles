@@ -8,13 +8,29 @@ Scope {
     property var monitorService
     property var draftStore
 
+    property int confirmationTimeoutSeconds: 15
+
     property bool applying: false
+    property bool keeping: false
+    property bool rollingBack: false
+
+    readonly property bool busy:
+        root.applying || root.keeping || root.rollingBack
+
+    property bool pendingConfirmation: false
+    property string pendingToken: ""
+    property string pendingOutput: ""
+    property double pendingDeadlineEpoch: 0
+    property int remainingSeconds: 0
+
     property string applyingOutput: ""
     property string errorMessage: ""
     property string statusMessage: ""
     property string lastAppliedOutput: ""
 
-    signal applied(string output)
+    signal temporaryApplied(string output)
+    signal kept(string output)
+    signal rolledBack(string output)
     signal failed(string message)
 
     function configHome() {
@@ -80,22 +96,78 @@ Scope {
                 + draft.output + ": " + draft.modeRaw;
         }
 
-        // Phase 1B.2 is intentionally limited to resolution + refresh.
+        // Phase 1B.3 remains intentionally limited to resolution + refresh.
         if (!root.sameNumber(draft.scale, draft.observed.scale)
                 || Number(draft.transform) !== Number(draft.observed.transform)
                 || Number(draft.x) !== Number(draft.observed.x)
                 || Number(draft.y) !== Number(draft.observed.y)) {
-            return "Phase 1B.2 only supports resolution and refresh changes.";
+            return "Phase 1B.3 only supports resolution and refresh changes.";
         }
 
         return "";
+    }
+
+    function parseResponse(text) {
+        const source = String(text || "").trim();
+
+        if (source.length === 0)
+            return null;
+
+        try {
+            return JSON.parse(source);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function updateCountdown() {
+        if (!root.pendingConfirmation) {
+            root.remainingSeconds = 0;
+            return;
+        }
+
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const remaining =
+            Math.ceil(root.pendingDeadlineEpoch - nowSeconds);
+
+        root.remainingSeconds = Math.max(0, remaining);
+
+        if (root.remainingSeconds <= 0 && !root.rollingBack)
+            root.rollbackPending("timeout");
+    }
+
+    function setPending(response) {
+        root.pendingConfirmation = true;
+        root.pendingToken = String(response.token || "");
+        root.pendingOutput = String(response.output || "");
+        root.pendingDeadlineEpoch = Number(response.deadline || 0);
+
+        root.updateCountdown();
+    }
+
+    function clearPending() {
+        root.pendingConfirmation = false;
+        root.pendingToken = "";
+        root.pendingOutput = "";
+        root.pendingDeadlineEpoch = 0;
+        root.remainingSeconds = 0;
+    }
+
+    function recoverPending() {
+        if (root.applying || root.keeping || root.rollingBack)
+            return;
+
+        statusProcess.exec([
+            root.displayctlPath(),
+            "status"
+        ]);
     }
 
     function applyDirty(): void {
         root.errorMessage = "";
         root.statusMessage = "";
 
-        if (root.applying)
+        if (root.busy || root.pendingConfirmation)
             return;
 
         if (!root.draftStore) {
@@ -117,10 +189,9 @@ Scope {
             return;
         }
 
-        // First mutation milestone: one output per transaction.
         if (dirty.length !== 1) {
             root.fail(
-                "Phase 1B.2 applies one monitor at a time. "
+                "Safe Apply changes one monitor at a time. "
                 + "Reset one draft before applying."
             );
             return;
@@ -141,19 +212,69 @@ Scope {
 
         applyProcess.exec([
             root.displayctlPath(),
-            "apply",
+            "safe-apply",
             "--output",
             draft.output,
             "--mode",
-            runtimeMode
+            runtimeMode,
+            "--timeout",
+            String(root.confirmationTimeoutSeconds)
+        ]);
+    }
+
+    function keepPending(): void {
+        if (!root.pendingConfirmation || root.busy)
+            return;
+
+        root.errorMessage = "";
+        root.keeping = true;
+
+        keepProcess.exec([
+            root.displayctlPath(),
+            "keep",
+            "--token",
+            root.pendingToken
+        ]);
+    }
+
+    function rollbackPending(reason): void {
+        if (!root.pendingConfirmation || root.busy)
+            return;
+
+        root.errorMessage = "";
+        root.rollingBack = true;
+
+        if (reason === "timeout") {
+            root.statusMessage =
+                "Confirmation timed out. Restoring previous display mode…";
+        } else {
+            root.statusMessage =
+                "Restoring previous display mode…";
+        }
+
+        rollbackProcess.exec([
+            root.displayctlPath(),
+            "rollback",
+            "--token",
+            root.pendingToken
         ]);
     }
 
     function fail(message) {
         root.applying = false;
+        root.keeping = false;
+        root.rollingBack = false;
         root.applyingOutput = "";
         root.errorMessage = message;
         root.failed(message);
+    }
+
+    Timer {
+        interval: 250
+        repeat: true
+        running: root.pendingConfirmation
+
+        onTriggered: root.updateCountdown()
     }
 
     Process {
@@ -181,33 +302,221 @@ Scope {
                     : stdoutText;
 
                 root.errorMessage =
-                    "Display apply failed"
+                    "Safe Apply failed"
                     + (details.length > 0 ? ": " + details : "");
 
                 root.failed(root.errorMessage);
                 return;
             }
 
-            if (stdoutText !== "ok") {
+            const response = root.parseResponse(stdoutText);
+
+            if (!response || response.status !== "pending") {
                 root.errorMessage =
-                    "Unexpected displayctl response: "
+                    "Unexpected displayctl Safe Apply response: "
                     + (stdoutText.length > 0 ? stdoutText : "<empty>");
 
                 root.failed(root.errorMessage);
                 return;
             }
 
+            root.setPending(response);
             root.errorMessage = "";
             root.lastAppliedOutput = output;
             root.statusMessage =
-                "Runtime mode applied to " + output
-                + ". Persistent monitors.conf was not modified.";
+                "Temporary runtime mode applied to " + output
+                + ". Confirm it before automatic rollback.";
 
-            // Allow the refreshed observed snapshot to replace the accepted draft.
+            // The target mode is now the observed runtime state. The backend,
+            // not the draft, owns the rollback snapshot during confirmation.
             root.draftStore.prepareForRefreshAfterApply();
             root.monitorService.refresh();
 
-            root.applied(output);
+            root.temporaryApplied(output);
         }
     }
+
+    Process {
+        id: keepProcess
+
+        stdout: StdioCollector {
+            id: keepStdout
+        }
+
+        stderr: StdioCollector {
+            id: keepStderr
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const output = root.pendingOutput;
+            const stdoutText = keepStdout.text.trim();
+            const stderrText = keepStderr.text.trim();
+
+            root.keeping = false;
+
+            if (exitCode !== 0) {
+                const details = stderrText.length > 0
+                    ? stderrText
+                    : stdoutText;
+
+                root.errorMessage =
+                    "Unable to keep display mode"
+                    + (details.length > 0 ? ": " + details : "");
+
+                root.failed(root.errorMessage);
+                root.recoverPending();
+                return;
+            }
+
+            const response = root.parseResponse(stdoutText);
+
+            if (!response) {
+                root.fail(
+                    "Unexpected displayctl Keep response: "
+                    + (stdoutText.length > 0 ? stdoutText : "<empty>")
+                );
+                return;
+            }
+
+            if (response.status === "busy") {
+                root.statusMessage =
+                    "Safe Apply transaction is being finalized.";
+                root.recoverPending();
+                return;
+            }
+
+            if (response.status === "idle") {
+                root.clearPending();
+                root.statusMessage =
+                    "Safe Apply transaction already completed. "
+                    + "Refreshing observed state.";
+                root.monitorService.refresh();
+                return;
+            }
+
+            if (response.status !== "kept") {
+                root.fail(
+                    "Unexpected displayctl Keep status: "
+                    + String(response.status)
+                );
+                return;
+            }
+
+            root.clearPending();
+            root.errorMessage = "";
+            root.statusMessage =
+                "Runtime mode kept for " + output
+                + ". Persistent monitors.conf is still unchanged.";
+
+            root.monitorService.refresh();
+            root.kept(output);
+        }
+    }
+
+    Process {
+        id: rollbackProcess
+
+        stdout: StdioCollector {
+            id: rollbackStdout
+        }
+
+        stderr: StdioCollector {
+            id: rollbackStderr
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const output = root.pendingOutput;
+            const stdoutText = rollbackStdout.text.trim();
+            const stderrText = rollbackStderr.text.trim();
+
+            root.rollingBack = false;
+
+            if (exitCode !== 0) {
+                const details = stderrText.length > 0
+                    ? stderrText
+                    : stdoutText;
+
+                root.errorMessage =
+                    "Display rollback failed"
+                    + (details.length > 0 ? ": " + details : "");
+
+                root.failed(root.errorMessage);
+                root.recoverPending();
+                return;
+            }
+
+            const response = root.parseResponse(stdoutText);
+
+            if (!response) {
+                root.fail(
+                    "Unexpected displayctl Rollback response: "
+                    + (stdoutText.length > 0 ? stdoutText : "<empty>")
+                );
+                return;
+            }
+
+            if (response.status === "busy") {
+                root.statusMessage =
+                    "Rollback is already being processed.";
+                root.recoverPending();
+                return;
+            }
+
+            if (response.status !== "rolled-back"
+                    && response.status !== "idle") {
+                root.fail(
+                    "Unexpected displayctl Rollback status: "
+                    + String(response.status)
+                );
+                return;
+            }
+
+            root.clearPending();
+            root.errorMessage = "";
+            root.statusMessage =
+                "Previous runtime mode restored for " + output + ".";
+
+            root.monitorService.refresh();
+            root.rolledBack(output);
+        }
+    }
+
+    Process {
+        id: statusProcess
+
+        stdout: StdioCollector {
+            id: statusStdout
+        }
+
+        stderr: StdioCollector {
+            id: statusStderr
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const stdoutText = statusStdout.text.trim();
+
+            if (exitCode !== 0)
+                return;
+
+            const response = root.parseResponse(stdoutText);
+
+            if (!response)
+                return;
+
+            if (response.status === "pending") {
+                root.setPending(response);
+                root.statusMessage =
+                    "Recovered pending Safe Apply for "
+                    + root.pendingOutput + ".";
+                return;
+            }
+
+            if (response.status === "idle" && root.pendingConfirmation) {
+                root.clearPending();
+                root.monitorService.refresh();
+            }
+        }
+    }
+
+    Component.onCompleted: root.recoverPending()
 }

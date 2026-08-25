@@ -90,24 +90,24 @@ else
     fail "missing or non-executable display controller"
 fi
 
-if grep -Fq 'hyprctl -r eval' "$display_controller" 2>/dev/null; then
-    ok "Hyprland 0.55+ Lua runtime apply path"
-else
-    fail "display controller does not use hyprctl eval"
-fi
-
-if grep -Fq 'local/monitors.conf' "$display_controller" 2>/dev/null; then
-    ok "runtime apply preserves machine-local monitor rule"
-else
-    fail "display controller does not reference local/monitors.conf"
-fi
-
-
-if grep -Fq 'hyprctl -j monitors all' "$display_controller" 2>/dev/null; then
-    ok "live connector-to-description resolution"
-else
-    fail "display controller does not resolve live monitor identity"
-fi
+for backend_contract in \
+    'hyprctl -r eval' \
+    'hyprctl -j monitors all' \
+    'local/monitors.conf' \
+    'safe-apply)' \
+    'keep)' \
+    'rollback)' \
+    'status)' \
+    'systemd-run' \
+    'XDG_RUNTIME_DIR' \
+    'rollback.lua'
+do
+    if grep -Fq "$backend_contract" "$display_controller" 2>/dev/null; then
+        ok "backend contract: $backend_contract"
+    else
+        fail "display backend contract missing: $backend_contract"
+    fi
+done
 
 if grep -Fq "description_selector=\"desc:\$description\"" \
     "$display_controller" 2>/dev/null
@@ -180,25 +180,6 @@ else
 fi
 
 
-printf '\n==> Mode parser contract\n'
-
-mode_parser="$config_dir/services/MonitorModeParser.qml"
-
-for parser_method in \
-    parseAll \
-    uniqueResolutions \
-    modesForResolution \
-    closestModeForResolution \
-    modeByRaw
-do
-    if grep -Fq "function $parser_method" "$mode_parser" 2>/dev/null; then
-        ok "mode parser method: $parser_method"
-    else
-        fail "missing mode parser method: $parser_method"
-    fi
-done
-
-
 printf '\n==> Display draft contract\n'
 
 draft_store="$config_dir/services/DisplayDraftStore.qml"
@@ -206,10 +187,10 @@ draft_store="$config_dir/services/DisplayDraftStore.qml"
 for draft_contract in \
     'property var drafts:' \
     'readonly property bool hasDirty:' \
-    'function copyDraft' \
+    'function dirtyDrafts()' \
+    'function prepareForRefreshAfterApply()' \
     'function setResolution' \
-    'function setRefreshMode' \
-    'function reset()'
+    'function setRefreshMode'
 do
     if grep -Fq "$draft_contract" "$draft_store" 2>/dev/null; then
         ok "$draft_contract"
@@ -219,16 +200,22 @@ do
 done
 
 
-printf '\n==> Monitor apply contract\n'
+printf '\n==> Safe Apply service contract\n'
 
 apply_service="$config_dir/services/MonitorApplyService.qml"
 
 for apply_contract in \
+    'property int confirmationTimeoutSeconds: 15' \
+    'property bool pendingConfirmation: false' \
     'function applyDirty(): void' \
-    'function validateDraft' \
-    'dirty.length !== 1' \
-    'prepareForRefreshAfterApply' \
-    'jc-displayctl'
+    'function keepPending(): void' \
+    'function rollbackPending(reason): void' \
+    'function recoverPending()' \
+    '"safe-apply"' \
+    '"keep"' \
+    '"rollback"' \
+    '"status"' \
+    'Timer {'
 do
     if grep -Fq "$apply_contract" "$apply_service" 2>/dev/null; then
         ok "$apply_contract"
@@ -238,7 +225,7 @@ do
 done
 
 
-printf '\n==> Phase 1B.2 safety\n'
+printf '\n==> Phase 1B.3 safety\n'
 
 mutation_matches="$(
     grep -RInE \
@@ -271,6 +258,22 @@ if [[ -z "$ui_shell_matches" ]]; then
 else
     fail "UI layer must not execute shell/process commands:"
     printf '%s\n' "$ui_shell_matches" >&2
+fi
+
+if grep -Fq 'systemd-run' "$display_controller" \
+    && grep -Fq "rollback --token \"\$token\"" "$display_controller"
+then
+    ok "external rollback watchdog configured before confirmation"
+else
+    fail "Safe Apply watchdog contract missing"
+fi
+
+if grep -Fq 'Persistent monitors.conf' \
+    "$config_dir/modules/displays/DisplayPopup.qml"
+then
+    ok "UI communicates runtime-only confirmation"
+else
+    fail "Safe Apply UI must state that persistence is unchanged"
 fi
 
 

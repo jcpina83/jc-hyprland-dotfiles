@@ -28,10 +28,15 @@ Scope {
 
     function showDisplays() {
         root.displaysVisible = true;
+        monitorApplyService.recoverPending();
         monitorService.refresh();
     }
 
     function hideDisplays() {
+        // Do not hide the confirmation UI while a Safe Apply is pending.
+        if (monitorApplyService.pendingConfirmation)
+            return;
+
         root.displaysVisible = false;
         displayDraftStore.reset();
     }
@@ -60,6 +65,7 @@ Scope {
 
         monitorService: monitorService
         draftStore: displayDraftStore
+        confirmationTimeoutSeconds: 15
     }
 
     Displays.DisplayPopup {
@@ -77,6 +83,8 @@ Scope {
         onRefreshRequested: monitorService.refresh()
         onResetRequested: displayDraftStore.reset()
         onApplyRequested: monitorApplyService.applyDirty()
+        onKeepRequested: monitorApplyService.keepPending()
+        onRollbackRequested: monitorApplyService.rollbackPending("user")
     }
 
     IpcHandler {
@@ -98,8 +106,10 @@ Scope {
         }
 
         function refreshDisplays(): void {
-            if (!displayDraftStore.hasDirty)
+            if (!displayDraftStore.hasDirty
+                    && !monitorApplyService.pendingConfirmation) {
                 monitorService.refresh();
+            }
         }
 
         function displaysAreVisible(): bool {

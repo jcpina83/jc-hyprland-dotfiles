@@ -85,6 +85,8 @@ required_commands=(
     swaync
     swaync-client
     qs
+    systemctl
+    systemd-run
 )
 
 for command_name in "${required_commands[@]}"; do

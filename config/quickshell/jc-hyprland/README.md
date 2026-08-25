@@ -1,122 +1,175 @@
 # JC Hyprland Quickshell
 
-Custom Quickshell Control Center for `jc-hyprland-dotfiles`.
+Custom Quickshell control-center implementation for `jc-hyprland-dotfiles`.
 
 ## Current milestone
 
-### Phase 1B.2 — runtime display apply
+### Phase 1B.3 — Safe Apply
 
-The displays module now supports:
-
-- live monitor discovery,
-- real `availableModes`,
-- topology visualization,
-- editable per-output draft state,
-- resolution selection,
-- refresh-rate selection constrained by resolution,
-- dirty/reset handling,
-- runtime-only apply for one monitor at a time.
-
-Persistence remains separate and is **not modified** in this phase.
-
-## Mutation boundary
+The displays module now separates:
 
 ```text
-Display UI
-    │
-    ▼
+Observed state
+      │
+      ▼
 DisplayDraftStore
-    │
-    ▼
+      │
+      ▼
+Safe Apply
+      │
+      ├── Keep runtime state
+      └── Rollback
+```
+
+Safe Apply is still limited to:
+
+- resolution,
+- refresh rate,
+- one monitor per transaction.
+
+It does **not** persist changes to `local/monitors.conf`.
+
+## Safe Apply architecture
+
+```text
+DisplayPopup
+     │
+     ▼
 MonitorApplyService
-    │
-    ▼
-~/.config/jc-hyprland-dotfiles/bin/jc-displayctl
-    │
-    ▼
-hyprctl eval / hl.monitor(...)
-    │
-    ▼
-Hyprland runtime
+     │
+     ▼
+jc-displayctl safe-apply
+     │
+     ├── snapshot current runtime mode
+     ├── create XDG_RUNTIME_DIR transaction
+     ├── schedule systemd user watchdog
+     └── apply requested runtime mode
+                    │
+                    ▼
+               Hyprland
 ```
 
-The QML UI never runs `hyprctl` directly.
+The UI countdown is not the only rollback mechanism.
 
-## Why jc-displayctl preserves the persistent rule
-
-Hyprland 0.55+ uses Lua monitor rules:
-
-```lua
-hl.monitor({
-    output = "DP-1",
-    mode = "1920x1080@144",
-    position = "0x0",
-    scale = 1
-})
-```
-
-Monitor rules also contain fields such as:
+An external transient `systemd --user` timer is scheduled **before** the monitor
+is changed. If Quickshell crashes, reloads or is closed, the watchdog can still
+invoke:
 
 ```text
-transform
-bitdepth
-cm
-vrr
-sdrbrightness
-sdrsaturation
-...
+jc-displayctl rollback --token <transaction>
 ```
 
-Phase 1B.2 changes only `mode`.
-
-`jc-displayctl` therefore reads the existing machine-local Hyprlang monitor rule
-from:
+## Confirmation lifecycle
 
 ```text
-~/.config/jc-hyprland-dotfiles/local/monitors.conf
+Observed mode
+    │
+    ▼
+Draft
+    │
+    ▼
+Safe Apply
+    │
+    ▼
+Temporary runtime mode
+    │
+    ├── Keep
+    │      └── cancel watchdog
+    │
+    └── 15 second timeout
+           └── automatic rollback
 ```
 
-and reconstructs the runtime Lua rule while preserving supported extra fields.
+`Keep` means keep the **runtime** mode. Persistence remains a later phase.
 
-The file is never written by Phase 1B.2.
+## Ephemeral transaction state
 
-If an unknown monitor option is present, `jc-displayctl` refuses the apply rather
-than silently dropping it.
-
-## One-monitor transaction
-
-This first runtime mutation milestone applies exactly one dirty output at a time.
+Transaction metadata lives under:
 
 ```text
-dirtyCount = 0  -> nothing to apply
-dirtyCount = 1  -> Apply enabled
-dirtyCount > 1  -> Apply blocked
+$XDG_RUNTIME_DIR/jc-hyprland-dotfiles/display-safe/
 ```
 
-This keeps the first mutation boundary simple and avoids partial multi-output
-transactions before rollback support exists.
+and includes:
 
-## Runtime backend
+- transaction token,
+- output,
+- target mode,
+- rollback mode,
+- deadline,
+- systemd unit name,
+- generated rollback Lua rule.
 
-Preflight without modifying Hyprland:
+This state is ephemeral and is not versioned or written to the user's persistent
+dotfiles configuration.
+
+## Runtime commands
+
+Preflight:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
     preflight \
     --output DP-1 \
-    --mode 3440x1440@165.00
+    --mode 3440x1440@120.00
 ```
 
-Apply runtime-only:
+Safe Apply:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    apply \
+    safe-apply \
     --output DP-1 \
-    --mode 3440x1440@165.00
+    --mode 3440x1440@120.00 \
+    --timeout 15
+```
+
+Inspect pending transaction:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displayctl status
+```
+
+Keep:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
+    keep \
+    --token <token>
+```
+
+Rollback:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
+    rollback \
+    --token <token>
 ```
 
 Normal use should happen through the Control Center UI.
+
+## Recovery behavior
+
+When `MonitorApplyService` starts, it asks `jc-displayctl status`.
+
+If a Safe Apply transaction is still pending after a Quickshell reload, the UI
+recovers the token, output and deadline and resumes the confirmation view.
+
+If the watchdog already rolled the mode back, status returns idle and observed
+monitor state is refreshed.
+
+## Safety boundary
+
+Phase 1B.3 still does not allow editing:
+
+- scale,
+- transform/orientation,
+- x/y position,
+- enable/disable,
+- multiple monitors in one transaction,
+- persistent `monitors.conf`.
+
+Those controls are intentionally blocked until Safe Apply is validated.
 
 ## Validation
 
@@ -126,36 +179,8 @@ make lint
 make check
 ```
 
-## Phase boundary
-
-Phase 1B.2 does not provide:
-
-- confirmation countdown,
-- automatic rollback,
-- scale editing,
-- orientation editing,
-- position editing,
-- monitor enable/disable,
-- persistent `monitors.conf` writes.
-
-Those remain separate milestones.
-
 ## Next milestone
 
-Phase 1B.3 will add Safe Apply:
-
-```text
-Observed snapshot
-      │
-      ▼
-Temporary runtime apply
-      │
-      ▼
-Confirmation countdown
-      │
-      ├── Keep
-      └── Rollback
-```
-
-Only after Safe Apply is proven will higher-risk fields such as scale,
-orientation and topology be exposed.
+After Safe Apply and watchdog rollback are validated, the same transaction
+boundary can safely be extended to scale and orientation before layout editing
+and persistent saves are introduced.
