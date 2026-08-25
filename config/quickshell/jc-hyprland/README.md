@@ -4,172 +4,214 @@ Custom Quickshell control-center implementation for `jc-hyprland-dotfiles`.
 
 ## Current milestone
 
-### Phase 1B.3 — Safe Apply
+### Phase 1B.4 — Scale + Orientation
 
-The displays module now separates:
-
-```text
-Observed state
-      │
-      ▼
-DisplayDraftStore
-      │
-      ▼
-Safe Apply
-      │
-      ├── Keep runtime state
-      └── Rollback
-```
-
-Safe Apply is still limited to:
+The displays module now supports Safe Apply for:
 
 - resolution,
 - refresh rate,
+- scale,
+- transform / orientation,
 - one monitor per transaction.
 
-It does **not** persist changes to `local/monitors.conf`.
+It still does **not** persist changes to `local/monitors.conf`.
 
-## Safe Apply architecture
+## State boundaries
 
 ```text
-DisplayPopup
-     │
-     ▼
+Hyprland
+   │
+   ▼
+Observed state
+   │
+   ▼
+DisplayDraftStore
+   │
+   ├── mode
+   ├── scale
+   ├── transform
+   └── x/y observed only
+   │
+   ▼
 MonitorApplyService
-     │
-     ▼
+   │
+   ▼
 jc-displayctl safe-apply
-     │
-     ├── snapshot current runtime mode
-     ├── create XDG_RUNTIME_DIR transaction
-     ├── schedule systemd user watchdog
-     └── apply requested runtime mode
-                    │
-                    ▼
-               Hyprland
+   │
+   ├── validate
+   ├── snapshot
+   ├── watchdog
+   └── runtime mutation
 ```
 
-The UI countdown is not the only rollback mechanism.
+Observed state, draft state, runtime-applied state and persistent state remain
+separate.
 
-An external transient `systemd --user` timer is scheduled **before** the monitor
-is changed. If Quickshell crashes, reloads or is closed, the watchdog can still
-invoke:
+## Scale validation
+
+Hyprland expects scale to produce whole logical pixels.
+
+The Control Center uses a conservative common scale set:
 
 ```text
-jc-displayctl rollback --token <transaction>
+1.00
+1.25
+1.50
+1.75
+2.00
 ```
 
-## Confirmation lifecycle
+and only exposes candidates that divide the selected physical resolution into
+whole logical pixels.
+
+For example:
 
 ```text
-Observed mode
-    │
-    ▼
+3440 × 1440 / 1.25 = 2752 × 1152   valid
+3440 × 1440 / 1.50 = 2293.33 × 960 invalid
+```
+
+The backend validates this again before mutation.
+
+## Orientation / transform
+
+Hyprland transform values are represented directly:
+
+```text
+0  Normal
+1  90°
+2  180°
+3  270°
+4  Flipped
+5  Flipped + 90°
+6  Flipped + 180°
+7  Flipped + 270°
+```
+
+Transforms `1`, `3`, `5` and `7` exchange logical width and height.
+
+## Topology guard
+
+Phase 1B.4 intentionally does not edit position.
+
+Before a scale or transform can be selected/applied, the projected logical
+rectangle is compared with every other active monitor.
+
+```text
+target logical rectangle
+        │
+        ▼
+overlaps another monitor?
+   │             │
+  yes            no
+   │             │
+disabled /       Safe Apply
+rejected
+```
+
+An option that requires repositioning is shown as:
+
+```text
+90° · layout needed
+```
+
+and is disabled.
+
+The backend performs the same overlap validation independently of the UI.
+
+This avoids introducing invalid monitor overlap while the visual layout editor
+is not yet available.
+
+## Safe Apply snapshot
+
+Rollback now snapshots the complete mutable runtime state used by this phase:
+
+```text
+mode
+position
+scale
+transform
+```
+
+This is important after `Keep`: a later Safe Apply preserves the current runtime
+scale and transform instead of falling back to the persistent rule.
+
+Persistent monitor options such as VRR, color-management and bit-depth fields
+continue to be preserved from the machine-local monitor rule.
+
+## Safe Apply lifecycle
+
+```text
 Draft
-    │
-    ▼
-Safe Apply
-    │
-    ▼
-Temporary runtime mode
-    │
-    ├── Keep
-    │      └── cancel watchdog
-    │
-    └── 15 second timeout
-           └── automatic rollback
+  │
+  ▼
+Validate mode + scale + transform + topology
+  │
+  ▼
+Snapshot current runtime display state
+  │
+  ▼
+Schedule systemd --user rollback watchdog
+  │
+  ▼
+Apply temporary state
+  │
+  ▼
+15 second confirmation
+  │
+  ├── Keep
+  │      └── retain runtime state
+  │
+  └── Rollback / timeout
+         └── restore snapshot
 ```
 
-`Keep` means keep the **runtime** mode. Persistence remains a later phase.
+The external watchdog remains independent from Quickshell.
 
-## Ephemeral transaction state
+## CLI examples
 
-Transaction metadata lives under:
-
-```text
-$XDG_RUNTIME_DIR/jc-hyprland-dotfiles/display-safe/
-```
-
-and includes:
-
-- transaction token,
-- output,
-- target mode,
-- rollback mode,
-- deadline,
-- systemd unit name,
-- generated rollback Lua rule.
-
-This state is ephemeral and is not versioned or written to the user's persistent
-dotfiles configuration.
-
-## Runtime commands
-
-Preflight:
+Existing mode-only preflight remains valid and preserves current runtime scale,
+transform and position:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
     preflight \
     --output DP-1 \
-    --mode 3440x1440@120.00
+    --mode 3440x1440@165.00
 ```
 
-Safe Apply:
+Scale preflight:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    safe-apply \
+    preflight \
     --output DP-1 \
-    --mode 3440x1440@120.00 \
-    --timeout 15
+    --mode 3440x1440@165.00 \
+    --scale 1.25
 ```
 
-Inspect pending transaction:
-
-```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-displayctl status
-```
-
-Keep:
+Transform preflight:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    keep \
-    --token <token>
+    preflight \
+    --output DP-1 \
+    --mode 3440x1440@165.00 \
+    --transform 2
 ```
 
-Rollback:
+The Control Center supplies the full draft state during Safe Apply.
 
-```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    rollback \
-    --token <token>
-```
+## Still intentionally blocked
 
-Normal use should happen through the Control Center UI.
+Phase 1B.4 does not expose:
 
-## Recovery behavior
-
-When `MonitorApplyService` starts, it asks `jc-displayctl status`.
-
-If a Safe Apply transaction is still pending after a Quickshell reload, the UI
-recovers the token, output and deadline and resumes the confirmation view.
-
-If the watchdog already rolled the mode back, status returns idle and observed
-monitor state is refreshed.
-
-## Safety boundary
-
-Phase 1B.3 still does not allow editing:
-
-- scale,
-- transform/orientation,
-- x/y position,
+- manual x/y position,
+- drag/drop monitor layout,
 - enable/disable,
-- multiple monitors in one transaction,
-- persistent `monitors.conf`.
+- persistent save to `monitors.conf`.
 
-Those controls are intentionally blocked until Safe Apply is validated.
+A rotation that needs repositioning is rejected until the layout phase.
 
 ## Validation
 
@@ -181,6 +223,5 @@ make check
 
 ## Next milestone
 
-After Safe Apply and watchdog rollback are validated, the same transaction
-boundary can safely be extended to scale and orientation before layout editing
-and persistent saves are introduced.
+Phase 1B.5 can build a visual position/layout editor on top of the same
+transactional Safe Apply boundary.

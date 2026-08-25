@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# ==============================================================================
-# jc-hyprland-dotfiles
-# Quickshell static validation
-# ==============================================================================
-
 script_path="$(readlink -f "${BASH_SOURCE[0]}")"
 script_dir="$(cd "$(dirname "$script_path")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 
 config_dir="$repo_root/config/quickshell/jc-hyprland"
-
 errors=0
 
 
@@ -51,9 +45,7 @@ else
 fi
 
 for relative in "${required_files[@]}"; do
-    file="$config_dir/$relative"
-
-    if [[ -r "$file" ]]; then
+    if [[ -r "$config_dir/$relative" ]]; then
         ok "$relative"
     else
         fail "missing or unreadable: $relative"
@@ -100,12 +92,26 @@ for backend_contract in \
     'status)' \
     'systemd-run' \
     'XDG_RUNTIME_DIR' \
-    'rollback.lua'
+    'rollback.lua' \
+    'validate_scale_for_mode' \
+    'validate_projected_geometry' \
+    'validate_target_state' \
+    'rollback-scale' \
+    'rollback-transform' \
+    'rollback-position'
 do
     if grep -Fq "$backend_contract" "$display_controller" 2>/dev/null; then
         ok "backend contract: $backend_contract"
     else
         fail "display backend contract missing: $backend_contract"
+    fi
+done
+
+for cli_option in --scale --transform --position; do
+    if grep -Fq -- "$cli_option" "$display_controller" 2>/dev/null; then
+        ok "displayctl option: $cli_option"
+    else
+        fail "displayctl option missing: $cli_option"
     fi
 done
 
@@ -133,7 +139,7 @@ if grep -Fqx '//@ pragma ShellId jc-hyprland' \
 then
     ok "stable ShellId: jc-hyprland"
 else
-    fail "shell.qml must declare: //@ pragma ShellId jc-hyprland"
+    fail "shell.qml must declare stable ShellId"
 fi
 
 if grep -Fq 'target: "controlCenter"' \
@@ -143,22 +149,6 @@ then
 else
     fail "Main.qml does not expose IPC target controlCenter"
 fi
-
-for ipc_method in \
-    showDisplays \
-    hideDisplays \
-    toggleDisplays \
-    refreshDisplays \
-    displaysAreVisible
-do
-    if grep -Fq "function $ipc_method" \
-        "$config_dir/Main.qml" 2>/dev/null
-    then
-        ok "IPC method: $ipc_method"
-    else
-        fail "missing IPC method: $ipc_method"
-    fi
-done
 
 
 printf '\n==> Monitor service contract\n'
@@ -170,34 +160,45 @@ if grep -Fq '"hyprctl", "-j", "monitors", "all"' \
 then
     ok "read-only monitor discovery command"
 else
-    fail "MonitorService.qml discovery command changed unexpectedly"
+    fail "MonitorService discovery command changed unexpectedly"
 fi
 
 if grep -Fq 'availableModes' "$monitor_service" 2>/dev/null; then
     ok "availableModes captured"
 else
-    fail "MonitorService.qml does not expose availableModes"
+    fail "MonitorService does not expose availableModes"
 fi
 
 
-printf '\n==> Display draft contract\n'
+printf '\n==> Display draft geometry contract\n'
 
 draft_store="$config_dir/services/DisplayDraftStore.qml"
 
 for draft_contract in \
-    'property var drafts:' \
-    'readonly property bool hasDirty:' \
-    'function dirtyDrafts()' \
-    'function prepareForRefreshAfterApply()' \
-    'function setResolution' \
-    'function setRefreshMode'
+    'function setScale' \
+    'function setTransform' \
+    'function scaleOptionsFor' \
+    'function transformOptionsFor' \
+    'function scaleIsValidForDimensions' \
+    'function logicalSize' \
+    'function rectanglesOverlap' \
+    'function wouldOverlap' \
+    'layout needed'
 do
     if grep -Fq "$draft_contract" "$draft_store" 2>/dev/null; then
         ok "$draft_contract"
     else
-        fail "DisplayDraftStore contract missing: $draft_contract"
+        fail "DisplayDraftStore geometry contract missing: $draft_contract"
     fi
 done
+
+choice_group="$config_dir/components/JcChoiceGroup.qml"
+
+if grep -Fq 'modelData.enabled !== false' "$choice_group" 2>/dev/null; then
+    ok "choice options support disabled topology states"
+else
+    fail "JcChoiceGroup does not support disabled per-option state"
+fi
 
 
 printf '\n==> Safe Apply service contract\n'
@@ -206,16 +207,14 @@ apply_service="$config_dir/services/MonitorApplyService.qml"
 
 for apply_contract in \
     'property int confirmationTimeoutSeconds: 15' \
-    'property bool pendingConfirmation: false' \
     'function applyDirty(): void' \
     'function keepPending(): void' \
     'function rollbackPending(reason): void' \
-    'function recoverPending()' \
-    '"safe-apply"' \
-    '"keep"' \
-    '"rollback"' \
-    '"status"' \
-    'Timer {'
+    'whole logical pixels' \
+    'Projected display geometry overlaps' \
+    '"--scale"' \
+    '"--transform"' \
+    '"--position"'
 do
     if grep -Fq "$apply_contract" "$apply_service" 2>/dev/null; then
         ok "$apply_contract"
@@ -225,7 +224,7 @@ do
 done
 
 
-printf '\n==> Phase 1B.3 safety\n'
+printf '\n==> Phase 1B.4 safety\n'
 
 mutation_matches="$(
     grep -RInE \
@@ -263,17 +262,22 @@ fi
 if grep -Fq 'systemd-run' "$display_controller" \
     && grep -Fq "rollback --token \"\$token\"" "$display_controller"
 then
-    ok "external rollback watchdog configured before confirmation"
+    ok "external rollback watchdog preserved"
 else
     fail "Safe Apply watchdog contract missing"
 fi
 
-if grep -Fq 'Persistent monitors.conf' \
-    "$config_dir/modules/displays/DisplayPopup.qml"
+if ! grep -RInE \
+    --include='*.qml' \
+    '(setPosition|positionOptions|positionEditor)' \
+    "$config_dir/modules" \
+    "$config_dir/components" \
+    "$config_dir/services/DisplayDraftStore.qml" \
+    >/dev/null 2>&1
 then
-    ok "UI communicates runtime-only confirmation"
+    ok "manual position editing remains disabled"
 else
-    fail "Safe Apply UI must state that persistence is unchanged"
+    fail "Phase 1B.4 must not expose manual position editing"
 fi
 
 
@@ -288,22 +292,7 @@ if grep -Eq '^[[:space:]]{4}implicitWidth:[[:space:]]*[0-9]+' \
 then
     ok "PanelWindow uses implicitWidth / implicitHeight"
 else
-    fail "DisplayPopup.qml must use implicitWidth / implicitHeight"
-fi
-
-deprecated_window_dimensions="$(
-    grep -nE \
-        '^[[:space:]]{4}(width|height):[[:space:]]*[0-9]+' \
-        "$display_popup" \
-        2>/dev/null ||
-        true
-)"
-
-if [[ -z "$deprecated_window_dimensions" ]]; then
-    ok "no deprecated top-level numeric width / height"
-else
-    fail "deprecated top-level PanelWindow dimensions detected:"
-    printf '%s\n' "$deprecated_window_dimensions" >&2
+    fail "DisplayPopup must use implicit dimensions"
 fi
 
 

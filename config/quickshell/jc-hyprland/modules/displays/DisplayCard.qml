@@ -25,6 +25,16 @@ Components.JcCard {
             ? root.draftStore.refreshOptionsFor(root.monitor.output)
             : []
 
+    readonly property var scaleOptions:
+        root.monitor && root.draftStore
+            ? root.draftStore.scaleOptionsFor(root.monitor.output)
+            : []
+
+    readonly property var transformOptions:
+        root.monitor && root.draftStore
+            ? root.draftStore.transformOptionsFor(root.monitor.output)
+            : []
+
     implicitHeight: content.implicitHeight + 28
 
     ColumnLayout {
@@ -85,7 +95,9 @@ Components.JcCard {
                     return root.monitor.description;
 
                 return [root.monitor.make, root.monitor.model]
-                    .filter(value => value.length > 0)
+                    .filter(function(value) {
+                        return value.length > 0;
+                    })
                     .join(" ");
             }
 
@@ -124,6 +136,21 @@ Components.JcCard {
 
             Text {
                 text: root.monitor ? root.monitor.scale.toFixed(2) : "—"
+                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
+                font.pixelSize: 12
+            }
+
+            Text {
+                text: "Orientation"
+                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+                font.pixelSize: 12
+            }
+
+            Text {
+                text: root.monitor && root.draftStore
+                    ? root.draftStore.transformLabel(root.monitor.transform)
+                    : "—"
+
                 color: root.theme ? root.theme.textPrimary : "#f2f2f4"
                 font.pixelSize: 12
             }
@@ -250,16 +277,87 @@ Components.JcCard {
         }
 
         Text {
+            text: "Scale"
+            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+            font.pixelSize: 11
+        }
+
+        Components.JcChoiceGroup {
             Layout.fillWidth: true
 
-            text: root.draft
-                ? "Draft: "
+            theme: root.theme
+            options: root.scaleOptions
+            selectedValue: root.draft ? String(root.draft.scale) : ""
+            controlEnabled: root.editorEnabled
+            emptyText: "No valid scales for this resolution"
+
+            onValueSelected: value => {
+                if (root.monitor && root.draftStore)
+                    root.draftStore.setScale(root.monitor.output, value);
+            }
+        }
+
+        Text {
+            text: "Orientation"
+            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+            font.pixelSize: 11
+        }
+
+        Components.JcChoiceGroup {
+            Layout.fillWidth: true
+
+            theme: root.theme
+            options: root.transformOptions
+            selectedValue: root.draft ? String(root.draft.transform) : ""
+            controlEnabled: root.editorEnabled
+            emptyText: "No valid orientation options"
+
+            onValueSelected: value => {
+                if (root.monitor && root.draftStore)
+                    root.draftStore.setTransform(root.monitor.output, value);
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+
+            text: {
+                if (!root.draft || !root.draftStore)
+                    return "Draft unavailable";
+
+                const logical = root.draftStore.logicalSize(
+                    root.draft.width,
+                    root.draft.height,
+                    root.draft.scale,
+                    root.draft.transform
+                );
+
+                return "Draft: "
                     + root.draft.width + "×" + root.draft.height
                     + " @ " + root.draft.refreshRate.toFixed(2) + " Hz"
-                : "Draft unavailable"
+                    + " · " + Number(root.draft.scale).toFixed(2) + "×"
+                    + " · "
+                    + root.draftStore.transformLabel(root.draft.transform)
+                    + " · logical "
+                    + Math.round(logical.width)
+                    + "×" + Math.round(logical.height);
+            }
 
             color: root.theme ? root.theme.accent : "#89b4fa"
             font.pixelSize: 11
+            wrapMode: Text.Wrap
+        }
+
+        Text {
+            Layout.fillWidth: true
+
+            text:
+                "Options marked “layout needed” are disabled because the "
+                + "projected logical rectangle would overlap another monitor."
+
+            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+            font.pixelSize: 10
+            wrapMode: Text.Wrap
         }
     }
 }

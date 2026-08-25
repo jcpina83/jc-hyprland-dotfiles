@@ -96,12 +96,61 @@ Scope {
                 + draft.output + ": " + draft.modeRaw;
         }
 
-        // Phase 1B.3 remains intentionally limited to resolution + refresh.
-        if (!root.sameNumber(draft.scale, draft.observed.scale)
-                || Number(draft.transform) !== Number(draft.observed.transform)
-                || Number(draft.x) !== Number(draft.observed.x)
+        const scale = Number(draft.scale);
+        const transform = Number(draft.transform);
+
+        if (!Number.isFinite(scale) || scale <= 0)
+            return "Display scale must be a positive number.";
+
+        const logicalWidth = Number(draft.width) / scale;
+        const logicalHeight = Number(draft.height) / scale;
+
+        if (!root.sameNumber(logicalWidth, Math.round(logicalWidth))
+                || !root.sameNumber(logicalHeight, Math.round(logicalHeight))) {
+            return "Selected scale does not produce whole logical pixels.";
+        }
+
+        if (!Number.isInteger(transform)
+                || transform < 0
+                || transform > 7) {
+            return "Display transform must be an integer from 0 to 7.";
+        }
+
+        // Position editing remains outside Phase 1B.4.
+        if (Number(draft.x) !== Number(draft.observed.x)
                 || Number(draft.y) !== Number(draft.observed.y)) {
-            return "Phase 1B.3 only supports resolution and refresh changes.";
+            return "Phase 1B.4 does not allow manual position changes.";
+        }
+
+        const projected = root.draftStore.logicalSize(
+            draft.width,
+            draft.height,
+            scale,
+            transform
+        );
+
+        for (let i = 0; i < root.monitorService.monitors.length; ++i) {
+            const other = root.monitorService.monitors[i];
+
+            if (!other
+                    || other.output === draft.output
+                    || other.disabled) {
+                continue;
+            }
+
+            if (root.draftStore.rectanglesOverlap(
+                    Number(draft.x),
+                    Number(draft.y),
+                    projected.width,
+                    projected.height,
+                    Number(other.x),
+                    Number(other.y),
+                    Number(other.logicalWidth),
+                    Number(other.logicalHeight))) {
+                return "Projected display geometry overlaps "
+                    + other.output
+                    + ". Layout editing is required for this combination.";
+            }
         }
 
         return "";
@@ -217,6 +266,12 @@ Scope {
             draft.output,
             "--mode",
             runtimeMode,
+            "--scale",
+            String(draft.scale),
+            "--transform",
+            String(draft.transform),
+            "--position",
+            String(draft.x) + "x" + String(draft.y),
             "--timeout",
             String(root.confirmationTimeoutSeconds)
         ]);
@@ -324,7 +379,7 @@ Scope {
             root.errorMessage = "";
             root.lastAppliedOutput = output;
             root.statusMessage =
-                "Temporary runtime mode applied to " + output
+                "Temporary runtime display state applied to " + output
                 + ". Confirm it before automatic rollback.";
 
             // The target mode is now the observed runtime state. The backend,
@@ -405,7 +460,7 @@ Scope {
             root.clearPending();
             root.errorMessage = "";
             root.statusMessage =
-                "Runtime mode kept for " + output
+                "Runtime display state kept for " + output
                 + ". Persistent monitors.conf is still unchanged.";
 
             root.monitorService.refresh();
@@ -474,7 +529,7 @@ Scope {
             root.clearPending();
             root.errorMessage = "";
             root.statusMessage =
-                "Previous runtime mode restored for " + output + ".";
+                "Previous runtime display state restored for " + output + ".";
 
             root.monitorService.refresh();
             root.rolledBack(output);

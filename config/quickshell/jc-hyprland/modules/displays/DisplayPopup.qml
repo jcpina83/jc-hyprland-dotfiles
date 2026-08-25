@@ -409,7 +409,7 @@ PanelWindow {
                         }
 
                         if (root.draftStore && root.draftStore.hasDirty)
-                            return "Draft changes are ready for Safe Apply.";
+                            return "Draft mode, scale or orientation is ready for Safe Apply.";
 
                         if (root.monitorService
                                 && root.monitorService.lastRefresh.length > 0) {
@@ -425,7 +425,7 @@ PanelWindow {
                 }
 
                 Text {
-                    text: "Phase 1B.3 · Safe Apply"
+                    text: "Phase 1B.4 · Scale + Orientation"
                     color: root.theme ? root.theme.accent : "#89b4fa"
                     font.pixelSize: 11
                     font.bold: true

@@ -5,10 +5,12 @@ set -euo pipefail
 # jc-hyprland-dotfiles
 # Display runtime controller
 #
-# Phase 1B.3:
+# Phase 1B.4:
 # - resolves live connector names to persistent desc:<description> rules
-# - preserves the machine-local rule and changes only monitor mode
-# - supports Safe Apply with an external systemd user rollback watchdog
+# - Safe Applies mode + scale + transform while preserving position
+# - snapshots mode + position + scale + transform for rollback
+# - validates whole logical pixels and projected monitor overlap
+# - uses an external systemd user rollback watchdog
 # - stores ephemeral transaction state under XDG_RUNTIME_DIR
 # - never writes local/monitors.conf
 # ==============================================================================
@@ -28,6 +30,9 @@ shift || true
 
 output=""
 mode=""
+requested_scale=""
+requested_transform=""
+requested_position=""
 token=""
 timeout_seconds=15
 
@@ -38,23 +43,34 @@ description_selector=""
 usage() {
     cat <<'EOF'
 Usage:
-  jc-displayctl preflight  --output <output> --mode <WIDTHxHEIGHT@HZ>
-  jc-displayctl apply      --output <output> --mode <WIDTHxHEIGHT@HZ>
-  jc-displayctl safe-apply --output <output> --mode <WIDTHxHEIGHT@HZ> [--timeout <seconds>]
+  jc-displayctl preflight  --output <output> --mode <WIDTHxHEIGHT@HZ> \
+      [--scale <scale>] [--transform <0-7>] [--position <XxY>]
+
+  jc-displayctl apply      --output <output> --mode <WIDTHxHEIGHT@HZ> \
+      [--scale <scale>] [--transform <0-7>] [--position <XxY>]
+
+  jc-displayctl safe-apply --output <output> --mode <WIDTHxHEIGHT@HZ> \
+      [--scale <scale>] [--transform <0-7>] [--position <XxY>] \
+      [--timeout <seconds>]
+
   jc-displayctl keep       --token <token>
   jc-displayctl rollback   --token <token>
   jc-displayctl status
 
-`apply` is the low-level runtime primitive retained for diagnostics.
+If scale, transform or position are omitted, the current runtime value is
+preserved.
+
+`apply` is a low-level diagnostic primitive.
 The Control Center uses `safe-apply`.
 
 Safe Apply:
-  1. snapshots the current runtime mode,
-  2. schedules an external systemd user rollback watchdog,
-  3. applies the requested runtime mode,
-  4. waits for Keep or Rollback.
+  1. snapshots current mode + position + scale + transform,
+  2. validates logical pixels and projected topology,
+  3. schedules an external systemd user rollback watchdog,
+  4. applies the requested runtime display state,
+  5. waits for Keep or Rollback.
 
-No command in Phase 1B.3 writes local/monitors.conf.
+No command in Phase 1B.4 writes local/monitors.conf.
 EOF
 }
 
@@ -103,17 +119,6 @@ lua_number() {
 }
 
 
-lua_scale() {
-    local value="$1"
-
-    if [[ "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-        printf '%s' "$value"
-    else
-        lua_quote "$value"
-    fi
-}
-
-
 ensure_state_root() {
     mkdir -p "$state_root"
     chmod 700 "$state_root"
@@ -132,6 +137,24 @@ parse_mode_args() {
             --mode)
                 (($# >= 2)) || die "--mode requires a value"
                 mode="$2"
+                shift 2
+                ;;
+
+            --scale)
+                (($# >= 2)) || die "--scale requires a value"
+                requested_scale="$2"
+                shift 2
+                ;;
+
+            --transform)
+                (($# >= 2)) || die "--transform requires a value"
+                requested_transform="$2"
+                shift 2
+                ;;
+
+            --position)
+                (($# >= 2)) || die "--position requires a value"
+                requested_position="$2"
                 shift 2
                 ;;
 
@@ -160,6 +183,25 @@ parse_mode_args() {
 
     [[ "$mode" =~ ^[0-9]+x[0-9]+@[0-9]+([.][0-9]+)?$ ]] \
         || die "invalid mode: $mode"
+
+    if [[ -n "$requested_scale" ]]; then
+        [[ "$requested_scale" =~ ^[0-9]+([.][0-9]+)?$ ]] \
+            || die "invalid scale: $requested_scale"
+
+        awk -v scale="$requested_scale" \
+            'BEGIN { exit !(scale > 0) }' \
+            || die "scale must be greater than zero"
+    fi
+
+    if [[ -n "$requested_transform" ]]; then
+        [[ "$requested_transform" =~ ^[0-7]$ ]] \
+            || die "transform must be an integer from 0 to 7"
+    fi
+
+    if [[ -n "$requested_position" ]]; then
+        [[ "$requested_position" =~ ^-?[0-9]+x-?[0-9]+$ ]] \
+            || die "invalid position: $requested_position"
+    fi
 
     [[ "$timeout_seconds" =~ ^[0-9]+$ ]] \
         || die "timeout must be an integer number of seconds"
@@ -197,6 +239,12 @@ parse_token_args() {
 }
 
 
+monitors_json() {
+    hyprctl -j monitors all 2>/dev/null \
+        || die "unable to query Hyprland monitors"
+}
+
+
 resolve_monitor_identity() {
     command -v hyprctl >/dev/null 2>&1 \
         || die "hyprctl is not available"
@@ -204,17 +252,16 @@ resolve_monitor_identity() {
     command -v jq >/dev/null 2>&1 \
         || die "jq is required to resolve monitor descriptions"
 
-    local monitors_json
+    local state
     local matches
 
-    monitors_json="$(hyprctl -j monitors all 2>/dev/null)" \
-        || die "unable to query Hyprland monitors"
+    state="$(monitors_json)"
 
     matches="$(
         jq -r \
             --arg output "$output" \
             '[.[] | select(.name == $output)] | length' \
-            <<< "$monitors_json"
+            <<< "$state"
     )" || die "unable to parse Hyprland monitor state"
 
     [[ "$matches" =~ ^[0-9]+$ ]] \
@@ -232,7 +279,7 @@ resolve_monitor_identity() {
         jq -r \
             --arg output "$output" \
             '.[] | select(.name == $output) | .description // empty' \
-            <<< "$monitors_json"
+            <<< "$state"
     )" || die "unable to read description for $output"
 
     description="$(trim "$description")"
@@ -252,28 +299,30 @@ resolve_monitor_identity() {
 }
 
 
-current_runtime_mode() {
-    local monitors_json
+current_runtime_state() {
+    local state
     local current
 
-    monitors_json="$(hyprctl -j monitors all 2>/dev/null)" \
-        || die "unable to query current monitor mode"
+    state="$(monitors_json)"
 
     current="$(
-        jq -r \
+        jq -c \
             --arg output "$output" \
             '.[] | select(.name == $output)
              | if (.width > 0 and .height > 0 and .refreshRate > 0)
-               then "\(.width)x\(.height)@\(.refreshRate)"
+               then {
+                 mode: "\(.width)x\(.height)@\(.refreshRate)",
+                 position: "\(.x)x\(.y)",
+                 scale: (.scale // 1),
+                 transform: (.transform // 0)
+               }
                else empty
                end' \
-            <<< "$monitors_json"
-    )" || die "unable to parse current monitor mode"
-
-    current="$(trim "$current")"
+            <<< "$state"
+    )" || die "unable to parse current monitor state"
 
     [[ -n "$current" ]] \
-        || die "unable to determine current runtime mode for $output"
+        || die "unable to determine current runtime state for $output"
 
     printf '%s' "$current"
 }
@@ -350,7 +399,7 @@ append_extra_field() {
     local value="$2"
 
     case "$key" in
-        bitdepth|vrr|transform|sdrbrightness|sdrsaturation|\
+        bitdepth|vrr|sdrbrightness|sdrsaturation|\
 supports_wide_color|supports_hdr|sdr_min_luminance|sdr_max_luminance|\
 min_luminance|max_luminance|max_avg_luminance)
             printf ', %s = %s' "$key" "$(lua_number "$value")"
@@ -358,6 +407,10 @@ min_luminance|max_luminance|max_avg_luminance)
 
         cm|sdr_eotf|mirror|icc)
             printf ', %s = %s' "$key" "$(lua_quote "$value")"
+            ;;
+
+        transform)
+            # Transform is emitted once from the requested/current runtime state.
             ;;
 
         *)
@@ -369,9 +422,163 @@ min_luminance|max_luminance|max_avg_luminance)
 }
 
 
+validate_scale_for_mode() {
+    local requested_mode="$1"
+    local scale="$2"
+
+    local size="${requested_mode%%@*}"
+    local width="${size%%x*}"
+    local height="${size#*x}"
+
+    awk \
+        -v width="$width" \
+        -v height="$height" \
+        -v scale="$scale" \
+        'function abs(v) { return v < 0 ? -v : v }
+         BEGIN {
+             if (scale <= 0)
+                 exit 1
+
+             lw = width / scale
+             lh = height / scale
+
+             rw = int(lw + 0.5)
+             rh = int(lh + 0.5)
+
+             if (abs(lw - rw) >= 0.0001 || abs(lh - rh) >= 0.0001)
+                 exit 1
+
+             exit 0
+         }'
+}
+
+
+validate_projected_geometry() {
+    local requested_mode="$1"
+    local position="$2"
+    local scale="$3"
+    local transform="$4"
+
+    local size="${requested_mode%%@*}"
+    local width="${size%%x*}"
+    local height="${size#*x}"
+
+    local x="${position%%x*}"
+    local y="${position#*x}"
+
+    local logical_width
+    local logical_height
+
+    logical_width="$(
+        awk -v width="$width" -v scale="$scale" \
+            'BEGIN { printf "%.6f", width / scale }'
+    )"
+
+    logical_height="$(
+        awk -v height="$height" -v scale="$scale" \
+            'BEGIN { printf "%.6f", height / scale }'
+    )"
+
+    case "$transform" in
+        1|3|5|7)
+            local swap="$logical_width"
+            logical_width="$logical_height"
+            logical_height="$swap"
+            ;;
+    esac
+
+    local state
+    local overlaps
+
+    state="$(monitors_json)"
+
+    overlaps="$(
+        jq -r \
+            --arg output "$output" \
+            --argjson tx "$x" \
+            --argjson ty "$y" \
+            --argjson tw "$logical_width" \
+            --argjson th "$logical_height" \
+            '
+            def rotated:
+                . == 1 or . == 3 or . == 5 or . == 7;
+
+            [
+                .[]
+                | select(.name != $output)
+                | select((.disabled // false) == false)
+                | select((.width // 0) > 0 and (.height // 0) > 0)
+                | . as $m
+                | (($m.scale // 1)
+                    | if . == 0 then 1 else . end) as $scale
+                | (if (($m.transform // 0) | rotated)
+                   then ($m.height / $scale)
+                   else ($m.width / $scale)
+                   end) as $ow
+                | (if (($m.transform // 0) | rotated)
+                   then ($m.width / $scale)
+                   else ($m.height / $scale)
+                   end) as $oh
+                | select(
+                    $tx < (($m.x // 0) + $ow)
+                    and ($tx + $tw) > ($m.x // 0)
+                    and $ty < (($m.y // 0) + $oh)
+                    and ($ty + $th) > ($m.y // 0)
+                  )
+                | .name
+            ]
+            | join(", ")
+            ' \
+            <<< "$state"
+    )" || die "unable to validate projected monitor geometry"
+
+    if [[ -n "$overlaps" ]]; then
+        die \
+            "projected geometry for $output overlaps: $overlaps; " \
+            "layout editing is required"
+    fi
+}
+
+
+validate_target_state() {
+    local requested_mode="$1"
+    local position="$2"
+    local scale="$3"
+    local transform="$4"
+
+    [[ "$position" =~ ^-?[0-9]+x-?[0-9]+$ ]] \
+        || die "invalid target position: $position"
+
+    [[ "$scale" =~ ^[0-9]+([.][0-9]+)?$ ]] \
+        || die "invalid target scale: $scale"
+
+    awk -v scale="$scale" \
+        'BEGIN { exit !(scale > 0) }' \
+        || die "target scale must be greater than zero"
+
+    [[ "$transform" =~ ^[0-7]$ ]] \
+        || die "target transform must be an integer from 0 to 7"
+
+    validate_scale_for_mode "$requested_mode" "$scale" \
+        || die \
+            "scale $scale does not create whole logical pixels " \
+            "for mode $requested_mode"
+
+    validate_projected_geometry \
+        "$requested_mode" \
+        "$position" \
+        "$scale" \
+        "$transform"
+}
+
+
 build_lua_rule() {
     local payload="$1"
     local requested_mode="$2"
+    local position="$3"
+    local scale="$4"
+    local transform="$5"
+
     local -a fields
 
     IFS=',' read -r -a fields <<< "$payload"
@@ -381,13 +588,9 @@ build_lua_rule() {
 
     local configured_selector
     local configured_mode
-    local position
-    local scale
 
     configured_selector="$(trim "${fields[0]}")"
     configured_mode="$(trim "${fields[1]}")"
-    position="$(trim "${fields[2]}")"
-    scale="$(trim "${fields[3]}")"
 
     selector_matches_monitor "$configured_selector" \
         || die "monitor rule selector no longer matches $output"
@@ -395,15 +598,13 @@ build_lua_rule() {
     [[ "$configured_mode" != "disable" ]] \
         || die "monitor $output is persistently disabled"
 
-    [[ -n "$position" ]] || die "monitor rule has no position for $output"
-    [[ -n "$scale" ]] || die "monitor rule has no scale for $output"
-
     local lua
     lua="hl.monitor({"
     lua+=" output = $(lua_quote "$configured_selector")"
     lua+=", mode = $(lua_quote "$requested_mode")"
     lua+=", position = $(lua_quote "$position")"
-    lua+=", scale = $(lua_scale "$scale")"
+    lua+=", scale = $(lua_number "$scale")"
+    lua+=", transform = $(lua_number "$transform")"
 
     local remaining=$(( ${#fields[@]} - 4 ))
 
@@ -462,16 +663,6 @@ pending_token() {
 }
 
 
-pending_matches_token() {
-    local expected="$1"
-    local existing
-
-    existing="$(pending_token 2>/dev/null || true)"
-
-    [[ -n "$existing" && "$existing" == "$expected" ]]
-}
-
-
 unit_name_for_token() {
     printf 'jc-display-safe-%s' "$1"
 }
@@ -524,13 +715,53 @@ restore_claim_after_failure() {
 }
 
 
+effective_target_state() {
+    local current="$1"
+
+    local position
+    local scale
+    local transform
+
+    position="${requested_position:-$(jq -r '.position' <<< "$current")}"
+    scale="${requested_scale:-$(jq -r '.scale' <<< "$current")}"
+    transform="${requested_transform:-$(jq -r '.transform' <<< "$current")}"
+
+    printf '{"position":%s,"scale":%s,"transform":%s}\n' \
+        "$(json_quote "$position")" \
+        "$scale" \
+        "$transform"
+}
+
+
 run_preflight() {
     local payload
+    local current
+    local target
+    local position
+    local scale
+    local transform
     local lua_rule
 
     resolve_monitor_identity
+
     payload="$(find_monitor_payload)"
-    lua_rule="$(build_lua_rule "$payload" "$mode")"
+    current="$(current_runtime_state)"
+    target="$(effective_target_state "$current")"
+
+    position="$(jq -r '.position' <<< "$target")"
+    scale="$(jq -r '.scale' <<< "$target")"
+    transform="$(jq -r '.transform' <<< "$target")"
+
+    validate_target_state "$mode" "$position" "$scale" "$transform"
+
+    lua_rule="$(
+        build_lua_rule \
+            "$payload" \
+            "$mode" \
+            "$position" \
+            "$scale" \
+            "$transform"
+    )"
 
     printf '%s\n' "$lua_rule"
 }
@@ -538,11 +769,33 @@ run_preflight() {
 
 run_apply() {
     local payload
+    local current
+    local target
+    local position
+    local scale
+    local transform
     local lua_rule
 
     resolve_monitor_identity
+
     payload="$(find_monitor_payload)"
-    lua_rule="$(build_lua_rule "$payload" "$mode")"
+    current="$(current_runtime_state)"
+    target="$(effective_target_state "$current")"
+
+    position="$(jq -r '.position' <<< "$target")"
+    scale="$(jq -r '.scale' <<< "$target")"
+    transform="$(jq -r '.transform' <<< "$target")"
+
+    validate_target_state "$mode" "$position" "$scale" "$transform"
+
+    lua_rule="$(
+        build_lua_rule \
+            "$payload" \
+            "$mode" \
+            "$position" \
+            "$scale" \
+            "$transform"
+    )"
 
     run_eval_rule "$lua_rule" || exit 1
 
@@ -571,7 +824,15 @@ run_safe_apply() {
     resolve_monitor_identity
 
     local payload
+    local current
+    local target
     local old_mode
+    local old_position
+    local old_scale
+    local old_transform
+    local target_position
+    local target_scale
+    local target_transform
     local target_rule
     local rollback_rule
     local now
@@ -579,14 +840,49 @@ run_safe_apply() {
     local unit_name
 
     payload="$(find_monitor_payload)"
-    old_mode="$(current_runtime_mode)"
+    current="$(current_runtime_state)"
+    target="$(effective_target_state "$current")"
 
-    if [[ "$old_mode" == "$mode" ]]; then
-        die "requested mode already matches current runtime mode: $mode"
+    old_mode="$(jq -r '.mode' <<< "$current")"
+    old_position="$(jq -r '.position' <<< "$current")"
+    old_scale="$(jq -r '.scale' <<< "$current")"
+    old_transform="$(jq -r '.transform' <<< "$current")"
+
+    target_position="$(jq -r '.position' <<< "$target")"
+    target_scale="$(jq -r '.scale' <<< "$target")"
+    target_transform="$(jq -r '.transform' <<< "$target")"
+
+    validate_target_state \
+        "$mode" \
+        "$target_position" \
+        "$target_scale" \
+        "$target_transform"
+
+    if [[ "$old_mode" == "$mode" \
+        && "$old_position" == "$target_position" \
+        && "$old_scale" == "$target_scale" \
+        && "$old_transform" == "$target_transform" ]]
+    then
+        die "requested display state already matches current runtime state"
     fi
 
-    target_rule="$(build_lua_rule "$payload" "$mode")"
-    rollback_rule="$(build_lua_rule "$payload" "$old_mode")"
+    target_rule="$(
+        build_lua_rule \
+            "$payload" \
+            "$mode" \
+            "$target_position" \
+            "$target_scale" \
+            "$target_transform"
+    )"
+
+    rollback_rule="$(
+        build_lua_rule \
+            "$payload" \
+            "$old_mode" \
+            "$old_position" \
+            "$old_scale" \
+            "$old_transform"
+    )"
 
     token="$(date +%s)-$$-$RANDOM"
     now="$(date +%s)"
@@ -601,14 +897,22 @@ run_safe_apply() {
 
     printf '%s\n' "$token" > "$pending_dir/token"
     printf '%s\n' "$output" > "$pending_dir/output"
+
     printf '%s\n' "$old_mode" > "$pending_dir/rollback-mode"
+    printf '%s\n' "$old_position" > "$pending_dir/rollback-position"
+    printf '%s\n' "$old_scale" > "$pending_dir/rollback-scale"
+    printf '%s\n' "$old_transform" > "$pending_dir/rollback-transform"
+
     printf '%s\n' "$mode" > "$pending_dir/target-mode"
+    printf '%s\n' "$target_position" > "$pending_dir/target-position"
+    printf '%s\n' "$target_scale" > "$pending_dir/target-scale"
+    printf '%s\n' "$target_transform" > "$pending_dir/target-transform"
+
     printf '%s\n' "$deadline" > "$pending_dir/deadline"
     printf '%s\n' "$unit_name" > "$pending_dir/unit"
     printf '%s\n' "$rollback_rule" > "$pending_dir/rollback.lua"
 
-    # Schedule the external watchdog before changing the display. If scheduling
-    # fails, no monitor mutation is allowed to happen.
+    # The external watchdog is scheduled before the display mutation.
     if ! systemd-run \
         --user \
         --quiet \

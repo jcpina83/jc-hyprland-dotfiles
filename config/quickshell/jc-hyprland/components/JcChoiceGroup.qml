@@ -42,7 +42,9 @@ Item {
 
                 text: String(modelData.label)
                 checked: String(modelData.value) === root.selectedValue
-                controlEnabled: root.controlEnabled
+                controlEnabled:
+                    root.controlEnabled
+                    && modelData.enabled !== false
 
                 onClicked: root.valueSelected(String(modelData.value))
             }

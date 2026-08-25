@@ -9,6 +9,14 @@ Scope {
 
     property var drafts: []
 
+    readonly property var commonScaleCandidates: [
+        1.0,
+        1.25,
+        1.5,
+        1.75,
+        2.0
+    ]
+
     readonly property bool hasDirty:
         drafts.some(function(draft) {
             return Boolean(draft.dirty);
@@ -194,6 +202,125 @@ Scope {
         root.draftChanged(draft.output);
     }
 
+    function nearlyInteger(value) {
+        return Math.abs(value - Math.round(value)) < 0.0001;
+    }
+
+    function scaleIsValidForDimensions(width, height, scale) {
+        const numericScale = Number(scale);
+
+        if (!Number.isFinite(numericScale) || numericScale <= 0)
+            return false;
+
+        return root.nearlyInteger(Number(width) / numericScale)
+            && root.nearlyInteger(Number(height) / numericScale);
+    }
+
+    function logicalSize(width, height, scale, transform) {
+        const numericScale = Number(scale);
+        const numericTransform = Number(transform);
+
+        if (!Number.isFinite(numericScale) || numericScale <= 0) {
+            return {
+                width: 0,
+                height: 0
+            };
+        }
+
+        let logicalWidth = Number(width) / numericScale;
+        let logicalHeight = Number(height) / numericScale;
+
+        if (numericTransform === 1
+                || numericTransform === 3
+                || numericTransform === 5
+                || numericTransform === 7) {
+            const swap = logicalWidth;
+            logicalWidth = logicalHeight;
+            logicalHeight = swap;
+        }
+
+        return {
+            width: logicalWidth,
+            height: logicalHeight
+        };
+    }
+
+    function rectanglesOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+        return ax < bx + bw
+            && ax + aw > bx
+            && ay < by + bh
+            && ay + ah > by;
+    }
+
+    function wouldOverlap(
+        output,
+        width,
+        height,
+        scale,
+        transform,
+        x,
+        y
+    ) {
+        if (!root.monitorService
+                || !Array.isArray(root.monitorService.monitors)) {
+            return false;
+        }
+
+        const projected = root.logicalSize(
+            width,
+            height,
+            scale,
+            transform
+        );
+
+        for (let i = 0; i < root.monitorService.monitors.length; ++i) {
+            const other = root.monitorService.monitors[i];
+
+            if (!other
+                    || other.output === output
+                    || other.disabled) {
+                continue;
+            }
+
+            if (root.rectanglesOverlap(
+                    Number(x),
+                    Number(y),
+                    projected.width,
+                    projected.height,
+                    Number(other.x),
+                    Number(other.y),
+                    Number(other.logicalWidth),
+                    Number(other.logicalHeight))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function closestScaleForDimensions(width, height, preferredScale) {
+        const candidates = root.commonScaleCandidates;
+        let best = 1.0;
+        let bestDistance = Number.MAX_VALUE;
+
+        for (let i = 0; i < candidates.length; ++i) {
+            const candidate = Number(candidates[i]);
+
+            if (!root.scaleIsValidForDimensions(width, height, candidate))
+                continue;
+
+            const distance =
+                Math.abs(candidate - Number(preferredScale));
+
+            if (distance < bestDistance) {
+                best = candidate;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
+    }
+
     function setResolution(output, resolutionKey) {
         const index = root.draftIndex(output);
 
@@ -219,6 +346,17 @@ Scope {
         updated.height = mode.height;
         updated.refreshRate = mode.refreshRate;
 
+        if (!root.scaleIsValidForDimensions(
+                updated.width,
+                updated.height,
+                updated.scale)) {
+            updated.scale = root.closestScaleForDimensions(
+                updated.width,
+                updated.height,
+                updated.scale
+            );
+        }
+
         root.replaceDraft(index, updated);
     }
 
@@ -240,6 +378,71 @@ Scope {
         updated.width = mode.width;
         updated.height = mode.height;
         updated.refreshRate = mode.refreshRate;
+
+        root.replaceDraft(index, updated);
+    }
+
+    function setScale(output, scaleValue) {
+        const index = root.draftIndex(output);
+
+        if (index < 0)
+            return;
+
+        const current = root.drafts[index];
+        const numericScale = Number(scaleValue);
+
+        if (!root.scaleIsValidForDimensions(
+                current.width,
+                current.height,
+                numericScale)) {
+            return;
+        }
+
+        if (root.wouldOverlap(
+                current.output,
+                current.width,
+                current.height,
+                numericScale,
+                current.transform,
+                current.x,
+                current.y)) {
+            return;
+        }
+
+        const updated = root.copyDraft(current);
+        updated.scale = numericScale;
+
+        root.replaceDraft(index, updated);
+    }
+
+    function setTransform(output, transformValue) {
+        const index = root.draftIndex(output);
+
+        if (index < 0)
+            return;
+
+        const current = root.drafts[index];
+        const numericTransform = Number(transformValue);
+
+        if (!Number.isInteger(numericTransform)
+                || numericTransform < 0
+                || numericTransform > 7) {
+            return;
+        }
+
+        if (root.wouldOverlap(
+                current.output,
+                current.width,
+                current.height,
+                current.scale,
+                numericTransform,
+                current.x,
+                current.y)) {
+            return;
+        }
+
+        const updated = root.copyDraft(current);
+        updated.transform = numericTransform;
 
         root.replaceDraft(index, updated);
     }
@@ -282,6 +485,121 @@ Scope {
             options.push({
                 value: modes[i].raw,
                 label: root.modeParser.refreshLabel(modes[i])
+            });
+        }
+
+        return options;
+    }
+
+    function scaleOptionsFor(output) {
+        const draft = root.draftFor(output);
+
+        if (!draft)
+            return [];
+
+        const values = [];
+
+        function addScale(candidate) {
+            const numeric = Number(candidate);
+
+            if (!root.scaleIsValidForDimensions(
+                    draft.width,
+                    draft.height,
+                    numeric)) {
+                return;
+            }
+
+            for (let i = 0; i < values.length; ++i) {
+                if (Math.abs(values[i] - numeric) < 0.0001)
+                    return;
+            }
+
+            values.push(numeric);
+        }
+
+        addScale(draft.observed.scale);
+
+        for (let i = 0; i < root.commonScaleCandidates.length; ++i)
+            addScale(root.commonScaleCandidates[i]);
+
+        values.sort(function(left, right) {
+            return left - right;
+        });
+
+        const options = [];
+
+        for (let i = 0; i < values.length; ++i) {
+            const scale = values[i];
+            const overlaps = root.wouldOverlap(
+                draft.output,
+                draft.width,
+                draft.height,
+                scale,
+                draft.transform,
+                draft.x,
+                draft.y
+            );
+
+            options.push({
+                value: String(scale),
+                label: String(scale) + "×"
+                    + (overlaps ? " · layout needed" : ""),
+                enabled: !overlaps
+            });
+        }
+
+        return options;
+    }
+
+    function transformLabel(transformValue) {
+        const transform = Number(transformValue);
+
+        switch (transform) {
+        case 0:
+            return "Normal";
+        case 1:
+            return "90°";
+        case 2:
+            return "180°";
+        case 3:
+            return "270°";
+        case 4:
+            return "Flipped";
+        case 5:
+            return "Flipped + 90°";
+        case 6:
+            return "Flipped + 180°";
+        case 7:
+            return "Flipped + 270°";
+        default:
+            return "Unknown";
+        }
+    }
+
+    function transformOptionsFor(output) {
+        const draft = root.draftFor(output);
+
+        if (!draft)
+            return [];
+
+        const options = [];
+
+        for (let transform = 0; transform <= 7; ++transform) {
+            const overlaps = root.wouldOverlap(
+                draft.output,
+                draft.width,
+                draft.height,
+                draft.scale,
+                transform,
+                draft.x,
+                draft.y
+            );
+
+            options.push({
+                value: String(transform),
+                label: root.transformLabel(transform)
+                    + (overlaps ? " · layout needed" : ""),
+                enabled: !overlaps
             });
         }
 
