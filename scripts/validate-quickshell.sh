@@ -39,6 +39,8 @@ required_files=(
     "components/JcSlider.qml"
     "components/JcComboBox.qml"
     "components/JcNavItem.qml"
+    "components/JcTooltip.qml"
+    "components/JcPopup.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -86,6 +88,97 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2.7 feedback and overlay component contract\n'
+
+jc_tooltip="$config_dir/components/JcTooltip.qml"
+jc_popup="$config_dir/components/JcPopup.qml"
+
+for tooltip_contract in \
+    'import QtQuick.Controls as Controls' \
+    'Controls.ToolTip {' \
+    'required property var theme' \
+    'property bool controlEnabled: true' \
+    'delay: root.theme.motionEmphasized' \
+    'padding: root.theme.spaceSm' \
+    'root.theme.surfaceGlassRaised' \
+    'root.theme.borderStrong' \
+    'root.theme.textPrimary' \
+    'root.theme.textSizeCaption' \
+    'root.theme.motionHover' \
+    'root.theme.easingEnter' \
+    'root.theme.easingExit'
+do
+    if grep -Fq -- "$tooltip_contract" "$jc_tooltip" 2>/dev/null; then
+        ok "JcTooltip contract: $tooltip_contract"
+    else
+        fail "JcTooltip contract missing: $tooltip_contract"
+    fi
+done
+
+for popup_contract in \
+    'import QtQuick.Controls as Controls' \
+    'Controls.Popup {' \
+    'required property var theme' \
+    'property bool showScrim: root.modal' \
+    'property bool dismissOnOutside: true' \
+    'modal: false' \
+    'dim: root.showScrim' \
+    'focus: true' \
+    'Controls.Popup.CloseOnEscape' \
+    'Controls.Popup.CloseOnPressOutside' \
+    'Controls.Overlay.modal: Rectangle {' \
+    'Controls.Overlay.modeless: Rectangle {' \
+    'root.theme.scrim' \
+    'root.theme.surfaceGlassRaised' \
+    'root.theme.borderFocus' \
+    'root.theme.borderStrong' \
+    'root.theme.motionDialog' \
+    'root.theme.easingEnter' \
+    'root.theme.easingExit'
+do
+    if grep -Fq -- "$popup_contract" "$jc_popup" 2>/dev/null; then
+        ok "JcPopup contract: $popup_contract"
+    else
+        fail "JcPopup contract missing: $popup_contract"
+    fi
+done
+
+feedback_files=(
+    "$jc_tooltip"
+    "$jc_popup"
+)
+
+feedback_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "${feedback_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$feedback_hardcoded_colors" ]]; then
+    ok "feedback components contain no hardcoded colors"
+else
+    fail "feedback components contain hardcoded colors:"
+    printf '%s\n' "$feedback_hardcoded_colors" >&2
+fi
+
+feedback_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "${feedback_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$feedback_legacy_aliases" ]]; then
+    ok "feedback components use canonical Theme API tokens"
+else
+    fail "feedback components use legacy Theme API aliases:"
+    printf '%s\n' "$feedback_legacy_aliases" >&2
 fi
 
 
