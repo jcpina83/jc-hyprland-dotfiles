@@ -1959,6 +1959,64 @@ else
 fi
 
 
+printf '\n==> Phase 2A.3.7b directional navigation semantics\n'
+
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+control_center_nav="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+control_center_shell_doc="$repo_root/docs/control-center-shell.md"
+
+for directional_item_contract in \
+    'signal previousFocusRequested()' \
+    'signal nextFocusRequested()' \
+    'signal firstFocusRequested()' \
+    'signal lastFocusRequested()' \
+    'event.key === Qt.Key_Up' \
+    'event.key === Qt.Key_Down' \
+    'event.key === Qt.Key_Home' \
+    'event.key === Qt.Key_End'
+do
+    if grep -Fq -- "$directional_item_contract" \
+        "$jc_nav_item" 2>/dev/null
+    then
+        ok "JcNavItem directional contract: $directional_item_contract"
+    else
+        fail "JcNavItem directional contract missing: $directional_item_contract"
+    fi
+done
+
+for directional_nav_contract in \
+    'function focusRelative(startIndex, step) {' \
+    'function focusBoundary(last) {' \
+    'candidateItem.controlEnabled' \
+    'required property int index' \
+    'onPreviousFocusRequested:' \
+    'root.focusRelative(index, -1)' \
+    'onNextFocusRequested:' \
+    'root.focusRelative(index, 1)' \
+    'onFirstFocusRequested:' \
+    'root.focusBoundary(false)' \
+    'onLastFocusRequested:' \
+    'root.focusBoundary(true)'
+do
+    if grep -Fq -- "$directional_nav_contract" \
+        "$control_center_nav" 2>/dev/null
+    then
+        ok "directional navigation contract: $directional_nav_contract"
+    else
+        fail "directional navigation contract missing: $directional_nav_contract"
+    fi
+done
+
+if grep -Fq \
+    '### Phase 2A.3.7b — Directional navigation semantics' \
+    "$control_center_shell_doc" 2>/dev/null
+then
+    ok "Phase 2A.3.7b shell documentation"
+else
+    fail "Phase 2A.3.7b shell documentation missing"
+fi
+
+
 printf '\n==> Production PanelWindow dimensions\n'
 
 control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"

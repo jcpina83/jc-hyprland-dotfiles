@@ -44,6 +44,52 @@ Item {
         return false;
     }
 
+    function focusRelative(startIndex, step) {
+        const count = root.navigationItems.length;
+
+        if (count <= 0 || step === 0)
+            return false;
+
+        for (let offset = 1; offset <= count; ++offset) {
+            const candidateIndex =
+                (startIndex + (step * offset) + count * 2) % count;
+
+            const candidateItem =
+                navigationRepeater.itemAt(candidateIndex);
+
+            if (!candidateItem || !candidateItem.controlEnabled)
+                continue;
+
+            candidateItem.forceActiveFocus();
+            return true;
+        }
+
+        return false;
+    }
+
+    function focusBoundary(last) {
+        const count = root.navigationItems.length;
+
+        if (count <= 0)
+            return false;
+
+        const start = last ? count - 1 : 0;
+        const end = last ? -1 : count;
+        const step = last ? -1 : 1;
+
+        for (let i = start; i !== end; i += step) {
+            const candidateItem = navigationRepeater.itemAt(i);
+
+            if (!candidateItem || !candidateItem.controlEnabled)
+                continue;
+
+            candidateItem.forceActiveFocus();
+            return true;
+        }
+
+        return false;
+    }
+
     readonly property var navigationItems: [
         {
             id: "displays",
@@ -137,6 +183,7 @@ Item {
                     model: root.navigationItems
 
                     delegate: Components.JcNavItem {
+                        required property int index
                         required property var modelData
 
                         Layout.fillWidth: true
@@ -159,6 +206,18 @@ Item {
                             root.moduleRequested(
                                 String(modelData.id)
                             )
+
+                        onPreviousFocusRequested:
+                            root.focusRelative(index, -1)
+
+                        onNextFocusRequested:
+                            root.focusRelative(index, 1)
+
+                        onFirstFocusRequested:
+                            root.focusBoundary(false)
+
+                        onLastFocusRequested:
+                            root.focusBoundary(true)
                     }
                 }
             }

@@ -11,6 +11,10 @@ Item {
     property bool controlEnabled: true
 
     signal clicked()
+    signal previousFocusRequested()
+    signal nextFocusRequested()
+    signal firstFocusRequested()
+    signal lastFocusRequested()
 
     readonly property bool hovered:
         root.controlEnabled && pointerArea.containsMouse
@@ -105,6 +109,30 @@ Item {
                 || event.key === Qt.Key_Enter
                 || event.key === Qt.Key_Space) {
             root.clicked();
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_Up) {
+            root.previousFocusRequested();
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_Down) {
+            root.nextFocusRequested();
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_Home) {
+            root.firstFocusRequested();
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_End) {
+            root.lastFocusRequested();
             event.accepted = true;
         }
     }

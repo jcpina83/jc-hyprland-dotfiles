@@ -373,3 +373,21 @@ Return, or Space. Pointer presses also transfer active focus to the control.
 
 This establishes the keyboard baseline before directional navigation and shell
 motion are added in later Phase 2A.3.7 steps.
+
+
+### Phase 2A.3.7b — Directional navigation semantics
+
+The vertical module rail supports keyboard-local directional navigation without
+changing the global Tab order:
+
+- Up moves focus to the previous enabled module.
+- Down moves focus to the next enabled module.
+- Home focuses the first enabled module.
+- End focuses the last enabled module.
+- Enter, Return, and Space continue to activate the focused module.
+- Tab and Shift+Tab remain available for global Control Center focus traversal.
+
+Directional focus skips disabled modules and wraps for Up/Down. If only one
+module is enabled, directional keys keep focus on that module. Transition locks
+are respected because navigation only targets delegates whose
+`controlEnabled` state is true.
