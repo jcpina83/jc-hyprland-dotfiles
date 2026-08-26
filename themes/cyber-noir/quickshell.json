@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "cyber-noir",
+  "name": "CYBER NOIR",
+  "colors": {
+    "canvas": "#090b10",
+    "canvasAlt": "#0f131a",
+    "surfaceSunken": "#0f131a",
+    "surfaceBase": "#151a22",
+    "surfaceRaised": "#212936",
+    "surfaceInteractive": "#212936",
+    "surfacePressed": "#2b3646",
+    "textPrimary": "#d8dee9",
+    "textSecondary": "#aeb8c7",
+    "textMuted": "#6b7482",
+    "primary": "#00e5ff",
+    "secondary": "#ff3cac",
+    "accent": "#7cff6b",
+    "success": "#4cff9a",
+    "warning": "#ffe66d",
+    "danger": "#ff4d6d",
+    "info": "#00e5ff"
+  },
+  "opacity": {
+    "surfaceGlass": 0.82,
+    "surfaceGlassRaised": 0.9,
+    "surfaceOverlay": 0.9,
+    "surfaceHover": 0.94,
+    "surfaceSelected": 0.14,
+    "scrim": 0.46,
+    "borderSubtle": 0.28,
+    "borderDefault": 0.3,
+    "borderStrong": 0.44,
+    "borderAccent": 0.36,
+    "borderFocus": 0.68,
+    "feedbackSurface": 0.12,
+    "feedbackBorder": 0.34
+  }
+}
