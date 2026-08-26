@@ -38,6 +38,7 @@ required_files=(
     "components/JcToggle.qml"
     "components/JcSlider.qml"
     "components/JcComboBox.qml"
+    "components/JcNavItem.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -85,6 +86,78 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2.6 navigation component contract\n'
+
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+
+for nav_contract in \
+    'required property var theme' \
+    'property string icon: ""' \
+    'property string text: ""' \
+    'property bool selected: false' \
+    'property bool controlEnabled: true' \
+    'signal clicked()' \
+    'activeFocusOnTab: root.controlEnabled' \
+    'Keys.onPressed: event =>' \
+    'root.theme.controlSurfaceDefault' \
+    'root.theme.controlSurfaceHover' \
+    'root.theme.controlSurfacePressed' \
+    'root.theme.controlSurfaceSelected' \
+    'root.theme.controlBorderFocus' \
+    'root.theme.controlBorderSelected' \
+    'root.theme.controlTextDisabled' \
+    'root.theme.controlTextSelected' \
+    'root.theme.controlIconDefault' \
+    'root.theme.controlIconActive' \
+    'root.theme.controlIconDisabled' \
+    'root.theme.controlHeightLarge' \
+    'root.theme.radiusMd' \
+    'root.theme.focusRingWidth' \
+    'root.theme.motionHover' \
+    'root.theme.motionPress' \
+    'root.theme.motionSelection' \
+    'root.theme.motionControl' \
+    'onPressed: root.forceActiveFocus()' \
+    'onClicked: root.clicked()'
+do
+    if grep -Fq -- "$nav_contract" "$jc_nav_item" 2>/dev/null; then
+        ok "JcNavItem contract: $nav_contract"
+    else
+        fail "JcNavItem contract missing: $nav_contract"
+    fi
+done
+
+nav_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "$jc_nav_item" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$nav_hardcoded_colors" ]]; then
+    ok "navigation component contains no hardcoded colors"
+else
+    fail "navigation component contains hardcoded colors:"
+    printf '%s\n' "$nav_hardcoded_colors" >&2
+fi
+
+nav_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "$jc_nav_item" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$nav_legacy_aliases" ]]; then
+    ok "navigation component uses canonical Theme API tokens"
+else
+    fail "navigation component uses legacy Theme API aliases:"
+    printf '%s\n' "$nav_legacy_aliases" >&2
 fi
 
 
