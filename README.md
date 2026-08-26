@@ -52,8 +52,9 @@
 
 > **Development status**
 >
-> `v0.1.0` is an early but functional development release. Garuda Linux is the
-> primary validated environment today. Arch Linux and openSUSE adapters are
+> `v0.1.0` is an early but functional development release. Garuda Linux with
+> Hyprland 0.56.2 is the primary validated environment today. The supported
+> Hyprland configuration path is Lua-only; Arch Linux and openSUSE adapters are
 > present in the repository and remain targets for full clean-install validation.
 
 ## Why this project exists
@@ -77,7 +78,7 @@ configuration.
 - **Runtime-decoupled** — wrappers hide implementation details from Waybar/binds.
 - **Reversible** — installation favors symlinks, generated bridges and local state.
 - **Quality-gated** — lint, portability, doctor, clean-install and release checks.
-- **Migration-ready** — Hyprlang and Lua configuration are isolated by generation.
+- **Lua-native** — Hyprland configuration targets the Lua model used by Hyprland 0.55+.
 
 ---
 
@@ -128,7 +129,7 @@ the outside; common desktop configuration and themes remain reusable.
 flowchart TB
     D["Distribution adapter<br/>Arch · Garuda · openSUSE"]
     P["Profile<br/>desktop / future profiles"]
-    H["Machine-local state<br/>host.env · monitors.conf · wallpaper.env"]
+    H["Machine-local state<br/>host.env · monitors.lua · wallpaper.env"]
     I["Installer + runtime namespace<br/>scripts/install.sh"]
     C["Versioned desktop configuration<br/>Hyprland · Waybar · SwayNC · Foot · Hyprlock · Hypridle · SDDM"]
     T["Theme engine<br/>odyssey-glass · cyber-noir"]
@@ -164,7 +165,7 @@ Machine-local
 │
 └── ~/.config/jc-hyprland-dotfiles/local/
     ├── host.env
-    ├── monitors.conf
+    ├── monitors.lua
     └── wallpaper.env
 ```
 
@@ -220,16 +221,36 @@ The UI never runs monitor commands directly. `MonitorService` owns observed
 monitor state; future editing will use a draft model and a dedicated apply
 service.
 
-### Planned display evolution
+### Display implementation status
 
 ```text
-Phase 1A  Read-only discovery                         ✓
-Phase 1B  Draft editing + resolution/Hz/scale         planned
-Phase 1B  Runtime apply + validation                  planned
-Phase 1B  Safe apply + confirmation/rollback          planned
-Phase 1C  Persistent monitors.conf integration        planned
-Phase 1D  Waybar / keybind / startup integration      planned
+Phase 1A    Read-only discovery                              ✓
+Phase 1B.1  Draft editing                                    ✓
+Phase 1B.2  Resolution / refresh runtime apply               ✓
+Phase 1B.3  Safe Apply / Keep / automatic rollback           ✓
+Phase 1B.4  Scale / orientation                              ✓
+Phase 1B.5  Visual topology / position editor                ✓
+Phase 1B.6  Safe monitor Enable / Disable                    ✓
+Phase 1C.1  Atomic persistent monitors.lua integration       ✓
+Phase 1C.2  Remove deprecated Hyprlang compatibility path    next
 ```
+
+Display state deliberately remains separated into four layers:
+
+```text
+Observed State
+      ↓
+Draft State
+      ↓
+Applied Runtime State
+      ↓
+Persistent State (local/monitors.lua)
+```
+
+Runtime mutations are owned by `jc-displayctl`. Persistent display state is
+owned by `jc-displaycfg`, which performs preview, backup, atomic replacement,
+Hyprland reload, post-reload verification and automatic restoration on
+validation failure.
 
 ---
 
@@ -283,8 +304,8 @@ which points to the selected theme directory.
 
 | Theme file | Consumer |
 |---|---|
-| `colors.conf` | Hyprland compatibility / Hyprlang |
-| `colors.lua` | Lua-oriented Hyprland configuration |
+| `colors.lua` | Hyprland Lua configuration |
+| `colors.conf` | Legacy palette export; not consumed by the supported Hyprland runtime |
 | `colors.css` | Waybar, Wofi, SwayNC |
 | `foot-colors.ini` | Foot |
 | `hyprlock.env` | Hyprlock |
@@ -416,7 +437,7 @@ Review machine-specific state:
 
 ```text
 ~/.config/jc-hyprland-dotfiles/local/host.env
-~/.config/jc-hyprland-dotfiles/local/monitors.conf
+~/.config/jc-hyprland-dotfiles/local/monitors.lua
 ~/.config/jc-hyprland-dotfiles/local/wallpaper.env
 ```
 
@@ -445,6 +466,8 @@ exposes a stable runtime namespace.
 │   ├── amd-gpu.sh
 │   ├── apply-wallpaper.sh
 │   ├── jc-control-center
+│   ├── jc-displaycfg
+│   ├── jc-displayctl
 │   ├── jc-theme
 │   ├── launch-foot.sh
 │   ├── launch-wofi.sh
@@ -459,7 +482,9 @@ exposes a stable runtime namespace.
 │
 └── local/
     ├── host.env
-    ├── monitors.conf
+    ├── monitors.lua
+    ├── backups/
+    │   └── displays/
     └── wallpaper.env
 ```
 
@@ -529,7 +554,7 @@ ShellCheck
 Fish syntax
 JSON / JSONC templates
 Theme structure
-Quickshell structure + Phase 1A safety contract
+Quickshell structure + display runtime/persistence safety contracts
 Machine-specific hardcode detection
 Hyprland config errors
 Runtime dependency checks
@@ -543,23 +568,56 @@ Release working-tree validation
 
 ---
 
-# Hyprland configuration generations
+# Hyprland Lua configuration
 
-The currently validated runtime targets the Hyprland `0.56.2` runtime.
+The supported compositor configuration path is now **Lua-only**.
 
-The repository already isolates both configuration approaches:
+The currently validated runtime is **Hyprland 0.56.2**. Hyprland deprecated
+Hyprlang in 0.55 in favor of Lua, so this project no longer treats the old
+Hyprlang configuration tree as an active compatibility path.
 
 ```text
-config/hypr/
-├── hyprlang/
-│   ├── common/
-│   └── templates/
-└── lua/
+~/.config/hypr/hyprland.lua
+        │
+        └── require("jc-dotfiles/init")
+                         │
+                         ├── theme.lua
+                         ├── appearance.lua
+                         ├── gaming.lua
+                         ├── animations.lua
+                         ├── autostart.lua
+                         ├── local/monitors.lua
+                         └── keybindings.lua
 ```
 
-`hyprlang/` remains the active compatibility path for the current runtime.
-`lua/` is kept separate so future migration can be developed and validated
-without contaminating the stable configuration.
+The project overlay is intentionally loaded after the distro-provided base
+configuration so repository-managed and machine-local settings can override
+the base without maintaining a fork of the entire distro configuration.
+
+Machine-specific display state has one authoritative persistent source:
+
+```text
+~/.config/jc-hyprland-dotfiles/local/monitors.lua
+```
+
+Both display backends consume that same file:
+
+```text
+local/monitors.lua
+      │
+      ├── jc-displayctl   runtime mutation / Safe Apply / rollback
+      └── jc-displaycfg   preview / backup / atomic persistence / restore
+```
+
+The deprecated `monitors.conf`, `jc-dotfiles.conf` and
+`config/hypr/hyprlang/` path are not part of the supported runtime. Any
+remaining copies during the migration are cleanup artifacts and must not be
+sourced by a current installation.
+
+Official Hyprland configuration reference:
+
+- https://wiki.hypr.land/Configuring/Start/
+- https://wiki.hypr.land/Configuring/Basics/Monitors/
 
 ---
 
@@ -575,21 +633,11 @@ without contaminating the stable configuration.
 │   ├── foot
 │   │   └── foot.ini
 │   ├── hypr
-│   │   ├── hyprlang
-│   │   │   ├── common
-│   │   │   │   ├── animations.conf
-│   │   │   │   ├── appearance.conf
-│   │   │   │   ├── autostart.conf
-│   │   │   │   ├── gaming.conf
-│   │   │   │   ├── keybindings.conf
-│   │   │   │   └── windowrules.conf
-│   │   │   └── templates
-│   │   │       └── jc-dotfiles.conf.template
-│   │   ├── jc-dotfiles.conf
 │   │   └── lua
 │   │       ├── animations.lua
 │   │       ├── appearance.lua
 │   │       ├── autostart.lua
+│   │       ├── gaming.lua
 │   │       ├── init.lua
 │   │       ├── keybindings.lua
 │   │       ├── README.md
@@ -609,9 +657,13 @@ without contaminating the stable configuration.
 │   │       │   └── displays
 │   │       │       ├── DisplayCard.qml
 │   │       │       ├── DisplayLayout.qml
+│   │       │       ├── DisplayLayoutEditor.qml
 │   │       │       └── DisplayPopup.qml
 │   │       ├── README.md
 │   │       ├── services
+│   │       │   ├── DisplayDraftStore.qml
+│   │       │   ├── MonitorApplyService.qml
+│   │       │   ├── MonitorModeParser.qml
 │   │       │   └── MonitorService.qml
 │   │       ├── shell.qml
 │   │       └── theme
@@ -657,7 +709,7 @@ without contaminating the stable configuration.
 ├── hosts
 │   └── example
 │       ├── host.env
-│       ├── monitors.conf
+│       ├── monitors.lua
 │       └── wallpaper.env
 ├── install.sh
 ├── LICENSE
@@ -686,6 +738,8 @@ without contaminating the stable configuration.
 │   │   ├── amd-gpu.sh
 │   │   ├── apply-wallpaper.sh
 │   │   ├── jc-control-center.sh
+│   │   ├── jc-displaycfg.sh
+│   │   ├── jc-displayctl.sh
 │   │   ├── launch-foot.sh
 │   │   ├── launch-wofi.sh
 │   │   ├── lock-session.sh
@@ -758,6 +812,11 @@ make dry-run
 make install
 make apply
 
+# Display persistence
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg status
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg preview
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg backups
+
 # Themes
 make theme-list
 make theme-current
@@ -788,11 +847,16 @@ make wallpaper-apply
 - [x] SDDM theme foundation
 - [x] Quickshell Control Center Phase 1A
 - [x] Quickshell quality-gate integration
-- [ ] Quickshell display editing draft model
-- [ ] Resolution / refresh / scale selectors
-- [ ] Safe runtime apply and rollback
-- [ ] Persistent monitor configuration
-- [ ] Waybar integration for Control Center
+- [x] Quickshell display editing draft model
+- [x] Resolution / refresh selectors
+- [x] Scale / orientation controls
+- [x] Visual monitor topology editor
+- [x] Safe runtime apply / Keep / rollback
+- [x] Safe monitor Enable / Disable
+- [x] Atomic persistent monitor configuration in `local/monitors.lua`
+- [x] Waybar hotplug behavior validated with monitor Enable / Disable
+- [ ] Remove deprecated Hyprlang repository/runtime artifacts
+- [ ] Connect global `Save Configuration` action to the Control Center UI
 - [ ] Repository screenshots
 
 ### Portability
@@ -816,8 +880,10 @@ make wallpaper-apply
 
 The project intentionally avoids blindly overwriting user configuration.
 
-Machine-local state is kept outside Git, runtime wrappers load repository-managed
-configuration explicitly, and installation uses safe symlink checks.
+Machine-local state is kept outside Git. Hyprland consumes the repository Lua
+overlay plus machine-local `monitors.lua`; runtime wrappers keep mutable display
+operations behind validated service boundaries, and installation uses safe
+symlink checks.
 
 Before applying changes:
 

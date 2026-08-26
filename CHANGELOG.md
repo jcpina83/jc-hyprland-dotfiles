@@ -18,6 +18,29 @@ The project follows semantic versioning where practical.
   - dynamic `availableModes` discovery,
   - focused-output awareness.
 - `MonitorService.qml` boundary for Hyprland monitor state.
+- Quickshell display editing stack with:
+  - draft state isolated from observed state,
+  - dynamic resolution / refresh selection,
+  - scale and orientation controls,
+  - visual monitor topology editor,
+  - logical-position snapping,
+  - monitor Enable / Disable controls.
+- `jc-displayctl` runtime display backend with:
+  - Safe Apply,
+  - Keep,
+  - manual rollback,
+  - external systemd user rollback watchdog,
+  - focused-output and last-active-monitor safety guards.
+- `jc-displaycfg` persistent display backend with:
+  - mutation-free preview,
+  - global runtime snapshot,
+  - atomic `local/monitors.lua` replacement,
+  - automatic backups,
+  - post-reload verification,
+  - automatic persistent rollback on validation failure,
+  - backup listing and restore support.
+- Machine-local `hosts/example/monitors.lua` template for Lua-native display
+  configuration.
 - Quickshell IPC target `controlCenter` with:
   - `showDisplays`,
   - `hideDisplays`,
@@ -70,6 +93,20 @@ The project follows semantic versioning where practical.
   - runtime wrappers,
   - themes,
   - Quickshell UI/services.
+- Hyprland integration has migrated definitively to Lua for the Hyprland 0.55+
+  configuration model; Hyprlang is no longer a supported runtime path.
+- The validated compositor baseline is now Hyprland 0.56.2.
+- Machine-local persistent display configuration moved from `monitors.conf` to
+  `local/monitors.lua`.
+- `local/monitors.lua` is now the single display source consumed by both:
+  - `jc-displayctl` for runtime mutation and rollback,
+  - `jc-displaycfg` for persistent state.
+- The project Lua overlay remains loaded after the distro base configuration so
+  project-owned settings and machine-local monitor state win without forking the
+  complete distro configuration.
+- Display persistence is global rather than per-monitor so a Hyprland reload
+  cannot silently revert another monitor's confirmed runtime-only state.
+- `jq` is treated as a required runtime dependency for the display backends.
 
 ### Quality
 
@@ -87,6 +124,16 @@ The project follows semantic versioning where practical.
   - expected dry-run installation targets,
   - absence of real symlink creation during dry-run.
 - Existing portability checks automatically cover tracked QML files.
+- Added display safety contracts covering:
+  - no raw monitor mutation from QML UI,
+  - `desc:` selector preservation,
+  - explicit monitor re-enable with `disabled = false`,
+  - detached Safe Apply rollback watchdog environment,
+  - Lua monitor persistence,
+  - atomic save and backup restoration.
+- Real-host display persistence validation completed against Hyprland 0.56.2,
+  including reload verification and preservation of runtime refresh, layout and
+  scale state.
 
 ### Documentation
 
@@ -105,17 +152,17 @@ The project follows semantic versioning where practical.
   - Awww,
   - SDDM,
   - systemd wallpaper rotation.
+- Updated project documentation to establish Lua as the only supported Hyprland
+  configuration path and `local/monitors.lua` as the authoritative persistent
+  display source.
+- Updated the display roadmap to reflect completed Phases 1A, 1B.1–1B.6 and
+  1C.1.
 
 ### Planned
 
-- Quickshell display editing draft model.
-- Resolution selector sourced from actual monitor modes.
-- Refresh-rate selector constrained by selected resolution.
-- Scale and orientation selectors.
-- Runtime monitor apply service with validation.
-- Safe apply confirmation and automatic rollback.
-- Persistent `monitors.conf` integration.
-- Waybar and Hyprland-bind integration for the Control Center.
+- Remove the deprecated Hyprlang repository/runtime compatibility artifacts.
+- Connect the global persistent `Save Configuration` action to the Quickshell
+  Control Center.
 - Repository screenshots and visual gallery.
 - Clean-install validation on Arch Linux.
 - Clean-install validation on openSUSE Tumbleweed.
