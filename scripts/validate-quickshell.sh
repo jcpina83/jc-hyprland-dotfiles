@@ -547,8 +547,8 @@ for shell_doc_contract in \
     'controlCenterIsVisible()' \
     'showModule(moduleId)' \
     'The Component Gallery remains a separate development window.' \
-    '2A.3.4 Modular content host + Displays structural adapter' \
-    'Phase 2A.4 follows with the actual Displays visual redesign.'
+    '2A.3.4 Modular content host + Displays view extraction' \
+    'Phase 2A.4 is the next phase and performs the actual Displays visual redesign.'
 do
     if grep -Fq -- "$shell_doc_contract" \
         "$control_center_shell_doc" 2>/dev/null
@@ -2066,6 +2066,103 @@ then
     ok "Phase 2A.3.7c shell documentation"
 else
     fail "Phase 2A.3.7c shell documentation missing"
+fi
+
+
+printf '\n==> Phase 2A.3.8 final documentation and release gate\n'
+
+readme="$repo_root/README.md"
+control_center_shell_doc="$repo_root/docs/control-center-shell.md"
+component_library_doc="$repo_root/docs/component-library.md"
+architecture_doc="$repo_root/docs/architecture.md"
+
+for final_readme_contract in \
+    '- [x] **Phase 2A.3 — Control Center shell + navigation**' \
+    '- [ ] **Phase 2A.4 — Displays visual redesign** ← **NEXT**' \
+    "generic \`controlCenter\` IPC with stable \`jc-control-center\` wrapper" \
+    'keyboard focus, directional navigation and semantic focus rings' \
+    'lightweight shell / module / status motion'
+do
+    if grep -Fq -- "$final_readme_contract" "$readme" 2>/dev/null; then
+        ok "Phase 2A.3 README completion contract: $final_readme_contract"
+    else
+        fail "Phase 2A.3 README completion contract missing: $final_readme_contract"
+    fi
+done
+
+for final_shell_doc_contract in \
+    '## Phase 2A.3 completion status' \
+    'Phase 2A.3 is complete.' \
+    '2A.3.8 Quality gates + documentation                         ✓' \
+    "\`ControlCenterShell.qml\` is the only production Control Center \`PanelWindow\`." \
+    'Phase 2A.4 is next.'
+do
+    if grep -Fq -- "$final_shell_doc_contract" \
+        "$control_center_shell_doc" 2>/dev/null
+    then
+        ok "Phase 2A.3 shell completion contract: $final_shell_doc_contract"
+    else
+        fail "Phase 2A.3 shell completion contract missing: $final_shell_doc_contract"
+    fi
+done
+
+for final_component_contract in \
+    '2A.3 Control Center shell + navigation  ✓ complete' \
+    '2A.4 Displays visual redesign           ← next'
+do
+    if grep -Fq -- "$final_component_contract" \
+        "$component_library_doc" 2>/dev/null
+    then
+        ok "component-library roadmap contract: $final_component_contract"
+    else
+        fail "component-library roadmap contract missing: $final_component_contract"
+    fi
+done
+
+for final_architecture_contract in \
+    '2A.3  Control Center shell + navigation  ✓ COMPLETE' \
+    '2A.4  Displays visual redesign           ← NEXT'
+do
+    if grep -Fq -- "$final_architecture_contract" \
+        "$architecture_doc" 2>/dev/null
+    then
+        ok "architecture roadmap contract: $final_architecture_contract"
+    else
+        fail "architecture roadmap contract missing: $final_architecture_contract"
+    fi
+done
+
+stale_control_center_docs="$(
+    grep -nE \
+        'DisplayPopup|showDisplays|showDisplaysOn|hideDisplays|toggleDisplays|toggleDisplaysOn|refreshDisplays|displaysAreVisible|shellPreview|displaysVisible|requestedOutputName' \
+        "$readme" \
+        "$control_center_shell_doc" \
+        "$architecture_doc" \
+        "$component_library_doc" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$stale_control_center_docs" ]]; then
+    ok "active Control Center documentation contains no retired Displays shell API"
+else
+    fail "active Control Center documentation still contains retired Displays shell API:"
+    printf '%s\n' "$stale_control_center_docs" >&2
+fi
+
+stale_phase_language="$(
+    grep -nE \
+        "Phase 2A\.3 will add|The current \`DisplayPopup\.qml\`|Existing display-specific methods remain compatibility adapters" \
+        "$control_center_shell_doc" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$stale_phase_language" ]]; then
+    ok "Control Center shell documentation contains no stale Phase 2A.3 planning language"
+else
+    fail "Control Center shell documentation still contains stale Phase 2A.3 planning language:"
+    printf '%s\n' "$stale_phase_language" >&2
 fi
 
 

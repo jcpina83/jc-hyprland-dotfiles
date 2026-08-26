@@ -917,13 +917,16 @@ Control Center.
   - tooltips
   - dialogs and popups
 
-- [ ] **Phase 2A.3 — Control Center shell + navigation**
-  - persistent navigation model
-  - modular content area
-  - responsive layout
-  - unified header / footer behavior
+- [x] **Phase 2A.3 — Control Center shell + navigation**
+  - persistent navigation rail with disabled future modules
+  - responsive production `ControlCenterShell`
+  - generic modular content host
+  - generic `controlCenter` IPC with stable `jc-control-center` wrapper
+  - unified header / footer status and guarded transitions
+  - keyboard focus, directional navigation and semantic focus rings
+  - lightweight shell / module / status motion
 
-- [ ] **Phase 2A.4 — Displays visual redesign**
+- [ ] **Phase 2A.4 — Displays visual redesign** ← **NEXT**
   - migrate the existing Displays module to the shared component library
   - preserve the current observed / draft / runtime / persistent architecture
   - improve monitor topology, mode selection and Safe Apply presentation

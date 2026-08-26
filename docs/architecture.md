@@ -491,7 +491,7 @@ a través del mismo target IPC `controlCenter`, sin procesos runtime adicionales
 
 # Arquitectura del Control Center shell
 
-Phase 2A.3 introduce un único shell de producción alrededor de los módulos del
+Phase 2A.3 consolidó un único shell de producción alrededor de los módulos del
 Control Center.
 
 El contrato detallado vive en:
@@ -821,8 +821,8 @@ Phase 1   Functional foundation                         ✓
 Phase 2A  Shared visual platform
     ├── 2A.1  Design System / Theme API
     ├── 2A.2  Reusable QML Component Library
-    ├── 2A.3  Control Center shell + navigation
-    └── 2A.4  Displays visual redesign
+    ├── 2A.3  Control Center shell + navigation  ✓ COMPLETE
+    └── 2A.4  Displays visual redesign           ← NEXT
     │
     ▼
 Phase 2B–2H

@@ -1,11 +1,11 @@
 # Control Center Shell Architecture
 
-Phase 2A.3 turns the current display-specific popup entry point into a reusable
-Control Center shell without changing the proven display runtime, Safe Apply or
+Phase 2A.3 established a reusable Control Center shell around the existing
+Displays feature without changing the proven display runtime, Safe Apply, or
 persistence architecture.
 
-Phase 2A.3.1 defines the architecture and navigation contract before the shell
-QML is implemented.
+The phase began by defining the architecture and navigation contract, then
+incrementally promoted that contract into the production Quickshell shell.
 
 ---
 
@@ -55,7 +55,7 @@ active module id
 requested output
 feature services
 Safe Apply / persistence guards
-IPC compatibility
+generic Control Center IPC
 ```
 
 `ControlCenterShell.qml` owns:
@@ -117,7 +117,7 @@ network
 notifications
 ```
 
-During Phase 2A.3 only `displays` is required to be fully operational.
+At the completion of Phase 2A.3, `displays` is the only fully operational module.
 
 Future module entries may be visible but disabled until their implementation
 phase is reached.
@@ -200,7 +200,7 @@ The canonical IPC target remains:
 controlCenter
 ```
 
-Phase 2A.3 will add generic methods:
+The generic Control Center IPC surface is:
 
 ```text
 showControlCenter()
@@ -208,6 +208,7 @@ showControlCenterOn(outputName)
 toggleControlCenter()
 toggleControlCenterOn(outputName)
 hideControlCenter()
+refreshControlCenter()
 controlCenterIsVisible()
 showModule(moduleId)
 ```
@@ -236,9 +237,9 @@ Hyprland keybind to remain stable while internals evolve.
 
 ---
 
-## Runtime wrapper compatibility
+## Stable runtime wrapper contract
 
-The public wrapper actions remain stable during Phase 2A.3:
+The public wrapper actions remain stable while internal Control Center modules evolve:
 
 ```text
 jc-control-center show
@@ -309,17 +310,17 @@ and prevents the shell from becoming a feature-specific monolith.
 ## Phase 2A.3 sequence
 
 ```text
-2A.3.1 Shell architecture + navigation contract
-2A.3.2 Shell frame + responsive geometry
-2A.3.3 Navigation sidebar / rail
-2A.3.4 Modular content host + Displays structural adapter
-2A.3.5 Generic IPC consolidation
-2A.3.6 Header / footer + guarded transitions
-2A.3.7 Focus, keyboard, motion and visual validation
-2A.3.8 Quality gates + documentation
+2A.3.1 Shell architecture + navigation contract              ✓
+2A.3.2 Shell frame + responsive geometry                     ✓
+2A.3.3 Navigation sidebar / rail                             ✓
+2A.3.4 Modular content host + Displays view extraction       ✓
+2A.3.5 Generic IPC consolidation                             ✓
+2A.3.6 Header / footer + guarded transitions                 ✓
+2A.3.7 Focus, keyboard, motion and visual validation         ✓
+2A.3.8 Quality gates + documentation                         ✓
 ```
 
-Phase 2A.4 follows with the actual Displays visual redesign.
+Phase 2A.4 is the next phase and performs the actual Displays visual redesign.
 
 ---
 
@@ -411,3 +412,50 @@ coordinates are not animated either; translation is applied through QML
 Closing remains immediate and existing guarded-transition behavior is
 unchanged. Display Safe Apply, persistence, and feature mutation services do
 not depend on animation completion.
+
+
+---
+
+## Phase 2A.3 completion status
+
+Phase 2A.3 is complete.
+
+The production Control Center now has:
+
+```text
+stable desktop wrapper
+        |
+        v
+generic controlCenter IPC
+        |
+        v
+Main.qml
+  |-- lifecycle / output targeting
+  |-- active module state
+  |-- guarded transitions
+  `-- feature service composition
+        |
+        v
+ControlCenterShell
+  |-- header
+  |-- ControlCenterNavigation
+  |-- generic content host
+  `-- footer / status
+        |
+        v
+feature module
+        |
+        `-- DisplayView
+```
+
+Validated behavior includes responsive geometry, stable output targeting,
+generic IPC routing, guarded Safe Apply transitions, keyboard focus traversal,
+directional module navigation, semantic focus rings, lightweight shell motion,
+and real-host runtime validation.
+
+`ControlCenterShell.qml` is the only production Control Center `PanelWindow`.
+`ComponentGallery.qml` remains a separate development-only `PanelWindow`.
+
+Phase 2A.4 is next. It will migrate the current Displays visual layer to the
+shared component library while preserving observed, draft, runtime, and
+persistent state boundaries.

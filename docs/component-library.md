@@ -237,11 +237,11 @@ Phase 2A.2 closure validation checks:
 ## Next phases
 
 ```text
-2A.3 Control Center shell + navigation
-2A.4 Displays visual redesign
+2A.3 Control Center shell + navigation  ✓ complete
+2A.4 Displays visual redesign           ← next
 ```
 
-Phase 2A.3 composes the reusable vocabulary into the new shell.
+Phase 2A.3 composed the reusable vocabulary into the production Control Center shell.
 
-Phase 2A.4 migrates Displays visually while preserving the observed / draft /
-runtime / persistent architecture.
+Phase 2A.4 is next and migrates Displays visually while preserving the observed /
+draft / runtime / persistent architecture.
