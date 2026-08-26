@@ -23,24 +23,6 @@ QtObject {
 
     // -------------------------------------------------------------------------
     // Surface hierarchy
-    //
-    // sunken
-    //   Background regions visually below normal content.
-    //
-    // base
-    //   Standard card / panel surface.
-    //
-    // raised
-    //   Cards or controls visually above a base surface.
-    //
-    // glass
-    //   Translucent shell / overlay surface.
-    //
-    // interactive
-    //   Default clickable/selectable surface.
-    //
-    // hover / pressed / selected
-    //   Interaction depth layered over the semantic surface hierarchy.
     // -------------------------------------------------------------------------
 
     readonly property color surfaceSunken: canvasAlt
@@ -123,7 +105,7 @@ QtObject {
     )
 
     // -------------------------------------------------------------------------
-    // Typography
+    // Typography colors
     // -------------------------------------------------------------------------
 
     readonly property color textPrimary: "#f2f2f4"
@@ -148,37 +130,89 @@ QtObject {
     readonly property color info: "#89dceb"
 
     // =========================================================================
+    // Geometry scale
+    //
+    // The scale is intentionally compact enough for a desktop control surface
+    // while still supporting the generous spacing used by larger glass panels.
+    // Existing Phase 1 values remain represented exactly through compatibility
+    // aliases below.
+    // =========================================================================
+
+    // -------------------------------------------------------------------------
+    // Spacing
+    //
+    // Prefer these semantic scale names in new components.
+    // -------------------------------------------------------------------------
+
+    readonly property int space2Xs: 4
+    readonly property int spaceXs: 6
+    readonly property int spaceSm: 10
+    readonly property int spaceMd: 16
+    readonly property int spaceLg: 24
+    readonly property int spaceXl: 32
+    readonly property int space2Xl: 40
+
+    // -------------------------------------------------------------------------
+    // Radius
+    //
+    // radiusPill is intentionally very large so the final radius is constrained
+    // naturally by the control height.
+    // -------------------------------------------------------------------------
+
+    readonly property int radiusXs: 6
+    readonly property int radiusSm: 8
+    readonly property int radiusMd: 12
+    readonly property int radiusLg: 18
+    readonly property int radiusXl: 24
+    readonly property int radius2Xl: 32
+    readonly property int radiusPill: 999
+
+    // -------------------------------------------------------------------------
+    // Common geometry
+    //
+    // These are not widget implementations. They provide shared measurements
+    // for the reusable component library introduced in Phase 2A.2.
+    // -------------------------------------------------------------------------
+
+    readonly property int borderWidthThin: 1
+    readonly property int borderWidthStrong: 2
+
+    readonly property int controlHeightCompact: 30
+    readonly property int controlHeightDefault: 34
+    readonly property int controlHeightLarge: 42
+
+    readonly property int iconSizeSm: 14
+    readonly property int iconSizeMd: 18
+    readonly property int iconSizeLg: 22
+    readonly property int iconSizeXl: 28
+
+    // =========================================================================
     // Compatibility aliases
     //
     // Phase 1 components still consume these names. Keep them until the QML
     // component migration is complete so Phase 2A remains non-disruptive.
     // =========================================================================
 
+    // Colors
     readonly property color background: canvas
     readonly property color surface: surfaceBase
     readonly property color surfaceAlt: surfaceRaised
     readonly property color border: borderDefault
     readonly property color error: danger
 
-    // Existing glass-style compatibility names for future shared consumers.
+    // Glass
     readonly property color glass: surfaceGlass
     readonly property color glassLight: surfaceGlassRaised
     readonly property color glassHover: surfaceHover
     readonly property color glassBorder: borderSubtle
 
-    // =========================================================================
-    // Existing layout tokens
-    //
-    // These remain unchanged in 2A.1.2. Their formal design-system scales are
-    // defined in subsequent Phase 2A.1 steps.
-    // =========================================================================
+    // Geometry
+    readonly property int radiusSmall: radiusSm
+    readonly property int radiusMedium: radiusMd
+    readonly property int radiusLarge: radiusLg
 
-    readonly property int radiusSmall: 8
-    readonly property int radiusMedium: 12
-    readonly property int radiusLarge: 18
-
-    readonly property int spacingXs: 6
-    readonly property int spacingSm: 10
-    readonly property int spacingMd: 16
-    readonly property int spacingLg: 24
+    readonly property int spacingXs: spaceXs
+    readonly property int spacingSm: spaceSm
+    readonly property int spacingMd: spaceMd
+    readonly property int spacingLg: spaceLg
 }
