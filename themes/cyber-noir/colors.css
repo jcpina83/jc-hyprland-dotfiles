@@ -33,9 +33,6 @@
 
 /* ============================================================================
  * Semantic Design System API
- *
- * Palette names above are physical theme values. New consumers should prefer
- * the semantic names below so visual intent remains independent of the theme.
  * ========================================================================== */
 
 /* Canvas */
@@ -77,6 +74,40 @@
 @define-color state-warning @yellow;
 @define-color state-danger  @red;
 @define-color state-info    @cyan;
+
+/* Control interaction contract */
+@define-color control-surface-default  @surface-interactive;
+@define-color control-surface-hover    @surface-hover;
+@define-color control-surface-pressed  @surface-pressed;
+@define-color control-surface-selected @surface-selected;
+
+@define-color control-border-default  @border-default;
+@define-color control-border-hover    @border-strong;
+@define-color control-border-pressed  @border-strong;
+@define-color control-border-selected @border-accent;
+@define-color control-border-focus    @border-focus;
+
+@define-color control-text-default   @text-primary;
+@define-color control-text-secondary @text-secondary;
+@define-color control-text-disabled  @text-muted;
+@define-color control-text-selected  @action-accent;
+
+@define-color control-icon-default  @text-secondary;
+@define-color control-icon-active   @action-accent;
+@define-color control-icon-disabled @text-muted;
+
+/* Semantic feedback */
+@define-color success-surface rgba(76, 255, 154, 0.12);
+@define-color success-border  rgba(76, 255, 154, 0.34);
+
+@define-color warning-surface rgba(255, 230, 109, 0.12);
+@define-color warning-border  rgba(255, 230, 109, 0.34);
+
+@define-color danger-surface rgba(255, 77, 109, 0.12);
+@define-color danger-border  rgba(255, 77, 109, 0.34);
+
+@define-color info-surface rgba(0, 229, 255, 0.12);
+@define-color info-border  rgba(0, 229, 255, 0.34);
 
 
 /* Compatibility aliases */

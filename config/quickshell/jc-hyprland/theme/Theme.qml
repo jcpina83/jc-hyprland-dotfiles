@@ -130,6 +130,124 @@ QtObject {
     readonly property color info: "#89dceb"
 
     // =========================================================================
+    // Interaction states
+    //
+    // Components should map their visual state to these tokens rather than
+    // inventing local hover/pressed/selected/disabled colors.
+    // =========================================================================
+
+    // -------------------------------------------------------------------------
+    // Control surfaces
+    // -------------------------------------------------------------------------
+
+    readonly property color controlSurfaceDefault: surfaceInteractive
+    readonly property color controlSurfaceHover: surfaceHover
+    readonly property color controlSurfacePressed: surfacePressed
+    readonly property color controlSurfaceSelected: surfaceSelected
+
+    // -------------------------------------------------------------------------
+    // Control borders
+    // -------------------------------------------------------------------------
+
+    readonly property color controlBorderDefault: borderDefault
+    readonly property color controlBorderHover: borderStrong
+    readonly property color controlBorderPressed: borderStrong
+    readonly property color controlBorderSelected: borderAccent
+    readonly property color controlBorderFocus: borderFocus
+
+    // -------------------------------------------------------------------------
+    // Control content
+    // -------------------------------------------------------------------------
+
+    readonly property color controlTextDefault: textPrimary
+    readonly property color controlTextSecondary: textSecondary
+    readonly property color controlTextDisabled: textMuted
+    readonly property color controlTextSelected: accent
+
+    readonly property color controlIconDefault: textSecondary
+    readonly property color controlIconActive: accent
+    readonly property color controlIconDisabled: textMuted
+
+    // -------------------------------------------------------------------------
+    // Interaction opacity
+    // -------------------------------------------------------------------------
+
+    readonly property real opacityEnabled: 1.00
+    readonly property real opacityInactive: 0.72
+    readonly property real opacityDisabled: 0.48
+    readonly property real opacitySubtle: 0.62
+
+    // -------------------------------------------------------------------------
+    // Focus
+    // -------------------------------------------------------------------------
+
+    readonly property int focusRingWidth: 2
+    readonly property color focusRingColor: borderFocus
+
+    // -------------------------------------------------------------------------
+    // Semantic feedback surfaces
+    //
+    // Status banners, validation chips and future toast/notification components
+    // can share these semantic colors without embedding theme-specific values.
+    // -------------------------------------------------------------------------
+
+    readonly property color successSurface: Qt.rgba(
+        success.r,
+        success.g,
+        success.b,
+        0.12
+    )
+
+    readonly property color successBorder: Qt.rgba(
+        success.r,
+        success.g,
+        success.b,
+        0.34
+    )
+
+    readonly property color warningSurface: Qt.rgba(
+        warning.r,
+        warning.g,
+        warning.b,
+        0.12
+    )
+
+    readonly property color warningBorder: Qt.rgba(
+        warning.r,
+        warning.g,
+        warning.b,
+        0.34
+    )
+
+    readonly property color dangerSurface: Qt.rgba(
+        danger.r,
+        danger.g,
+        danger.b,
+        0.12
+    )
+
+    readonly property color dangerBorder: Qt.rgba(
+        danger.r,
+        danger.g,
+        danger.b,
+        0.34
+    )
+
+    readonly property color infoSurface: Qt.rgba(
+        info.r,
+        info.g,
+        info.b,
+        0.12
+    )
+
+    readonly property color infoBorder: Qt.rgba(
+        info.r,
+        info.g,
+        info.b,
+        0.34
+    )
+
+    // =========================================================================
     // Geometry scale
     // =========================================================================
 
@@ -175,17 +293,10 @@ QtObject {
 
     // =========================================================================
     // Typography scale
-    //
-    // Primitive sizes provide a predictable scale. Semantic aliases describe
-    // intent so consumers do not need to choose arbitrary pixel values.
     // =========================================================================
 
     // -------------------------------------------------------------------------
     // Font families
-    //
-    // Generic families intentionally avoid binding the shared configuration to
-    // a specific installed font. Theme/profile-specific font selection can be
-    // layered on top of this contract later.
     // -------------------------------------------------------------------------
 
     readonly property string fontFamilySans: "sans-serif"
