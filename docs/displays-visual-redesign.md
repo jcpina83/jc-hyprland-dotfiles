@@ -455,19 +455,24 @@ than forcing every option set through the same visual primitive:
 ```text
 Resolution     -> JcComboBox
 Refresh rate   -> JcComboBox
-Scale          -> JcChoiceGroup
-Orientation    -> JcChoiceGroup
+Scale          -> JcSlider
+Orientation    -> JcComboBox
 ```
 
 Resolution and refresh rate can grow with the real mode list exposed by the
 monitor backend. Their option builders remain backed by parsed
 `availableModes`; the UI does not manufacture unsupported hardware modes.
 
-Scale and orientation remain visible finite choices. To make that production
-usage keyboard-accessible, `JcChip` now supports focus, Enter/Return/Space
-activation, semantic focus rings, and opt-in directional navigation.
-`JcChoiceGroup` enables that directional mode and provides Left/Right,
-Up/Down, Home, and End focus movement while skipping disabled options.
+Scale is a numeric setting, so it is presented as a `JcSlider`. The slider
+does not invent arbitrary scale values: it snaps by index across the validated
+options returned by `scaleOptionsFor(...)` and sends the selected option back
+through `setScale(...)`.
+
+Orientation can expose up to eight transform states, including flipped
+variants, so it is presented as a `JcComboBox` rather than a row of selection
+buttons. Resolution, refresh rate, and orientation therefore use compact
+keyboard-accessible combo boxes, while scale uses the canonical numeric
+slider.
 
 The draft mutation boundary remains unchanged:
 

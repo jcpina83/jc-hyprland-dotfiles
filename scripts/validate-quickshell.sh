@@ -2508,71 +2508,36 @@ done
 
 printf '\n==> Phase 2A.4.4 display selection control strategy\n'
 
-jc_chip="$config_dir/components/JcChip.qml"
-jc_choice_group="$config_dir/components/JcChoiceGroup.qml"
 display_card="$config_dir/modules/displays/DisplayCard.qml"
 display_draft_store="$config_dir/services/DisplayDraftStore.qml"
 displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
 
-for chip_keyboard_contract in \
-    'property bool directionalNavigation: false' \
-    'activeFocusOnTab: root.controlEnabled' \
-    'Keys.onPressed: event =>' \
-    'event.key === Qt.Key_Return' \
-    'event.key === Qt.Key_Enter' \
-    'event.key === Qt.Key_Space' \
-    'event.key === Qt.Key_Left' \
-    'event.key === Qt.Key_Right' \
-    'event.key === Qt.Key_Home' \
-    'event.key === Qt.Key_End' \
-    'root.theme.controlBorderFocus' \
-    'root.theme.focusRingWidth' \
-    'onPressed: root.forceActiveFocus()'
-do
-    if grep -Fq -- "$chip_keyboard_contract" "$jc_chip" 2>/dev/null; then
-        ok "JcChip keyboard contract: $chip_keyboard_contract"
-    else
-        fail "JcChip keyboard contract missing: $chip_keyboard_contract"
-    fi
-done
-
-for choice_keyboard_contract in \
-    'function focusRelative(startIndex, step)' \
-    'function focusBoundary(last)' \
-    'id: choiceRepeater' \
-    'required property int index' \
-    'directionalNavigation: true' \
-    'root.focusRelative(index, -1)' \
-    'root.focusRelative(index, 1)' \
-    'root.focusBoundary(false)' \
-    'root.focusBoundary(true)'
-do
-    if grep -Fq -- "$choice_keyboard_contract" \
-        "$jc_choice_group" 2>/dev/null
-    then
-        ok "JcChoiceGroup keyboard contract: $choice_keyboard_contract"
-    else
-        fail "JcChoiceGroup keyboard contract missing: $choice_keyboard_contract"
-    fi
-done
-
 display_card_combo_count="$(
     grep -Fc 'Components.JcComboBox {' "$display_card" 2>/dev/null || true
+)"
+display_card_slider_count="$(
+    grep -Fc 'Components.JcSlider {' "$display_card" 2>/dev/null || true
 )"
 display_card_choice_count="$(
     grep -Fc 'Components.JcChoiceGroup {' "$display_card" 2>/dev/null || true
 )"
 
-if [[ "$display_card_combo_count" == "2" ]]; then
-    ok "DisplayCard uses two combo boxes for mode selection"
+if [[ "$display_card_combo_count" == "3" ]]; then
+    ok "DisplayCard uses three combo boxes for enumerated settings"
 else
-    fail "DisplayCard expected 2 JcComboBox controls, found $display_card_combo_count"
+    fail "DisplayCard expected 3 JcComboBox controls, found $display_card_combo_count"
 fi
 
-if [[ "$display_card_choice_count" == "2" ]]; then
-    ok "DisplayCard keeps two finite choice groups"
+if [[ "$display_card_slider_count" == "1" ]]; then
+    ok "DisplayCard uses one slider for scale"
 else
-    fail "DisplayCard expected 2 JcChoiceGroup controls, found $display_card_choice_count"
+    fail "DisplayCard expected 1 JcSlider control, found $display_card_slider_count"
+fi
+
+if [[ "$display_card_choice_count" == "0" ]]; then
+    ok "DisplayCard contains no button-like choice groups"
+else
+    fail "DisplayCard expected 0 JcChoiceGroup controls, found $display_card_choice_count"
 fi
 
 for display_selection_contract in \
@@ -2582,9 +2547,14 @@ for display_selection_contract in \
     'options: root.refreshOptions' \
     'selectedValue: root.draft ? root.draft.modeRaw : ""' \
     'setRefreshMode(root.monitor.output, value)' \
-    'options: root.scaleOptions' \
-    'setScale(root.monitor.output, value)' \
+    'function scaleIndexForValue(scaleValue)' \
+    'Components.JcSlider {' \
+    'to: Math.max(0, root.scaleOptions.length - 1)' \
+    'stepSize: 1' \
+    'onMoved: {' \
+    'root.draftStore.setScale(' \
     'options: root.transformOptions' \
+    'selectedValue: root.draft ? String(root.draft.transform) : ""' \
     'setTransform(root.monitor.output, value)'
 do
     if grep -Fq -- "$display_selection_contract" \
@@ -2601,14 +2571,16 @@ for mode_truth_contract in \
     'function resolutionOptionsFor(output)' \
     'root.modeParser.uniqueResolutions(draft.modes)' \
     'function refreshOptionsFor(output)' \
-    'root.modeParser.modesForResolution('
+    'root.modeParser.modesForResolution(' \
+    'function scaleOptionsFor(output)' \
+    'function transformOptionsFor(output)'
 do
     if grep -Fq -- "$mode_truth_contract" \
         "$display_draft_store" 2>/dev/null
     then
-        ok "Display mode truth contract: $mode_truth_contract"
+        ok "Display option truth contract: $mode_truth_contract"
     else
-        fail "Display mode truth contract missing: $mode_truth_contract"
+        fail "Display option truth contract missing: $mode_truth_contract"
     fi
 done
 
@@ -2619,6 +2591,18 @@ then
     ok "Phase 2A.4.4 migration documentation"
 else
     fail "Phase 2A.4.4 migration documentation missing"
+fi
+
+if grep -Fq \
+    'Scale          -> JcSlider' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        'Orientation    -> JcComboBox' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.4 documentation uses slider/combo strategy"
+else
+    fail "Phase 2A.4.4 documentation has stale choice-group strategy"
 fi
 
 if grep -Fq \

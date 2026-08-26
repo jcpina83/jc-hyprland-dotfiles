@@ -38,6 +38,19 @@ Components.JcSurface {
             ? root.draftStore.transformOptionsFor(root.monitor.output)
             : []
 
+    function scaleIndexForValue(scaleValue) {
+        const target = String(scaleValue);
+
+        for (let i = 0; i < root.scaleOptions.length; ++i) {
+            const option = root.scaleOptions[i];
+
+            if (option && String(option.value) === target)
+                return i;
+        }
+
+        return 0;
+    }
+
     implicitHeight: content.implicitHeight + (root.theme.spaceMd * 2)
 
     ColumnLayout {
@@ -375,22 +388,76 @@ Components.JcSurface {
             font.pixelSize: root.theme.textSizeCaption
         }
 
-        Components.JcChoiceGroup {
+        RowLayout {
             Layout.fillWidth: true
+            spacing: root.theme.spaceSm
 
-            theme: root.theme
-            options: root.scaleOptions
-            selectedValue: root.draft ? String(root.draft.scale) : ""
-            controlEnabled:
-                root.editorEnabled
-                && root.draft
-                && root.draft.enabled
+            Components.JcSlider {
+                id: scaleSlider
 
-            emptyText: "Enable the display to edit scale"
+                Layout.fillWidth: true
 
-            onValueSelected: value => {
-                if (root.monitor && root.draftStore)
-                    root.draftStore.setScale(root.monitor.output, value);
+                theme: root.theme
+
+                from: 0
+                to: Math.max(0, root.scaleOptions.length - 1)
+                stepSize: 1
+
+                value: root.draft
+                    ? root.scaleIndexForValue(root.draft.scale)
+                    : 0
+
+                controlEnabled:
+                    root.editorEnabled
+                    && root.draft
+                    && root.draft.enabled
+                    && root.scaleOptions.length > 0
+
+                onMoved: {
+                    const optionIndex = Math.round(value);
+
+                    if (optionIndex < 0
+                            || optionIndex >= root.scaleOptions.length) {
+                        return;
+                    }
+
+                    const option = root.scaleOptions[optionIndex];
+
+                    if (root.monitor && root.draftStore && option) {
+                        root.draftStore.setScale(
+                            root.monitor.output,
+                            String(option.value)
+                        );
+                    }
+                }
+            }
+
+            Text {
+                Layout.minimumWidth: root.theme.controlHeightLarge
+
+                text: {
+                    if (root.scaleOptions.length === 0)
+                        return "—";
+
+                    const optionIndex = Math.max(
+                        0,
+                        Math.min(
+                            root.scaleOptions.length - 1,
+                            Math.round(scaleSlider.value)
+                        )
+                    );
+
+                    const option = root.scaleOptions[optionIndex];
+
+                    return option ? String(option.label) : "—";
+                }
+
+                color: root.theme.textPrimary
+                font.family: root.theme.fontFamilySans
+                font.pixelSize: root.theme.textSizeBody
+                font.weight: root.theme.fontWeightMedium
+                horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignVCenter
             }
         }
 
@@ -400,18 +467,20 @@ Components.JcSurface {
             font.pixelSize: root.theme.textSizeCaption
         }
 
-        Components.JcChoiceGroup {
+        Components.JcComboBox {
             Layout.fillWidth: true
 
             theme: root.theme
             options: root.transformOptions
             selectedValue: root.draft ? String(root.draft.transform) : ""
+            placeholder: root.draft && !root.draft.enabled
+                ? "Display disabled"
+                : "Select orientation"
+
             controlEnabled:
                 root.editorEnabled
                 && root.draft
                 && root.draft.enabled
-
-            emptyText: "Enable the display to edit orientation"
 
             onValueSelected: value => {
                 if (root.monitor && root.draftStore)
