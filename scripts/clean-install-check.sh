@@ -43,6 +43,7 @@ trap cleanup EXIT
 printf '==> Clean-install source validation\n'
 
 quickshell_config="$repo_root/config/quickshell/jc-hyprland"
+persistence_ui_service="$quickshell_config/services/DisplayPersistenceService.qml"
 quickshell_launcher="$repo_root/scripts/runtime/start-quickshell.sh"
 control_center_wrapper="$repo_root/scripts/runtime/jc-control-center.sh"
 display_controller="$repo_root/scripts/runtime/jc-displayctl.sh"
@@ -54,6 +55,12 @@ if [[ -r "$quickshell_config/shell.qml" ]]; then
     ok "Quickshell config source"
 else
     fail "missing Quickshell config source: $quickshell_config/shell.qml"
+fi
+
+if [[ -r "$persistence_ui_service" ]]; then
+    ok "Display persistence UI service source"
+else
+    fail "missing display persistence UI service: $persistence_ui_service"
 fi
 
 if [[ -x "$quickshell_launcher" ]]; then

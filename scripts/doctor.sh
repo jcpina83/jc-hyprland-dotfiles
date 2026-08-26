@@ -341,6 +341,7 @@ quickshell_required_files=(
     "shell.qml"
     "Main.qml"
     "services/MonitorService.qml"
+    "services/DisplayPersistenceService.qml"
     "modules/displays/DisplayPopup.qml"
 )
 

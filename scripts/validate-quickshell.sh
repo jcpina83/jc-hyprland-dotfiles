@@ -33,6 +33,7 @@ required_files=(
     "services/MonitorModeParser.qml"
     "services/DisplayDraftStore.qml"
     "services/MonitorApplyService.qml"
+    "services/DisplayPersistenceService.qml"
     "modules/displays/DisplayPopup.qml"
     "modules/displays/DisplayLayout.qml"
     "modules/displays/DisplayLayoutEditor.qml"
@@ -218,6 +219,62 @@ do
     fi
 done
 
+
+printf '\n==> Phase 1C.3 persistence UI contract\n'
+
+persistence_service="$config_dir/services/DisplayPersistenceService.qml"
+display_popup="$config_dir/modules/displays/DisplayPopup.qml"
+main_qml="$config_dir/Main.qml"
+
+for persistence_ui_contract in \
+    'property bool checking: false' \
+    'property bool saving: false' \
+    'property bool previewKnown: false' \
+    'property bool hasPersistentChanges: false' \
+    'readonly property bool canSave:' \
+    'function refreshPreview()' \
+    'function saveConfiguration(): void' \
+    '"preview"' \
+    '"save"' \
+    'root.applyService.pendingConfirmation' \
+    'root.draftStore.hasDirty' \
+    'preflightProcess' \
+    'root.displayctlPath()' \
+    'response.status !== "idle"'
+do
+    if grep -Fq "$persistence_ui_contract" "$persistence_service" 2>/dev/null; then
+        ok "$persistence_ui_contract"
+    else
+        fail "DisplayPersistenceService contract missing: $persistence_ui_contract"
+    fi
+done
+
+for persistence_popup_contract in \
+    'property var persistenceService' \
+    'signal saveRequested()' \
+    'Save Configuration' \
+    'root.persistenceService.canSave'
+do
+    if grep -Fq "$persistence_popup_contract" "$display_popup" 2>/dev/null; then
+        ok "$persistence_popup_contract"
+    else
+        fail "DisplayPopup persistence contract missing: $persistence_popup_contract"
+    fi
+done
+
+for persistence_main_contract in \
+    'Services.DisplayPersistenceService {' \
+    'persistenceService: displayPersistenceService' \
+    'onSaveRequested: displayPersistenceService.saveConfiguration()' \
+    'onKept: displayPersistenceService.refreshPreview()' \
+    'onRolledBack: displayPersistenceService.refreshPreview()'
+do
+    if grep -Fq "$persistence_main_contract" "$main_qml" 2>/dev/null; then
+        ok "$persistence_main_contract"
+    else
+        fail "Main persistence orchestration contract missing: $persistence_main_contract"
+    fi
+done
 
 printf '\n==> Phase 1B.6 safety\n'
 

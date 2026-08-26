@@ -11,6 +11,7 @@ PanelWindow {
     property var monitorService
     property var draftStore
     property var applyService
+    property var persistenceService
     property var theme
 
     signal closeRequested()
@@ -19,6 +20,7 @@ PanelWindow {
     signal applyRequested()
     signal keepRequested()
     signal rollbackRequested()
+    signal saveRequested()
 
     screen: targetScreen
 
@@ -185,6 +187,8 @@ PanelWindow {
                         && !(root.applyService && root.applyService.busy)
                         && !(root.applyService
                             && root.applyService.pendingConfirmation)
+                        && !(root.persistenceService
+                            && root.persistenceService.busy)
 
                     onClicked: root.refreshRequested()
                 }
@@ -197,6 +201,8 @@ PanelWindow {
                         !(root.applyService && root.applyService.busy)
                         && !(root.applyService
                             && root.applyService.pendingConfirmation)
+                        && !(root.persistenceService
+                            && root.persistenceService.saving)
 
                     onClicked: root.closeRequested()
                 }
@@ -362,6 +368,20 @@ PanelWindow {
                 wrapMode: Text.Wrap
             }
 
+            Text {
+                visible: root.persistenceService
+                    && root.persistenceService.errorMessage.length > 0
+
+                Layout.fillWidth: true
+                text: root.persistenceService
+                    ? root.persistenceService.errorMessage
+                    : ""
+
+                color: root.theme ? root.theme.error : "#f38ba8"
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+
             Flickable {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -386,6 +406,8 @@ PanelWindow {
                             !(root.applyService && root.applyService.busy)
                             && !(root.applyService
                                 && root.applyService.pendingConfirmation)
+                            && !(root.persistenceService
+                                && root.persistenceService.saving)
                     }
 
                     Text {
@@ -416,6 +438,8 @@ PanelWindow {
                                 !(root.applyService && root.applyService.busy)
                                 && !(root.applyService
                                     && root.applyService.pendingConfirmation)
+                                && !(root.persistenceService
+                                    && root.persistenceService.saving)
                         }
                     }
                 }
@@ -423,6 +447,7 @@ PanelWindow {
 
             RowLayout {
                 Layout.fillWidth: true
+                spacing: 10
 
                 Text {
                     Layout.fillWidth: true
@@ -438,21 +463,51 @@ PanelWindow {
                                 ? "Draft display state is ready for Safe Apply."
                                 : "Resolve the display/topology conflict before Safe Apply.";
 
+                        if (root.persistenceService
+                                && root.persistenceService.checking) {
+                            return "Checking persistent display configuration…";
+                        }
+
+                        if (root.persistenceService
+                                && root.persistenceService.statusMessage.length > 0) {
+                            return root.persistenceService.statusMessage;
+                        }
+
                         if (root.monitorService
                                 && root.monitorService.lastRefresh.length > 0) {
                             return "Last refresh: "
                                 + root.monitorService.lastRefresh;
                         }
 
-                        return "No persistent monitor configuration is modified.";
+                        return "Persistent display state has not been checked yet.";
                     }
 
-                    color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+                    color: root.persistenceService
+                            && root.persistenceService.hasPersistentChanges
+                        ? (root.theme ? root.theme.warning : "#f9e2af")
+                        : (root.theme ? root.theme.textSecondary : "#b8b8c0")
+
                     font.pixelSize: 11
+                    wrapMode: Text.Wrap
+                }
+
+                Components.JcButton {
+                    theme: root.theme
+
+                    text: root.persistenceService
+                            && root.persistenceService.saving
+                        ? "Saving…"
+                        : "Save Configuration"
+
+                    controlEnabled:
+                        root.persistenceService
+                        && root.persistenceService.canSave
+
+                    onClicked: root.saveRequested()
                 }
 
                 Text {
-                    text: "Phase 1B.6 · Enable / Disable"
+                    text: "Phase 1C.3 · Persistent Save"
                     color: root.theme ? root.theme.accent : "#89b4fa"
                     font.pixelSize: 11
                     font.bold: true

@@ -30,11 +30,13 @@ Scope {
         root.displaysVisible = true;
         monitorApplyService.recoverPending();
         monitorService.refresh();
+        displayPersistenceService.refreshPreview();
     }
 
     function hideDisplays() {
         // Do not hide the confirmation UI while a Safe Apply is pending.
-        if (monitorApplyService.pendingConfirmation)
+        if (monitorApplyService.pendingConfirmation
+                || displayPersistenceService.saving)
             return;
 
         root.displaysVisible = false;
@@ -66,6 +68,18 @@ Scope {
         monitorService: monitorService
         draftStore: displayDraftStore
         confirmationTimeoutSeconds: 15
+
+        onKept: displayPersistenceService.refreshPreview()
+        onRolledBack: displayPersistenceService.refreshPreview()
+    }
+
+    Services.DisplayPersistenceService {
+        id: displayPersistenceService
+
+        draftStore: displayDraftStore
+        applyService: monitorApplyService
+
+        onSaved: monitorService.refresh()
     }
 
     Displays.DisplayPopup {
@@ -77,14 +91,19 @@ Scope {
         monitorService: monitorService
         draftStore: displayDraftStore
         applyService: monitorApplyService
+        persistenceService: displayPersistenceService
         theme: theme
 
         onCloseRequested: root.hideDisplays()
-        onRefreshRequested: monitorService.refresh()
+        onRefreshRequested: {
+            monitorService.refresh();
+            displayPersistenceService.refreshPreview();
+        }
         onResetRequested: displayDraftStore.reset()
         onApplyRequested: monitorApplyService.applyDirty()
         onKeepRequested: monitorApplyService.keepPending()
         onRollbackRequested: monitorApplyService.rollbackPending("user")
+        onSaveRequested: displayPersistenceService.saveConfiguration()
     }
 
     IpcHandler {
@@ -107,8 +126,11 @@ Scope {
 
         function refreshDisplays(): void {
             if (!displayDraftStore.hasDirty
-                    && !monitorApplyService.pendingConfirmation) {
+                    && !monitorApplyService.pendingConfirmation
+                    && !monitorApplyService.busy
+                    && !displayPersistenceService.saving) {
                 monitorService.refresh();
+                displayPersistenceService.refreshPreview();
             }
         }
 
