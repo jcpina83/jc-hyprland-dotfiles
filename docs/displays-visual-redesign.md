@@ -14,8 +14,8 @@ new window architecture and not a display-backend rewrite.
 ```text
 2A.4.1 Displays UI audit + visual migration contract       ✓
 2A.4.2 DisplayView shell/content cleanup                   ✓
-2A.4.3 DisplayCard migration to canonical components       ← CURRENT
-2A.4.4 Mode / scale / transform controls
+2A.4.3 DisplayCard migration to canonical components       ✓
+2A.4.4 Mode / scale / transform controls                   ← CURRENT
 2A.4.5 Layout editor visual integration
 2A.4.6 Safe Apply / persistence presentation
 2A.4.7 Retire Displays visual compatibility layer
@@ -443,3 +443,40 @@ to Phase 2A.4.4 and must be evaluated separately from the card-surface
 migration.
 
 No runtime apply or persistence responsibility is added to `DisplayCard.qml`.
+
+
+---
+
+## Phase 2A.4.4 — Mode, scale, and transform controls
+
+Display settings now use controls according to the shape of their data rather
+than forcing every option set through the same visual primitive:
+
+```text
+Resolution     -> JcComboBox
+Refresh rate   -> JcComboBox
+Scale          -> JcChoiceGroup
+Orientation    -> JcChoiceGroup
+```
+
+Resolution and refresh rate can grow with the real mode list exposed by the
+monitor backend. Their option builders remain backed by parsed
+`availableModes`; the UI does not manufacture unsupported hardware modes.
+
+Scale and orientation remain visible finite choices. To make that production
+usage keyboard-accessible, `JcChip` now supports focus, Enter/Return/Space
+activation, semantic focus rings, and opt-in directional navigation.
+`JcChoiceGroup` enables that directional mode and provides Left/Right,
+Up/Down, Home, and End focus movement while skipping disabled options.
+
+The draft mutation boundary remains unchanged:
+
+```text
+setResolution(...)
+setRefreshMode(...)
+setScale(...)
+setTransform(...)
+```
+
+This step changes presentation and keyboard interaction only. It does not
+change Safe Apply, persistence, topology, monitor discovery, or mode parsing.

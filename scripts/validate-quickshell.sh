@@ -2439,16 +2439,6 @@ do
     fi
 done
 
-display_card_choice_count="$(
-    grep -Fc 'Components.JcChoiceGroup {' "$display_card" 2>/dev/null || true
-)"
-
-if [[ "$display_card_choice_count" == "4" ]]; then
-    ok "DisplayCard preserves four choice controls for Phase 2A.4.4"
-else
-    fail "DisplayCard expected 4 preserved JcChoiceGroup controls, found $display_card_choice_count"
-fi
-
 for display_card_draft_contract in \
     'setEnabled(' \
     'setResolution(' \
@@ -2478,12 +2468,12 @@ if grep -Fq \
     '2A.4.2 DisplayView shell/content cleanup                   ✓' \
     "$displays_visual_doc" 2>/dev/null \
     && grep -Fq \
-        '2A.4.3 DisplayCard migration to canonical components       ← CURRENT' \
+        '2A.4.3 DisplayCard migration to canonical components       ✓' \
         "$displays_visual_doc" 2>/dev/null
 then
-    ok "Phase 2A.4 roadmap advanced to DisplayCard migration"
+    ok "Phase 2A.4 roadmap records DisplayCard migration complete"
 else
-    fail "Phase 2A.4 roadmap status is not aligned with DisplayCard migration"
+    fail "Phase 2A.4 roadmap does not record DisplayCard migration complete"
 fi
 
 
@@ -2514,6 +2504,134 @@ do
         fail "DisplayCard monitor lifecycle guard missing: $monitor_guard_contract"
     fi
 done
+
+
+printf '\n==> Phase 2A.4.4 display selection control strategy\n'
+
+jc_chip="$config_dir/components/JcChip.qml"
+jc_choice_group="$config_dir/components/JcChoiceGroup.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+display_draft_store="$config_dir/services/DisplayDraftStore.qml"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+
+for chip_keyboard_contract in \
+    'property bool directionalNavigation: false' \
+    'activeFocusOnTab: root.controlEnabled' \
+    'Keys.onPressed: event =>' \
+    'event.key === Qt.Key_Return' \
+    'event.key === Qt.Key_Enter' \
+    'event.key === Qt.Key_Space' \
+    'event.key === Qt.Key_Left' \
+    'event.key === Qt.Key_Right' \
+    'event.key === Qt.Key_Home' \
+    'event.key === Qt.Key_End' \
+    'root.theme.controlBorderFocus' \
+    'root.theme.focusRingWidth' \
+    'onPressed: root.forceActiveFocus()'
+do
+    if grep -Fq -- "$chip_keyboard_contract" "$jc_chip" 2>/dev/null; then
+        ok "JcChip keyboard contract: $chip_keyboard_contract"
+    else
+        fail "JcChip keyboard contract missing: $chip_keyboard_contract"
+    fi
+done
+
+for choice_keyboard_contract in \
+    'function focusRelative(startIndex, step)' \
+    'function focusBoundary(last)' \
+    'id: choiceRepeater' \
+    'required property int index' \
+    'directionalNavigation: true' \
+    'root.focusRelative(index, -1)' \
+    'root.focusRelative(index, 1)' \
+    'root.focusBoundary(false)' \
+    'root.focusBoundary(true)'
+do
+    if grep -Fq -- "$choice_keyboard_contract" \
+        "$jc_choice_group" 2>/dev/null
+    then
+        ok "JcChoiceGroup keyboard contract: $choice_keyboard_contract"
+    else
+        fail "JcChoiceGroup keyboard contract missing: $choice_keyboard_contract"
+    fi
+done
+
+display_card_combo_count="$(
+    grep -Fc 'Components.JcComboBox {' "$display_card" 2>/dev/null || true
+)"
+display_card_choice_count="$(
+    grep -Fc 'Components.JcChoiceGroup {' "$display_card" 2>/dev/null || true
+)"
+
+if [[ "$display_card_combo_count" == "2" ]]; then
+    ok "DisplayCard uses two combo boxes for mode selection"
+else
+    fail "DisplayCard expected 2 JcComboBox controls, found $display_card_combo_count"
+fi
+
+if [[ "$display_card_choice_count" == "2" ]]; then
+    ok "DisplayCard keeps two finite choice groups"
+else
+    fail "DisplayCard expected 2 JcChoiceGroup controls, found $display_card_choice_count"
+fi
+
+for display_selection_contract in \
+    'options: root.resolutionOptions' \
+    'selectedValue: root.draft ? root.draft.resolutionKey : ""' \
+    'setResolution(root.monitor.output, value)' \
+    'options: root.refreshOptions' \
+    'selectedValue: root.draft ? root.draft.modeRaw : ""' \
+    'setRefreshMode(root.monitor.output, value)' \
+    'options: root.scaleOptions' \
+    'setScale(root.monitor.output, value)' \
+    'options: root.transformOptions' \
+    'setTransform(root.monitor.output, value)'
+do
+    if grep -Fq -- "$display_selection_contract" \
+        "$display_card" 2>/dev/null
+    then
+        ok "DisplayCard selection contract: $display_selection_contract"
+    else
+        fail "DisplayCard selection contract missing: $display_selection_contract"
+    fi
+done
+
+for mode_truth_contract in \
+    'root.modeParser.parseAll(monitor.availableModes)' \
+    'function resolutionOptionsFor(output)' \
+    'root.modeParser.uniqueResolutions(draft.modes)' \
+    'function refreshOptionsFor(output)' \
+    'root.modeParser.modesForResolution('
+do
+    if grep -Fq -- "$mode_truth_contract" \
+        "$display_draft_store" 2>/dev/null
+    then
+        ok "Display mode truth contract: $mode_truth_contract"
+    else
+        fail "Display mode truth contract missing: $mode_truth_contract"
+    fi
+done
+
+if grep -Fq \
+    '## Phase 2A.4.4 — Mode, scale, and transform controls' \
+    "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.4 migration documentation"
+else
+    fail "Phase 2A.4.4 migration documentation missing"
+fi
+
+if grep -Fq \
+    '2A.4.3 DisplayCard migration to canonical components       ✓' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        '2A.4.4 Mode / scale / transform controls                   ← CURRENT' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4 roadmap advanced to selection controls"
+else
+    fail "Phase 2A.4 roadmap status is not aligned with selection controls"
+fi
 
 
 printf '\n==> Production PanelWindow dimensions\n'

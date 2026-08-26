@@ -9,8 +9,54 @@ Rectangle {
     property bool controlEnabled: true
     property bool checked: false
     property bool compact: false
+    property bool directionalNavigation: false
 
     signal clicked()
+    signal previousFocusRequested()
+    signal nextFocusRequested()
+    signal firstFocusRequested()
+    signal lastFocusRequested()
+
+    activeFocusOnTab: root.controlEnabled
+
+    Keys.onPressed: event => {
+        if (!root.controlEnabled)
+            return;
+
+        if (event.key === Qt.Key_Return
+                || event.key === Qt.Key_Enter
+                || event.key === Qt.Key_Space) {
+            root.clicked();
+            event.accepted = true;
+            return;
+        }
+
+        if (!root.directionalNavigation)
+            return;
+
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Up) {
+            root.previousFocusRequested();
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) {
+            root.nextFocusRequested();
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_Home) {
+            root.firstFocusRequested();
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_End) {
+            root.lastFocusRequested();
+            event.accepted = true;
+        }
+    }
 
     readonly property bool hovered:
         root.controlEnabled && pointerArea.containsMouse
@@ -55,6 +101,9 @@ Rectangle {
         if (!root.controlEnabled)
             return root.theme.controlBorderDefault;
 
+        if (root.activeFocus)
+            return root.theme.controlBorderFocus;
+
         if (root.pressed)
             return root.theme.controlBorderPressed;
 
@@ -89,7 +138,10 @@ Rectangle {
 
     color: root.resolvedSurfaceColor
 
-    border.width: root.theme.borderWidthThin
+    border.width: root.activeFocus
+        ? root.theme.focusRingWidth
+        : root.theme.borderWidthThin
+
     border.color: root.resolvedBorderColor
 
     opacity: root.controlEnabled
@@ -145,6 +197,7 @@ Rectangle {
 
         cursorShape: Qt.PointingHandCursor
 
+        onPressed: root.forceActiveFocus()
         onClicked: root.clicked()
     }
 }

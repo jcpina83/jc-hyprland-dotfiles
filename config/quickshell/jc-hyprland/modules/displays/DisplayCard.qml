@@ -321,18 +321,20 @@ Components.JcSurface {
             font.pixelSize: root.theme.textSizeCaption
         }
 
-        Components.JcChoiceGroup {
+        Components.JcComboBox {
             Layout.fillWidth: true
 
             theme: root.theme
             options: root.resolutionOptions
             selectedValue: root.draft ? root.draft.resolutionKey : ""
+            placeholder: root.draft && !root.draft.enabled
+                ? "Display disabled"
+                : "Select resolution"
+
             controlEnabled:
                 root.editorEnabled
                 && root.draft
                 && root.draft.enabled
-
-            emptyText: "Enable the display to edit resolution"
 
             onValueSelected: value => {
                 if (root.monitor && root.draftStore)
@@ -346,18 +348,20 @@ Components.JcSurface {
             font.pixelSize: root.theme.textSizeCaption
         }
 
-        Components.JcChoiceGroup {
+        Components.JcComboBox {
             Layout.fillWidth: true
 
             theme: root.theme
             options: root.refreshOptions
             selectedValue: root.draft ? root.draft.modeRaw : ""
+            placeholder: root.draft && !root.draft.enabled
+                ? "Display disabled"
+                : "Select refresh rate"
+
             controlEnabled:
                 root.editorEnabled
                 && root.draft
                 && root.draft.enabled
-
-            emptyText: "Enable the display to edit refresh rate"
 
             onValueSelected: value => {
                 if (root.monitor && root.draftStore)
