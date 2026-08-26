@@ -242,6 +242,7 @@ El instalador expone un namespace estable:
 │   └── wallpaper-manager.sh
 │
 └── local/
+    ├── active-theme
     ├── host.env
     ├── monitors.lua
     └── wallpaper.env
@@ -279,6 +280,7 @@ Cada tema implementa un contrato común:
 theme.env
 colors.conf
 colors.css
+quickshell.json
 colors.lua
 foot-colors.ini
 hyprlock.env
@@ -305,6 +307,7 @@ flowchart LR
     C5["hyprlock.env<br/>Hyprlock"]
     C6["sddm.env<br/>SDDM"]
     C7["theme.env<br/>metadata + wallpapers"]
+    C8["quickshell.json<br/>Quickshell Theme API"]
 
     T --> C1
     T --> C2
@@ -313,6 +316,7 @@ flowchart LR
     T --> C5
     T --> C6
     T --> C7
+    T --> C8
 ```
 
 ---
@@ -608,6 +612,7 @@ ShellCheck
 fish -n
 JSON / JSONC validation
 theme validation
+Design System / Theme API validation
 Quickshell structural validation
 portability check
 ```

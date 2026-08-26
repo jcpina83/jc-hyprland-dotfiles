@@ -145,6 +145,7 @@ apply_theme() {
         "theme.env"
         "colors.conf"
         "colors.css"
+        "quickshell.json"
         "foot-colors.ini"
         "hyprlock.env"
     )

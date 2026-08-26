@@ -169,3 +169,43 @@ automatic rollback behavior.
 The pre-Lua compatibility path is therefore retired. Display runtime and
 persistence now share `local/monitors.lua` as their single machine-local source
 of truth.
+
+
+## Design System / Theme API
+
+Phase 2A.1 adds a shared semantic Theme API at:
+
+```text
+config/quickshell/jc-hyprland/theme/Theme.qml
+```
+
+`Main.qml` owns one `Theme.Theme` instance and passes it to Control Center
+modules/components. The Theme object observes:
+
+```text
+~/.config/jc-hyprland-dotfiles/local/active-theme
+```
+
+and resolves:
+
+```text
+~/.config/jc-hyprland-dotfiles/repo/themes/<theme>/quickshell.json
+```
+
+through `FileView`. Theme switching therefore does not require shell execution
+from QML and does not introduce a second theme authority.
+
+The canonical API includes semantic colors/surfaces, interaction states,
+geometry, typography and motion tokens. Compatibility aliases remain for
+Phase 1 components, but new Phase 2 components should consume the canonical
+semantic names.
+
+Both built-in themes implement the runtime contract:
+
+```text
+themes/odyssey-glass/quickshell.json
+themes/cyber-noir/quickshell.json
+```
+
+Waybar uses equivalent semantic aliases from each theme's `colors.css`.
+See `docs/design-system.md` for the complete contract and extension rules.

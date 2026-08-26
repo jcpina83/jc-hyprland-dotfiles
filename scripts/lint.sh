@@ -101,6 +101,13 @@ if ! "$repo_root/scripts/validate-themes.sh"; then
 fi
 
 
+printf '\n==> Design System\n'
+
+if ! "$repo_root/scripts/validate-design-system.sh"; then
+    status=1
+fi
+
+
 printf '\n==> Portability\n'
 
 if ! "$repo_root/scripts/portability-check.sh"; then

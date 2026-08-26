@@ -314,6 +314,7 @@ which points to the selected theme directory.
 | `colors.lua` | Hyprland Lua configuration |
 | `colors.conf` | Legacy palette export; not consumed by the supported Hyprland runtime |
 | `colors.css` | Waybar, Wofi, SwayNC |
+| `quickshell.json` | Quickshell Theme API / Control Center |
 | `foot-colors.ini` | Foot |
 | `hyprlock.env` | Hyprlock |
 | `sddm.env` | SDDM |
@@ -712,6 +713,7 @@ Official Hyprland configuration reference:
 │       └── packages.txt
 ├── docs
 │   ├── architecture.md
+│   ├── design-system.md
 │   ├── multi-monitor.md
 │   └── screenshots
 ├── hosts
@@ -765,6 +767,7 @@ Official Hyprland configuration reference:
 │   ├── system
 │   │   └── jc-hyprland-sddm-switch
 │   ├── theme.sh
+│   ├── validate-design-system.sh
 │   ├── validate-jsonc.py
 │   ├── validate-quickshell.sh
 │   └── validate-themes.sh
@@ -775,6 +778,7 @@ Official Hyprland configuration reference:
 │   │   ├── colors.lua
 │   │   ├── foot-colors.ini
 │   │   ├── hyprlock.env
+│   │   ├── quickshell.json
 │   │   ├── sddm.env
 │   │   ├── theme.env
 │   │   └── wallpapers
@@ -786,6 +790,7 @@ Official Hyprland configuration reference:
 │       ├── colors.lua
 │       ├── foot-colors.ini
 │       ├── hyprlock.env
+│       ├── quickshell.json
 │       ├── sddm.env
 │       ├── theme.env
 │       └── wallpapers
@@ -862,7 +867,7 @@ Control Center.
 
 ## Visual platform
 
-- [ ] **Phase 2A.1 — Design System / Theme API**
+- [x] **Phase 2A.1 — Design System / Theme API**
   - semantic color tokens
   - surfaces and glass levels
   - typography

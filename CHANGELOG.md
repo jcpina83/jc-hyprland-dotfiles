@@ -10,6 +10,11 @@ The project follows semantic versioning where practical.
 
 ### Added
 
+- Phase 2A.1 Design System / Theme API with semantic color, surface, interaction, geometry, typography and motion tokens.
+- Theme-specific Quickshell runtime profiles:
+  - `themes/odyssey-glass/quickshell.json`,
+  - `themes/cyber-noir/quickshell.json`.
+- `scripts/validate-design-system.sh` for Design System contract validation.
 - Quickshell `jc-hyprland` control-center foundation.
 - Read-only display module with:
   - live monitor discovery,
@@ -79,6 +84,9 @@ The project follows semantic versioning where practical.
 
 ### Changed
 
+- Quickshell `Theme.qml` now observes the existing active-theme state and loads theme-specific visual data without executing shell commands from QML.
+- Waybar common styling now consumes semantic theme aliases instead of legacy palette names and hardcoded workspace-hover color values.
+- The tracked theme contract now requires `quickshell.json`.
 - Runtime launcher sources now follow the existing `scripts/runtime/*.sh` convention.
 - Quickshell is installed as a named configuration:
   - `~/.config/quickshell/jc-hyprland`.
@@ -123,6 +131,7 @@ The project follows semantic versioning where practical.
 
 ### Quality
 
+- Added Design System validation to the normal lint pipeline, covering Quickshell Theme API structure, theme JSON schema, CSS semantic aliases and Waybar semantic consumption.
 - Added Phase 1A Quickshell safety validation to prevent monitor-write commands
   from entering the read-only foundation.
 - Added checks for stable `ShellId` and IPC contract.
@@ -156,6 +165,8 @@ The project follows semantic versioning where practical.
 
 ### Documentation
 
+- Added `docs/design-system.md` as the canonical Design System / Theme API reference.
+- Updated theme architecture and Quickshell documentation for runtime `quickshell.json` loading and marked Phase 2A.1 complete.
 - Redesigned the top-level README as a project landing page.
 - Added Hyprland and target-distribution branding to the README header.
 - Added architecture diagrams for:
