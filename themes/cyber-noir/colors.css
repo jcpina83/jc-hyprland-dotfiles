@@ -34,30 +34,45 @@
 /* ============================================================================
  * Semantic Design System API
  *
- * New consumers should prefer these names. Palette names above remain the
- * physical theme values; these aliases describe how the values are used.
+ * Palette names above are physical theme values. New consumers should prefer
+ * the semantic names below so visual intent remains independent of the theme.
  * ========================================================================== */
 
+/* Canvas */
 @define-color canvas          @bg;
 @define-color canvas-alt      @bg-alt;
 
-@define-color surface-base    @surface;
-@define-color surface-raised  @surface-alt;
-@define-color surface-overlay @glass-light;
-@define-color surface-hover   @glass-hover;
+/* Surface / glass hierarchy */
+@define-color surface-sunken       @bg-alt;
+@define-color surface-base         @surface;
+@define-color surface-raised       @surface-alt;
+@define-color surface-glass        @glass;
+@define-color surface-glass-raised @glass-light;
+@define-color surface-overlay      @glass-light;
+@define-color surface-interactive  @surface-alt;
+@define-color surface-hover        @glass-hover;
+@define-color surface-pressed      rgba(43, 54, 70, 0.96);
+@define-color surface-selected     rgba(0, 229, 255, 0.14);
+@define-color scrim                rgba(0, 0, 0, 0.46);
 
-@define-color border-subtle   @glass-border;
-@define-color border-default  @glass-border;
-@define-color border-accent   rgba(124, 255, 107, 0.36);
+/* Borders */
+@define-color border-subtle  @glass-border;
+@define-color border-default rgba(0, 229, 255, 0.30);
+@define-color border-strong  rgba(0, 229, 255, 0.44);
+@define-color border-accent  rgba(124, 255, 107, 0.36);
+@define-color border-focus   rgba(0, 229, 255, 0.68);
 
-@define-color text-primary    @foreground;
-@define-color text-secondary  @foreground-alt;
-@define-color text-muted      @muted;
+/* Typography */
+@define-color text-primary   @foreground;
+@define-color text-secondary @foreground-alt;
+@define-color text-muted     @muted;
 
+/* Brand / interaction */
 @define-color action-primary   @primary;
 @define-color action-secondary @secondary;
 @define-color action-accent    @accent;
 
+/* Semantic states */
 @define-color state-success @green;
 @define-color state-warning @yellow;
 @define-color state-danger  @red;
