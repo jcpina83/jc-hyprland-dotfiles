@@ -342,7 +342,8 @@ quickshell_required_files=(
     "Main.qml"
     "services/MonitorService.qml"
     "services/DisplayPersistenceService.qml"
-    "modules/displays/DisplayPopup.qml"
+    "modules/controlcenter/ControlCenterShell.qml"
+    "modules/displays/DisplayView.qml"
 )
 
 for relative in "${quickshell_required_files[@]}"; do

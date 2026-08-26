@@ -94,11 +94,9 @@ config/quickshell/jc-hyprland/
 └── theme/
 ```
 
-`DisplayView.qml` will eventually contain the existing Displays feature content
-without owning a `PanelWindow`.
-
-The current `DisplayPopup.qml` is an implementation boundary to be retired or
-reduced to compatibility once the content host is live.
+`DisplayView.qml` contains the Displays feature content and is hosted by the
+generic `ControlCenterShell` content loader. The Displays module does not own a
+`PanelWindow`.
 
 This is a structural migration, not the Phase 2A.4 visual redesign.
 
@@ -214,21 +212,21 @@ controlCenterIsVisible()
 showModule(moduleId)
 ```
 
-Existing display-specific methods remain compatibility adapters during the migration:
+The public Control Center IPC contract is generic and module-independent:
 
 ```text
-showDisplays()
-showDisplaysOn(outputName)
-toggleDisplays()
-toggleDisplaysOn(outputName)
-hideDisplays()
-displaysAreVisible()
+showControlCenter()
+showControlCenterOn(outputName)
+toggleControlCenter()
+toggleControlCenterOn(outputName)
+hideControlCenter()
+controlCenterIsVisible()
 ```
 
 Their future behavior becomes conceptually:
 
 ```text
-showDisplays()
+showControlCenter()
     -> show Control Center
     -> select module "displays"
 ```
@@ -315,7 +313,7 @@ and prevents the shell from becoming a feature-specific monolith.
 2A.3.2 Shell frame + responsive geometry
 2A.3.3 Navigation sidebar / rail
 2A.3.4 Modular content host + Displays structural adapter
-2A.3.5 Generic IPC + legacy compatibility adapters
+2A.3.5 Generic IPC consolidation
 2A.3.6 Header / footer + guarded transitions
 2A.3.7 Focus, keyboard, motion and visual validation
 2A.3.8 Quality gates + documentation

@@ -12,9 +12,6 @@ Item {
     property var persistenceService
     required property var theme
 
-    property bool showCloseAction: true
-
-    signal closeRequested()
     signal refreshRequested()
     signal resetRequested()
     signal applyRequested()
@@ -177,21 +174,6 @@ Item {
                     onClicked: root.refreshRequested()
                 }
 
-                Components.JcButton {
-                    visible: root.showCloseAction
-
-                    theme: root.theme
-                    text: "Close"
-
-                    controlEnabled:
-                        !(root.applyService && root.applyService.busy)
-                        && !(root.applyService
-                            && root.applyService.pendingConfirmation)
-                        && !(root.persistenceService
-                            && root.persistenceService.saving)
-
-                    onClicked: root.closeRequested()
-                }
             }
 
             Rectangle {

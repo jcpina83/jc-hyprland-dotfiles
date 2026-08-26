@@ -111,27 +111,24 @@ Scope {
         root.showControlCenterOn(outputName);
     }
 
-    // Phase 1D compatibility adapters. External integrations can continue
-    // using the display-specific contract while the generic IPC settles.
-    function showDisplays() {
-        root.showControlCenter();
+    function refreshControlCenter() {
+        if (root.activeModuleId !== "displays")
+            return;
+
+        if (!displayDraftStore.hasDirty
+                && !monitorApplyService.pendingConfirmation
+                && !monitorApplyService.busy
+                && !displayPersistenceService.saving) {
+            monitorService.refresh();
+            displayPersistenceService.refreshPreview();
+        }
     }
 
-    function showDisplaysOn(outputName) {
-        root.showControlCenterOn(outputName);
-    }
 
-    function hideDisplays() {
-        root.hideControlCenter();
-    }
 
-    function toggleDisplays() {
-        root.toggleControlCenter();
-    }
 
-    function toggleDisplaysOn(outputName) {
-        root.toggleControlCenterOn(outputName);
-    }
+
+
 
     function showGallery() {
         if (monitorApplyService.busy
@@ -208,8 +205,6 @@ Scope {
             applyService: monitorApplyService
             persistenceService: displayPersistenceService
             theme: controlCenterShell.theme
-
-            showCloseAction: false
 
             onRefreshRequested: {
                 monitorService.refresh();
@@ -290,6 +285,10 @@ Scope {
             root.hideControlCenter();
         }
 
+        function refreshControlCenter(): void {
+            root.refreshControlCenter();
+        }
+
         function controlCenterIsVisible(): bool {
             return root.controlCenterVisible;
         }
@@ -301,41 +300,12 @@ Scope {
         readonly property string activeModule:
             root.activeModuleId
 
-        // Legacy display-specific compatibility adapters.
-        function toggleDisplays(): void {
-            root.toggleDisplays();
-        }
 
-        function showDisplays(): void {
-            root.showDisplays();
-        }
 
-        function showDisplaysOn(outputName: string): void {
-            root.showDisplaysOn(outputName);
-        }
 
-        function toggleDisplaysOn(outputName: string): void {
-            root.toggleDisplaysOn(outputName);
-        }
 
-        function hideDisplays(): void {
-            root.hideDisplays();
-        }
 
-        function refreshDisplays(): void {
-            if (!displayDraftStore.hasDirty
-                    && !monitorApplyService.pendingConfirmation
-                    && !monitorApplyService.busy
-                    && !displayPersistenceService.saving) {
-                monitorService.refresh();
-                displayPersistenceService.refreshPreview();
-            }
-        }
 
-        function displaysAreVisible(): bool {
-            return root.controlCenterVisible
-                && root.activeModuleId === "displays";
-        }
 
         // Development gallery API.
         function toggleGallery(): void {

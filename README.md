@@ -219,7 +219,7 @@ flowchart LR
     WR["jc-control-center"]
     IPC["Quickshell IPC"]
     MAIN["Main.qml"]
-    UI["DisplayPopup<br/>DisplayLayout · DisplayCard"]
+    UI["ControlCenterShell<br/>DisplayView · DisplayLayout · DisplayCard"]
     MS["MonitorService"]
     HY["Hyprland<br/>IPC + hyprctl -j"]
 
@@ -694,7 +694,7 @@ Official Hyprland configuration reference:
 │   │       │       ├── DisplayCard.qml
 │   │       │       ├── DisplayLayout.qml
 │   │       │       ├── DisplayLayoutEditor.qml
-│   │       │       └── DisplayPopup.qml
+│   │       │       └── DisplayView.qml
 │   │       ├── README.md
 │   │       ├── services
 │   │       │   ├── DisplayDraftStore.qml

@@ -55,7 +55,6 @@ required_files=(
     "services/DisplayDraftStore.qml"
     "services/MonitorApplyService.qml"
     "services/DisplayPersistenceService.qml"
-    "modules/displays/DisplayPopup.qml"
     "modules/displays/DisplayView.qml"
     "modules/displays/DisplayLayout.qml"
     "modules/displays/DisplayLayoutEditor.qml"
@@ -96,7 +95,50 @@ else
 fi
 
 
-printf '\n==> Phase 2A.3.5 generic IPC and compatibility adapters\n'
+printf '\n==> Phase 2A.3.5b stable wrapper generic routing\n'
+
+control_center_wrapper="$repo_root/scripts/runtime/jc-control-center.sh"
+
+for wrapper_generic_contract in \
+    'ipc call controlCenter showControlCenter' \
+    "ipc call controlCenter showControlCenterOn \"\$output\"" \
+    'ipc call controlCenter hideControlCenter' \
+    'ipc call controlCenter toggleControlCenter' \
+    "ipc call controlCenter toggleControlCenterOn \"\$output\"" \
+    'ipc call controlCenter controlCenterIsVisible'
+do
+    if grep -Fq -- "$wrapper_generic_contract" "$control_center_wrapper" 2>/dev/null; then
+        ok "stable wrapper generic route: $wrapper_generic_contract"
+    else
+        fail "stable wrapper generic route missing: $wrapper_generic_contract"
+    fi
+done
+
+wrapper_legacy_routes="$(
+    grep -nE \
+        'showDisplays(On)?|hideDisplays|toggleDisplays(On)?|refreshDisplays|displaysAreVisible' \
+        "$control_center_wrapper" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$wrapper_legacy_routes" ]]; then
+    ok "stable wrapper no longer depends on display-specific visibility IPC"
+else
+    fail "stable wrapper still contains display-specific visibility IPC:"
+    printf '%s\n' "$wrapper_legacy_routes" >&2
+fi
+
+if grep -Fq 'ipc call controlCenter refreshControlCenter' \
+    "$control_center_wrapper" 2>/dev/null
+then
+    ok "wrapper refresh uses generic Control Center IPC"
+else
+    fail "wrapper refreshControlCenter action missing"
+fi
+
+
+printf '\n==> Phase 2A.3.5 generic IPC contract\n'
 
 main_qml="${main_qml:-$config_dir/Main.qml}"
 
@@ -106,6 +148,7 @@ for generic_ipc_contract in \
     'function toggleControlCenter(): void' \
     'function toggleControlCenterOn(outputName: string): void' \
     'function hideControlCenter(): void' \
+    'function refreshControlCenter(): void' \
     'function controlCenterIsVisible(): bool' \
     'function showModule(moduleId: string): void' \
     'readonly property string activeModule:'
@@ -117,46 +160,23 @@ do
     fi
 done
 
-for legacy_ipc_contract in \
-    'function toggleDisplays(): void' \
-    'function showDisplays(): void' \
-    'function showDisplaysOn(outputName: string): void' \
-    'function toggleDisplaysOn(outputName: string): void' \
-    'function hideDisplays(): void' \
-    'function refreshDisplays(): void' \
-    'function displaysAreVisible(): bool'
-do
-    if grep -Fq -- "$legacy_ipc_contract" "$main_qml" 2>/dev/null; then
-        ok "legacy Displays IPC adapter: $legacy_ipc_contract"
-    else
-        fail "legacy Displays IPC adapter missing: $legacy_ipc_contract"
-    fi
-done
 
-for adapter_contract in \
-    'function showDisplays() {' \
-    'root.showControlCenter();' \
-    'function showDisplaysOn(outputName) {' \
-    'root.showControlCenterOn(outputName);' \
-    'function hideDisplays() {' \
-    'root.hideControlCenter();' \
-    'function toggleDisplays() {' \
-    'root.toggleControlCenter();' \
-    'function toggleDisplaysOn(outputName) {' \
-    'root.toggleControlCenterOn(outputName);'
-do
-    if grep -Fq -- "$adapter_contract" "$main_qml" 2>/dev/null; then
-        ok "legacy Displays adapter routing: $adapter_contract"
-    else
-        fail "legacy Displays adapter routing missing: $adapter_contract"
-    fi
-done
 
-if grep -Fq 'Displays.DisplayPopup {' "$main_qml" 2>/dev/null; then
-    fail "Main.qml must not instantiate legacy DisplayPopup after generic shell promotion"
+display_ipc_residue="$(
+    grep -nE \
+        'function (showDisplays|showDisplaysOn|hideDisplays|toggleDisplays|toggleDisplaysOn|refreshDisplays|displaysAreVisible)\(' \
+        "$main_qml" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$display_ipc_residue" ]]; then
+    ok "Main.qml exposes no display-specific Control Center IPC adapters"
 else
-    ok "Main.qml has one production Control Center shell"
+    fail "Main.qml still exposes display-specific Control Center IPC adapters:"
+    printf '%s\n' "$display_ipc_residue" >&2
 fi
+
 
 preview_residue="$(
     grep -nE \
@@ -175,7 +195,23 @@ fi
 
 printf '\n==> Phase 2A.3.4 modular Displays content contract\n'
 
-display_popup="$config_dir/modules/displays/DisplayPopup.qml"
+display_module_windows="$(
+    grep -RIl \
+        --include='*.qml' \
+        'PanelWindow {' \
+        "$config_dir/modules/displays" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$display_module_windows" ]]; then
+    ok "Displays module owns no PanelWindow"
+else
+    fail "Displays module must be hosted by ControlCenterShell, not own a PanelWindow:"
+    printf '%s\n' "$display_module_windows" >&2
+fi
+
+
 display_view="$config_dir/modules/displays/DisplayView.qml"
 control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
 main_qml="${main_qml:-$config_dir/Main.qml}"
@@ -187,8 +223,6 @@ for view_contract in \
     'property var applyService' \
     'property var persistenceService' \
     'required property var theme' \
-    'property bool showCloseAction: true' \
-    'signal closeRequested()' \
     'signal refreshRequested()' \
     'signal resetRequested()' \
     'signal applyRequested()' \
@@ -207,6 +241,8 @@ do
 done
 
 for forbidden_view_contract in \
+    'showCloseAction' \
+    'closeRequested()' \
     'PanelWindow {' \
     'property var targetScreen' \
     'screen:' \
@@ -220,23 +256,6 @@ do
     fi
 done
 
-for popup_adapter_contract in \
-    'PanelWindow {' \
-    'property var targetScreen' \
-    'screen: root.targetScreen' \
-    'implicitWidth: 820' \
-    'implicitHeight: 700' \
-    'DisplayView {' \
-    'anchors.fill: parent' \
-    'onCloseRequested: root.closeRequested()' \
-    'onSaveRequested: root.saveRequested()'
-do
-    if grep -Fq -- "$popup_adapter_contract" "$display_popup" 2>/dev/null; then
-        ok "DisplayPopup adapter contract: $popup_adapter_contract"
-    else
-        fail "DisplayPopup adapter contract missing: $popup_adapter_contract"
-    fi
-done
 
 for shell_content_contract in \
     'property Component contentComponent: null' \
@@ -256,7 +275,6 @@ done
 for main_content_contract in \
     'id: shellDisplaysComponent' \
     'Displays.DisplayView {' \
-    'showCloseAction: false' \
     'theme: controlCenterShell.theme' \
     'monitorService: root.monitorServiceHandle' \
     'contentComponent:' \
@@ -491,6 +509,7 @@ for main_shell_contract in \
     'function hideControlCenter() {' \
     'function toggleControlCenter() {' \
     'function toggleControlCenterOn(outputName) {' \
+    'function refreshControlCenter() {' \
     'ControlCenter.ControlCenterShell {' \
     'id: controlCenterShell' \
     'visible: root.controlCenterVisible' \
@@ -527,7 +546,6 @@ for shell_doc_contract in \
     'hideControlCenter()' \
     'controlCenterIsVisible()' \
     'showModule(moduleId)' \
-    'Existing display-specific methods remain compatibility adapters during the migration:' \
     'The Component Gallery remains a separate development window.' \
     '2A.3.4 Modular content host + Displays structural adapter' \
     'Phase 2A.4 follows with the actual Displays visual redesign.'
@@ -743,7 +761,6 @@ for gallery_contract in \
     'PanelWindow {' \
     'required property var targetScreen' \
     'required property var theme' \
-    'signal closeRequested()' \
     'Shortcut {' \
     'sequence: "Escape"' \
     'Components.JcSurface {' \
@@ -1615,7 +1632,6 @@ done
 printf '\n==> Phase 1C.3 persistence UI contract\n'
 
 persistence_service="$config_dir/services/DisplayPersistenceService.qml"
-display_popup="$config_dir/modules/displays/DisplayPopup.qml"
 display_view="$config_dir/modules/displays/DisplayView.qml"
 main_qml="$config_dir/Main.qml"
 
@@ -1642,16 +1658,16 @@ do
     fi
 done
 
-for persistence_popup_contract in \
+for persistence_view_contract in \
     'property var persistenceService' \
     'signal saveRequested()' \
     'Save Configuration' \
     'root.persistenceService.canSave'
 do
-    if grep -Fq "$persistence_popup_contract" "$display_view" 2>/dev/null; then
-        ok "$persistence_popup_contract"
+    if grep -Fq "$persistence_view_contract" "$display_view" 2>/dev/null; then
+        ok "$persistence_view_contract"
     else
-        fail "DisplayView persistence contract missing: $persistence_popup_contract"
+        fail "DisplayView persistence contract missing: $persistence_view_contract"
     fi
 done
 
@@ -1762,8 +1778,8 @@ fi
 
 for ipc_contract in \
     'property string controlCenterOutputName:' \
-    'function showDisplaysOn(outputName: string): void' \
-    'function toggleDisplaysOn(outputName: string): void'
+    'function showControlCenterOn(outputName: string): void' \
+    'function toggleControlCenterOn(outputName: string): void'
 do
     if grep -Fq "$ipc_contract" "$main_qml" 2>/dev/null; then
         ok "targeted IPC: $ipc_contract"
@@ -1775,8 +1791,8 @@ done
 for wrapper_contract in \
     'show-on)' \
     'toggle-on)' \
-    "showDisplaysOn \"\$output\"" \
-    "toggleDisplaysOn \"\$output\""
+    "showControlCenterOn \"\$output\"" \
+    "toggleControlCenterOn \"\$output\""
 do
     if grep -Fq "$wrapper_contract" "$control_center_wrapper" 2>/dev/null; then
         ok "wrapper targeting: $wrapper_contract"
@@ -1802,18 +1818,22 @@ else
 fi
 
 
-printf '\n==> PanelWindow dimensions\n'
+printf '\n==> Production PanelWindow dimensions\n'
 
-display_popup="$config_dir/modules/displays/DisplayPopup.qml"
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
 
-if grep -Eq '^[[:space:]]{4}implicitWidth:[[:space:]]*[0-9]+' \
-    "$display_popup" 2>/dev/null &&
-   grep -Eq '^[[:space:]]{4}implicitHeight:[[:space:]]*[0-9]+' \
-    "$display_popup" 2>/dev/null
+if grep -Eq '^[[:space:]]+implicitWidth:' \
+    "$control_center_shell" 2>/dev/null &&
+   grep -Eq '^[[:space:]]+implicitHeight:' \
+    "$control_center_shell" 2>/dev/null &&
+   grep -Fq 'readonly property int preferredWidth:' \
+    "$control_center_shell" 2>/dev/null &&
+   grep -Fq 'readonly property int preferredHeight:' \
+    "$control_center_shell" 2>/dev/null
 then
-    ok "PanelWindow uses implicitWidth / implicitHeight"
+    ok "ControlCenterShell owns responsive implicit dimensions"
 else
-    fail "DisplayPopup must use implicit dimensions"
+    fail "ControlCenterShell responsive PanelWindow dimensions missing"
 fi
 
 

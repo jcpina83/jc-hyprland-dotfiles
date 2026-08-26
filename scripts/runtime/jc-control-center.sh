@@ -32,7 +32,7 @@ action="${1:-}"
 case "$action" in
     show)
         exec qs -c "$config_name" \
-            ipc call controlCenter showDisplays
+            ipc call controlCenter showControlCenter
         ;;
 
     show-on)
@@ -44,17 +44,17 @@ case "$action" in
         fi
 
         exec qs -c "$config_name" \
-            ipc call controlCenter showDisplaysOn "$output"
+            ipc call controlCenter showControlCenterOn "$output"
         ;;
 
     hide)
         exec qs -c "$config_name" \
-            ipc call controlCenter hideDisplays
+            ipc call controlCenter hideControlCenter
         ;;
 
     toggle)
         exec qs -c "$config_name" \
-            ipc call controlCenter toggleDisplays
+            ipc call controlCenter toggleControlCenter
         ;;
 
     toggle-on)
@@ -66,17 +66,17 @@ case "$action" in
         fi
 
         exec qs -c "$config_name" \
-            ipc call controlCenter toggleDisplaysOn "$output"
+            ipc call controlCenter toggleControlCenterOn "$output"
         ;;
 
     refresh)
         exec qs -c "$config_name" \
-            ipc call controlCenter refreshDisplays
+            ipc call controlCenter refreshControlCenter
         ;;
 
     status)
         exec qs -c "$config_name" \
-            ipc call controlCenter displaysAreVisible
+            ipc call controlCenter controlCenterIsVisible
         ;;
 
     ipc-show)

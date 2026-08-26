@@ -257,7 +257,7 @@ jc-control-center toggle
 en lugar de conocer directamente:
 
 ```text
-qs -c jc-hyprland ipc call controlCenter toggleDisplays
+qs -c jc-hyprland ipc call controlCenter toggleControlCenter
 ```
 
 El wrapper funciona como una pequeña API de runtime.
@@ -394,7 +394,7 @@ flowchart LR
     WRAP["jc-control-center"]
     IPC["Quickshell IPC"]
     MAIN["Main.qml<br/>composition root"]
-    UI["DisplayPopup<br/>DisplayLayout · DisplayCard"]
+    UI["ControlCenterShell<br/>DisplayView · DisplayLayout · DisplayCard"]
     MS["MonitorService"]
     HY["Hyprland"]
 
