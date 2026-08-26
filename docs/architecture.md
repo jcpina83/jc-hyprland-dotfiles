@@ -823,6 +823,12 @@ Phase 2A  Shared visual platform
     ├── 2A.2  Reusable QML Component Library
     ├── 2A.3  Control Center shell + navigation  ✓ COMPLETE
     └── 2A.4  Displays visual redesign           ← NEXT
+
+El contrato de migración visual de Displays vive en:
+
+```text
+docs/displays-visual-redesign.md
+```
     │
     ▼
 Phase 2B–2H

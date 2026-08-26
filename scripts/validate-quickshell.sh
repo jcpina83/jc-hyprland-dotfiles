@@ -2166,6 +2166,157 @@ else
 fi
 
 
+printf '\n==> Phase 2A.4.1 Displays visual migration contract\n'
+
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+readme="$repo_root/README.md"
+architecture_doc="$repo_root/docs/architecture.md"
+
+if [[ -r "$displays_visual_doc" ]]; then
+    ok "Displays visual redesign documentation"
+else
+    fail "Displays visual redesign documentation missing"
+fi
+
+for displays_contract in \
+    'Observed State' \
+    'Draft State' \
+    'Applied Runtime State' \
+    'Persistent State' \
+    'refreshRequested()' \
+    'resetRequested()' \
+    'applyRequested()' \
+    'keepRequested()' \
+    'rollbackRequested()' \
+    'saveRequested()' \
+    'setEnabled(...)' \
+    'setResolution(...)' \
+    'setRefreshMode(...)' \
+    'setScale(...)' \
+    'setTransform(...)' \
+    'snapPosition(...)' \
+    'setPosition(...)' \
+    'snapRelative(...)' \
+    'availableModes` remains the source of truth for actual modes.' \
+    'Mouse-only production settings controls are not an acceptable final state.' \
+    "No visual control may write \`local/monitors.lua\` directly." \
+    'Animations must never delay, own, or gate the Safe Apply watchdog.' \
+    'Phase 2A.4 does not:' \
+    'rewrite MonitorService' \
+    'rewrite DisplayDraftStore' \
+    'rewrite MonitorApplyService' \
+    'rewrite DisplayPersistenceService'
+do
+    if grep -Fq -- "$displays_contract" \
+        "$displays_visual_doc" 2>/dev/null
+    then
+        ok "Displays migration contract: $displays_contract"
+    else
+        fail "Displays migration contract missing: $displays_contract"
+    fi
+done
+
+for visual_mapping_contract in \
+    'generic feature surfaces       -> JcSurface' \
+    'section headings               -> JcSectionHeader' \
+    'structural separators          -> JcDivider' \
+    'actions                        -> JcButton / JcIconButton' \
+    'large mode / refresh lists     -> JcComboBox' \
+    'continuous numeric controls    -> JcSlider'
+do
+    if grep -Fq -- "$visual_mapping_contract" \
+        "$displays_visual_doc" 2>/dev/null
+    then
+        ok "Displays visual mapping: $visual_mapping_contract"
+    else
+        fail "Displays visual mapping missing: $visual_mapping_contract"
+    fi
+done
+
+for compatibility_contract in \
+    "\`JcCard\` and the Phase 1 Theme aliases remain temporary compatibility surfaces" \
+    'no production Displays component depends on JcCard' \
+    'validators no longer require the legacy compatibility boundary'
+do
+    if grep -Fq -- "$compatibility_contract" \
+        "$displays_visual_doc" 2>/dev/null
+    then
+        ok "Displays compatibility retirement contract: $compatibility_contract"
+    else
+        fail "Displays compatibility retirement contract missing: $compatibility_contract"
+    fi
+done
+
+if grep -Fq \
+    "migration contract: \`docs/displays-visual-redesign.md\`" \
+    "$readme" 2>/dev/null
+then
+    ok "README references Displays visual migration contract"
+else
+    fail "README missing Displays visual migration contract reference"
+fi
+
+if grep -Fq \
+    'docs/displays-visual-redesign.md' \
+    "$architecture_doc" 2>/dev/null
+then
+    ok "architecture references Displays visual migration contract"
+else
+    fail "architecture missing Displays visual migration contract reference"
+fi
+
+display_view="$config_dir/modules/displays/DisplayView.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+display_layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+
+for preserved_view_signal in \
+    'signal refreshRequested()' \
+    'signal resetRequested()' \
+    'signal applyRequested()' \
+    'signal keepRequested()' \
+    'signal rollbackRequested()' \
+    'signal saveRequested()'
+do
+    if grep -Fq -- "$preserved_view_signal" \
+        "$display_view" 2>/dev/null
+    then
+        ok "Displays preserved action signal: $preserved_view_signal"
+    else
+        fail "Displays preserved action signal missing: $preserved_view_signal"
+    fi
+done
+
+for draft_mutation_contract in \
+    'setEnabled(' \
+    'setResolution(' \
+    'setRefreshMode(' \
+    'setScale(' \
+    'setTransform('
+do
+    if grep -Fq -- "$draft_mutation_contract" \
+        "$display_card" 2>/dev/null
+    then
+        ok "DisplayCard draft mutation boundary: $draft_mutation_contract"
+    else
+        fail "DisplayCard draft mutation boundary missing: $draft_mutation_contract"
+    fi
+done
+
+for topology_mutation_contract in \
+    'snapPosition(' \
+    'setPosition(' \
+    'snapRelative('
+do
+    if grep -Fq -- "$topology_mutation_contract" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        ok "DisplayLayoutEditor draft topology boundary: $topology_mutation_contract"
+    else
+        fail "DisplayLayoutEditor topology boundary missing: $topology_mutation_contract"
+    fi
+done
+
+
 printf '\n==> Production PanelWindow dimensions\n'
 
 control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"

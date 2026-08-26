@@ -930,6 +930,7 @@ Control Center.
   - migrate the existing Displays module to the shared component library
   - preserve the current observed / draft / runtime / persistent architecture
   - improve monitor topology, mode selection and Safe Apply presentation
+  - migration contract: `docs/displays-visual-redesign.md`
 
 ## Control Center modules
 
