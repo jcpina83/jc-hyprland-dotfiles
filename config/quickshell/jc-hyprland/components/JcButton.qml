@@ -56,6 +56,9 @@ Rectangle {
         if (!root.controlEnabled)
             return root.theme.controlBorderDefault;
 
+        if (root.activeFocus)
+            return root.theme.controlBorderFocus;
+
         if (root.pressed)
             return root.theme.controlBorderPressed;
 
@@ -88,9 +91,25 @@ Rectangle {
 
     radius: root.theme.radiusSm
 
+    activeFocusOnTab: root.controlEnabled
+
+    Keys.onPressed: event => {
+        if (!root.controlEnabled)
+            return;
+
+        if (event.key === Qt.Key_Return
+                || event.key === Qt.Key_Enter
+                || event.key === Qt.Key_Space) {
+            root.clicked();
+            event.accepted = true;
+        }
+    }
+
     color: root.resolvedSurfaceColor
 
-    border.width: root.theme.borderWidthThin
+    border.width: root.activeFocus
+        ? root.theme.focusRingWidth
+        : root.theme.borderWidthThin
     border.color: root.resolvedBorderColor
 
     opacity: root.controlEnabled
@@ -146,6 +165,7 @@ Rectangle {
 
         cursorShape: Qt.PointingHandCursor
 
+        onPressed: root.forceActiveFocus()
         onClicked: root.clicked()
     }
 }

@@ -46,6 +46,12 @@ PanelWindow {
     signal closeRequested()
     signal moduleRequested(string moduleId)
 
+    function requestInitialFocus() {
+        Qt.callLater(function() {
+            navigation.focusActiveItem();
+        });
+    }
+
     screen: root.targetScreen
 
     implicitWidth:
@@ -81,6 +87,16 @@ PanelWindow {
             if (!root.transitionLocked)
                 root.closeRequested();
         }
+    }
+
+    onVisibleChanged: {
+        if (root.visible)
+            root.requestInitialFocus();
+    }
+
+    Component.onCompleted: {
+        if (root.visible)
+            root.requestInitialFocus();
     }
 
     Components.JcSurface {
@@ -130,6 +146,8 @@ PanelWindow {
                 spacing: root.theme.spaceMd
 
                 ControlCenterNavigation {
+                    id: navigation
+
                     Layout.preferredWidth:
                         root.theme.controlHeightLarge * 5
 

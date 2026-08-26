@@ -359,3 +359,17 @@ reflects the lock state in the close action, navigation, and footer status.
 The production header identifies the active module instead of exposing
 development-phase copy. The footer communicates ready, draft, apply,
 confirmation, and persistence state without owning feature mutation logic.
+
+
+### Phase 2A.3.7a — Initial focus and keyboard baseline
+
+When the production Control Center becomes visible, focus is placed on the
+active enabled navigation item. The shell requests focus through the navigation
+component instead of depending on a feature module implementation.
+
+The shared `JcButton` and `JcIconButton` primitives participate in keyboard
+focus traversal, render the semantic focus ring, and activate with Enter,
+Return, or Space. Pointer presses also transfer active focus to the control.
+
+This establishes the keyboard baseline before directional navigation and shell
+motion are added in later Phase 2A.3.7 steps.

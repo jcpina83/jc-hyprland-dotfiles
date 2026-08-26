@@ -1891,6 +1891,74 @@ else
 fi
 
 
+printf '\n==> Phase 2A.3.7a initial focus and keyboard baseline\n'
+
+jc_button="$config_dir/components/JcButton.qml"
+jc_icon_button="$config_dir/components/JcIconButton.qml"
+control_center_nav="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+control_center_shell_doc="$repo_root/docs/control-center-shell.md"
+
+for keyboard_button in "$jc_button" "$jc_icon_button"; do
+    for keyboard_contract in \
+        'activeFocusOnTab: root.controlEnabled' \
+        'Keys.onPressed: event => {' \
+        'event.key === Qt.Key_Return' \
+        'event.key === Qt.Key_Enter' \
+        'event.key === Qt.Key_Space' \
+        'if (root.activeFocus)' \
+        '? root.theme.focusRingWidth' \
+        'onPressed: root.forceActiveFocus()'
+    do
+        if grep -Fq -- "$keyboard_contract" "$keyboard_button" 2>/dev/null; then
+            ok "$(basename "$keyboard_button") keyboard contract: $keyboard_contract"
+        else
+            fail "$(basename "$keyboard_button") keyboard contract missing: $keyboard_contract"
+        fi
+    done
+done
+
+for navigation_focus_contract in \
+    'function focusActiveItem() {' \
+    'navigationRepeater.itemAt(i)' \
+    'item.forceActiveFocus();' \
+    'id: navigationRepeater'
+do
+    if grep -Fq -- "$navigation_focus_contract" \
+        "$control_center_nav" 2>/dev/null
+    then
+        ok "navigation focus contract: $navigation_focus_contract"
+    else
+        fail "navigation focus contract missing: $navigation_focus_contract"
+    fi
+done
+
+for shell_focus_contract in \
+    'function requestInitialFocus() {' \
+    'navigation.focusActiveItem();' \
+    'onVisibleChanged: {' \
+    'Component.onCompleted: {' \
+    'id: navigation'
+do
+    if grep -Fq -- "$shell_focus_contract" \
+        "$control_center_shell" 2>/dev/null
+    then
+        ok "shell focus contract: $shell_focus_contract"
+    else
+        fail "shell focus contract missing: $shell_focus_contract"
+    fi
+done
+
+if grep -Fq \
+    '### Phase 2A.3.7a — Initial focus and keyboard baseline' \
+    "$control_center_shell_doc" 2>/dev/null
+then
+    ok "Phase 2A.3.7a shell documentation"
+else
+    fail "Phase 2A.3.7a shell documentation missing"
+fi
+
+
 printf '\n==> Production PanelWindow dimensions\n'
 
 control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"

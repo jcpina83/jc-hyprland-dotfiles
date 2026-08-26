@@ -13,6 +13,37 @@ Item {
 
     signal moduleRequested(string moduleId)
 
+    function focusActiveItem() {
+        let fallbackItem = null;
+
+        for (let i = 0; i < root.navigationItems.length; ++i) {
+            const entry = root.navigationItems[i];
+
+            if (!entry || !Boolean(entry.enabled))
+                continue;
+
+            const item = navigationRepeater.itemAt(i);
+
+            if (!item)
+                continue;
+
+            if (!fallbackItem)
+                fallbackItem = item;
+
+            if (String(entry.id) === root.activeModuleId) {
+                item.forceActiveFocus();
+                return true;
+            }
+        }
+
+        if (fallbackItem) {
+            fallbackItem.forceActiveFocus();
+            return true;
+        }
+
+        return false;
+    }
+
     readonly property var navigationItems: [
         {
             id: "displays",
@@ -101,6 +132,8 @@ Item {
                 spacing: root.theme.spaceXs
 
                 Repeater {
+                    id: navigationRepeater
+
                     model: root.navigationItems
 
                     delegate: Components.JcNavItem {
