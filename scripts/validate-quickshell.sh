@@ -44,6 +44,7 @@ required_files=(
     "components/JcMetricRing.qml"
     "modules/dev/ComponentGallery.qml"
     "modules/controlcenter/ControlCenterShell.qml"
+    "modules/controlcenter/ControlCenterNavigation.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -92,6 +93,130 @@ else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
 fi
+
+
+printf '\n==> Phase 2A.3.3 Control Center navigation contract\n'
+
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+main_qml="${main_qml:-$config_dir/Main.qml}"
+
+for nav_contract in \
+    'required property var theme' \
+    'property string activeModuleId: "displays"' \
+    'signal moduleRequested(string moduleId)' \
+    'readonly property var navigationItems:' \
+    'Components.JcSurface {' \
+    'Components.JcSectionHeader {' \
+    'Components.JcDivider {' \
+    'delegate: Components.JcNavItem {' \
+    'selected:' \
+    'controlEnabled:' \
+    'root.moduleRequested('
+do
+    if grep -Fq -- "$nav_contract" "$control_center_navigation" 2>/dev/null; then
+        ok "ControlCenterNavigation contract: $nav_contract"
+    else
+        fail "ControlCenterNavigation contract missing: $nav_contract"
+    fi
+done
+
+for module_id in \
+    displays \
+    wallpapers \
+    themes \
+    quick-settings \
+    performance \
+    media \
+    network \
+    notifications
+do
+    if grep -Fq -- "id: \"$module_id\"" \
+        "$control_center_navigation" 2>/dev/null
+    then
+        ok "ControlCenterNavigation module id: $module_id"
+    else
+        fail "ControlCenterNavigation module id missing: $module_id"
+    fi
+done
+
+if grep -A4 -F 'id: "displays"' "$control_center_navigation"     | grep -Fq 'enabled: true'
+then
+    ok "Displays navigation entry is enabled"
+else
+    fail "Displays navigation entry must be enabled"
+fi
+
+for future_module in \
+    wallpapers \
+    themes \
+    quick-settings \
+    performance \
+    media \
+    network \
+    notifications
+do
+    if grep -A4 -F "id: \"$future_module\"" "$control_center_navigation"         | grep -Fq 'enabled: false'
+    then
+        ok "future navigation entry disabled: $future_module"
+    else
+        fail "future navigation entry must remain disabled: $future_module"
+    fi
+done
+
+navigation_hardcoded_colors="$(
+    grep -nE         '#[0-9a-fA-F]{6,8}|Qt\.rgba\('         "$control_center_navigation"         2>/dev/null ||
+        true
+)"
+
+if [[ -z "$navigation_hardcoded_colors" ]]; then
+    ok "ControlCenterNavigation contains no hardcoded colors"
+else
+    fail "ControlCenterNavigation contains hardcoded colors:"
+    printf '%s\n' "$navigation_hardcoded_colors" >&2
+fi
+
+navigation_legacy_aliases="$(
+    grep -nE         'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)'         "$control_center_navigation"         2>/dev/null ||
+        true
+)"
+
+if [[ -z "$navigation_legacy_aliases" ]]; then
+    ok "ControlCenterNavigation uses canonical Theme API tokens"
+else
+    fail "ControlCenterNavigation uses legacy Theme API aliases:"
+    printf '%s\n' "$navigation_legacy_aliases" >&2
+fi
+
+for shell_nav_contract in \
+    'property string activeModuleId: "displays"' \
+    'signal moduleRequested(string moduleId)' \
+    'ControlCenterNavigation {' \
+    'activeModuleId: root.activeModuleId' \
+    'root.moduleRequested(moduleId)'
+do
+    if grep -Fq -- "$shell_nav_contract" "$control_center_shell" 2>/dev/null; then
+        ok "ControlCenterShell navigation contract: $shell_nav_contract"
+    else
+        fail "ControlCenterShell navigation contract missing: $shell_nav_contract"
+    fi
+done
+
+for main_nav_contract in \
+    'property string shellPreviewModuleId: "displays"' \
+    'function requestShellPreviewModule(moduleId) {' \
+    'if (moduleId !== "displays")' \
+    'root.shellPreviewModuleId = moduleId;' \
+    'activeModuleId: root.shellPreviewModuleId' \
+    'root.requestShellPreviewModule(moduleId)' \
+    'readonly property string shellPreviewModule:'
+do
+    if grep -Fq -- "$main_nav_contract" "$main_qml" 2>/dev/null; then
+        ok "Main navigation ownership contract: $main_nav_contract"
+    else
+        fail "Main navigation ownership contract missing: $main_nav_contract"
+    fi
+done
 
 
 printf '\n==> Phase 2A.3.2 Control Center shell frame contract\n'

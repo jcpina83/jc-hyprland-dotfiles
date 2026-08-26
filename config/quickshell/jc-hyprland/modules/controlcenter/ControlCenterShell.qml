@@ -11,6 +11,7 @@ PanelWindow {
     required property var theme
 
     property string title: "Control Center"
+    property string activeModuleId: "displays"
 
     readonly property int preferredWidth: 1080
     readonly property int preferredHeight: 820
@@ -35,6 +36,7 @@ PanelWindow {
             : root.preferredHeight
 
     signal closeRequested()
+    signal moduleRequested(string moduleId)
 
     screen: root.targetScreen
 
@@ -114,46 +116,17 @@ PanelWindow {
 
                 spacing: root.theme.spaceMd
 
-                Components.JcSurface {
+                ControlCenterNavigation {
                     Layout.preferredWidth:
                         root.theme.controlHeightLarge * 5
 
                     Layout.fillHeight: true
 
                     theme: root.theme
-                    surfaceRole: "base"
-                    cornerRadius: root.theme.radiusLg
+                    activeModuleId: root.activeModuleId
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: root.theme.spaceMd
-                        spacing: root.theme.spaceSm
-
-                        Text {
-                            Layout.fillWidth: true
-
-                            text: "Navigation"
-                            color: root.theme.textPrimary
-
-                            font.family: root.theme.fontFamilySans
-                            font.pixelSize: root.theme.textSizeSection
-                            font.weight: root.theme.fontWeightSemibold
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-
-                            text: "Phase 2A.3.3"
-                            color: root.theme.textSecondary
-
-                            font.family: root.theme.fontFamilySans
-                            font.pixelSize: root.theme.textSizeCaption
-                        }
-
-                        Item {
-                            Layout.fillHeight: true
-                        }
-                    }
+                    onModuleRequested: moduleId =>
+                        root.moduleRequested(moduleId)
                 }
 
                 Components.JcSurface {

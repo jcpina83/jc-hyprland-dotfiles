@@ -17,6 +17,7 @@ Scope {
 
     property string requestedOutputName: ""
     property string shellPreviewOutputName: ""
+    property string shellPreviewModuleId: "displays"
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -81,6 +82,14 @@ Scope {
             && !displayPersistenceService.saving;
     }
 
+    function requestShellPreviewModule(moduleId) {
+        // During Phase 2A.3 only Displays is operational.
+        if (moduleId !== "displays")
+            return;
+
+        root.shellPreviewModuleId = moduleId;
+    }
+
     function showShellPreview() {
         if (!root.canOpenShellPreview())
             return;
@@ -91,6 +100,7 @@ Scope {
             root.hideDisplays();
 
         root.shellPreviewOutputName = "";
+        root.shellPreviewModuleId = "displays";
         root.shellPreviewVisible = true;
     }
 
@@ -108,12 +118,14 @@ Scope {
         root.shellPreviewOutputName =
             target && target.name === outputName ? outputName : "";
 
+        root.shellPreviewModuleId = "displays";
         root.shellPreviewVisible = true;
     }
 
     function hideShellPreview() {
         root.shellPreviewVisible = false;
         root.shellPreviewOutputName = "";
+        root.shellPreviewModuleId = "displays";
     }
 
     function toggleShellPreview() {
@@ -225,8 +237,12 @@ Scope {
             )
 
         theme: theme
+        activeModuleId: root.shellPreviewModuleId
 
         onCloseRequested: root.hideShellPreview()
+
+        onModuleRequested: moduleId =>
+            root.requestShellPreviewModule(moduleId)
     }
 
     Dev.ComponentGallery {
@@ -309,6 +325,9 @@ Scope {
         function shellPreviewIsVisible(): bool {
             return root.shellPreviewVisible;
         }
+
+        readonly property string shellPreviewModule:
+            root.shellPreviewModuleId
 
         function toggleGallery(): void {
             root.toggleGallery();
