@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "odyssey-glass",
+  "name": "Odyssey Glass",
+  "colors": {
+    "canvas": "#11111b",
+    "canvasAlt": "#181825",
+    "surfaceSunken": "#181825",
+    "surfaceBase": "#1e1e2e",
+    "surfaceRaised": "#313244",
+    "surfaceInteractive": "#313244",
+    "surfacePressed": "#45475a",
+    "textPrimary": "#cdd6f4",
+    "textSecondary": "#bac2de",
+    "textMuted": "#6c7086",
+    "primary": "#89b4fa",
+    "secondary": "#cba6f7",
+    "accent": "#74c7ec",
+    "success": "#a6e3a1",
+    "warning": "#f9e2af",
+    "danger": "#f38ba8",
+    "info": "#89dceb"
+  },
+  "opacity": {
+    "surfaceGlass": 0.78,
+    "surfaceGlassRaised": 0.86,
+    "surfaceOverlay": 0.9,
+    "surfaceHover": 0.9,
+    "surfaceSelected": 0.16,
+    "scrim": 0.42,
+    "borderSubtle": 0.2,
+    "borderDefault": 0.24,
+    "borderStrong": 0.38,
+    "borderAccent": 0.34,
+    "borderFocus": 0.62,
+    "feedbackSurface": 0.12,
+    "feedbackBorder": 0.34
+  }
+}
