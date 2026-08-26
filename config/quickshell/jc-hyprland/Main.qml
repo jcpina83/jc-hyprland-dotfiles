@@ -11,13 +11,14 @@ import qs.modules.controlcenter as ControlCenter
 Scope {
     id: root
 
-    property bool displaysVisible: false
+    property bool controlCenterVisible: false
     property bool galleryVisible: false
-    property bool shellPreviewVisible: false
 
-    property string requestedOutputName: ""
-    property string shellPreviewOutputName: ""
-    property string shellPreviewModuleId: "displays"
+    property string controlCenterOutputName: ""
+    property string activeModuleId: "displays"
+
+    // Explicit binding handle for dynamically-instantiated feature views.
+    readonly property var monitorServiceHandle: monitorService
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -40,131 +41,108 @@ Scope {
         displayPersistenceService.refreshPreview();
     }
 
-    function showDisplays() {
-        root.galleryVisible = false;
-
-        if (root.shellPreviewVisible) {
-            root.hideShellPreview();
-
-            if (root.shellPreviewVisible)
-                return;
-        }
-
-        root.requestedOutputName = "";
-        root.displaysVisible = true;
-        root.prepareDisplays();
+    function moduleIsAvailable(moduleId) {
+        // Phase 2A.3 ships the generic shell with Displays as the only
+        // operational module. Future modules are enabled in Phase 2B–2H.
+        return moduleId === "displays";
     }
 
-    function showDisplaysOn(outputName) {
+    function showModule(moduleId) {
+        if (!root.moduleIsAvailable(moduleId))
+            return;
+
+        const wasVisible = root.controlCenterVisible;
+        const moduleChanged = root.activeModuleId !== moduleId;
+
+        root.galleryVisible = false;
+        root.activeModuleId = moduleId;
+        root.controlCenterVisible = true;
+
+        if (moduleId === "displays" && (!wasVisible || moduleChanged))
+            root.prepareDisplays();
+    }
+
+    function showControlCenter() {
+        root.controlCenterOutputName = "";
+        root.showModule("displays");
+    }
+
+    function showControlCenterOn(outputName) {
         const target = root.resolveScreen(outputName);
 
-        root.galleryVisible = false;
-
-        if (root.shellPreviewVisible) {
-            root.hideShellPreview();
-
-            if (root.shellPreviewVisible)
-                return;
-        }
-
-        root.requestedOutputName =
+        root.controlCenterOutputName =
             target && target.name === outputName ? outputName : "";
 
-        root.displaysVisible = true;
-        root.prepareDisplays();
+        root.showModule("displays");
     }
 
-    function hideDisplays() {
-        // Do not hide the confirmation UI while a Safe Apply is pending.
-        if (monitorApplyService.pendingConfirmation
-                || displayPersistenceService.saving)
-            return;
-
-        root.displaysVisible = false;
-        root.requestedOutputName = "";
-        displayDraftStore.reset();
-    }
-
-    function canOpenShellPreview() {
-        return !displayDraftStore.hasDirty
-            && !monitorApplyService.pendingConfirmation
-            && !monitorApplyService.busy
-            && !displayPersistenceService.saving;
-    }
-
-    function requestShellPreviewModule(moduleId) {
-        // During Phase 2A.3 only Displays is operational.
-        if (moduleId !== "displays")
-            return;
-
-        root.shellPreviewModuleId = moduleId;
-    }
-
-    function showShellPreview() {
-        if (!root.canOpenShellPreview())
-            return;
-
-        root.galleryVisible = false;
-
-        if (root.displaysVisible)
-            root.hideDisplays();
-
-        root.shellPreviewOutputName = "";
-        root.shellPreviewModuleId = "displays";
-        root.shellPreviewVisible = true;
-    }
-
-    function showShellPreviewOn(outputName) {
-        if (!root.canOpenShellPreview())
-            return;
-
-        const target = root.resolveScreen(outputName);
-
-        root.galleryVisible = false;
-
-        if (root.displaysVisible)
-            root.hideDisplays();
-
-        root.shellPreviewOutputName =
-            target && target.name === outputName ? outputName : "";
-
-        root.shellPreviewModuleId = "displays";
-        root.shellPreviewVisible = true;
-    }
-
-    function hideShellPreview() {
-        // Once Displays is hosted here, preserve the same safety boundary as
-        // the production display popup.
+    function hideControlCenter() {
+        // Never hide the confirmation UI while display mutation or
+        // persistence is in progress.
         if (monitorApplyService.busy
                 || monitorApplyService.pendingConfirmation
                 || displayPersistenceService.saving)
             return;
 
-        root.shellPreviewVisible = false;
-        root.shellPreviewOutputName = "";
-        root.shellPreviewModuleId = "displays";
+        root.controlCenterVisible = false;
+        root.controlCenterOutputName = "";
+        root.activeModuleId = "displays";
         displayDraftStore.reset();
     }
 
-    function toggleShellPreview() {
-        if (root.shellPreviewVisible)
-            root.hideShellPreview();
+    function toggleControlCenter() {
+        if (root.controlCenterVisible)
+            root.hideControlCenter();
         else
-            root.showShellPreview();
+            root.showControlCenter();
+    }
+
+    function toggleControlCenterOn(outputName) {
+        const target = root.resolveScreen(outputName);
+
+        if (root.controlCenterVisible
+                && target
+                && controlCenterShell.targetScreen
+                && controlCenterShell.targetScreen.name === target.name) {
+            root.hideControlCenter();
+            return;
+        }
+
+        root.showControlCenterOn(outputName);
+    }
+
+    // Phase 1D compatibility adapters. External integrations can continue
+    // using the display-specific contract while the generic IPC settles.
+    function showDisplays() {
+        root.showControlCenter();
+    }
+
+    function showDisplaysOn(outputName) {
+        root.showControlCenterOn(outputName);
+    }
+
+    function hideDisplays() {
+        root.hideControlCenter();
+    }
+
+    function toggleDisplays() {
+        root.toggleControlCenter();
+    }
+
+    function toggleDisplaysOn(outputName) {
+        root.toggleControlCenterOn(outputName);
     }
 
     function showGallery() {
-        if (monitorApplyService.pendingConfirmation
+        if (monitorApplyService.busy
+                || monitorApplyService.pendingConfirmation
                 || displayPersistenceService.saving)
             return;
 
-        if (root.displaysVisible)
-            root.hideDisplays();
+        if (root.controlCenterVisible) {
+            root.hideControlCenter();
 
-        if (root.shellPreviewVisible) {
-            root.hideShellPreview();
-
-            if (root.shellPreviewVisible)
+            if (root.controlCenterVisible)
                 return;
         }
 
@@ -221,41 +199,15 @@ Scope {
         onSaved: monitorService.refresh()
     }
 
-    Displays.DisplayPopup {
-        id: displayPopup
-
-        visible: root.displaysVisible
-        targetScreen: root.resolveScreen(
-            root.requestedOutputName || monitorService.focusedOutputName
-        )
-
-        monitorService: monitorService
-        draftStore: displayDraftStore
-        applyService: monitorApplyService
-        persistenceService: displayPersistenceService
-        theme: theme
-
-        onCloseRequested: root.hideDisplays()
-        onRefreshRequested: {
-            monitorService.refresh();
-            displayPersistenceService.refreshPreview();
-        }
-        onResetRequested: displayDraftStore.reset()
-        onApplyRequested: monitorApplyService.applyDirty()
-        onKeepRequested: monitorApplyService.keepPending()
-        onRollbackRequested: monitorApplyService.rollbackPending("user")
-        onSaveRequested: displayPersistenceService.saveConfiguration()
-    }
-
     Component {
         id: shellDisplaysComponent
 
         Displays.DisplayView {
-            monitorService: monitorService
+            monitorService: root.monitorServiceHandle
             draftStore: displayDraftStore
             applyService: monitorApplyService
             persistenceService: displayPersistenceService
-            theme: theme
+            theme: controlCenterShell.theme
 
             showCloseAction: false
 
@@ -275,28 +227,28 @@ Scope {
     }
 
     ControlCenter.ControlCenterShell {
-        id: controlCenterShellPreview
+        id: controlCenterShell
 
-        visible: root.shellPreviewVisible
+        visible: root.controlCenterVisible
 
         targetScreen:
             root.resolveScreen(
-                root.shellPreviewOutputName
+                root.controlCenterOutputName
                     || monitorService.focusedOutputName
             )
 
         theme: theme
-        activeModuleId: root.shellPreviewModuleId
+        activeModuleId: root.activeModuleId
 
         contentComponent:
-            root.shellPreviewModuleId === "displays"
+            root.activeModuleId === "displays"
                 ? shellDisplaysComponent
                 : null
 
-        onCloseRequested: root.hideShellPreview()
+        onCloseRequested: root.hideControlCenter()
 
         onModuleRequested: moduleId =>
-            root.requestShellPreviewModule(moduleId)
+            root.showModule(moduleId)
     }
 
     Dev.ComponentGallery {
@@ -317,11 +269,41 @@ Scope {
     IpcHandler {
         target: "controlCenter"
 
+        // Generic Control Center API.
+        function showControlCenter(): void {
+            root.showControlCenter();
+        }
+
+        function showControlCenterOn(outputName: string): void {
+            root.showControlCenterOn(outputName);
+        }
+
+        function toggleControlCenter(): void {
+            root.toggleControlCenter();
+        }
+
+        function toggleControlCenterOn(outputName: string): void {
+            root.toggleControlCenterOn(outputName);
+        }
+
+        function hideControlCenter(): void {
+            root.hideControlCenter();
+        }
+
+        function controlCenterIsVisible(): bool {
+            return root.controlCenterVisible;
+        }
+
+        function showModule(moduleId: string): void {
+            root.showModule(moduleId);
+        }
+
+        readonly property string activeModule:
+            root.activeModuleId
+
+        // Legacy display-specific compatibility adapters.
         function toggleDisplays(): void {
-            if (root.displaysVisible)
-                root.hideDisplays();
-            else
-                root.showDisplays();
+            root.toggleDisplays();
         }
 
         function showDisplays(): void {
@@ -333,17 +315,7 @@ Scope {
         }
 
         function toggleDisplaysOn(outputName: string): void {
-            const target = root.resolveScreen(outputName);
-
-            if (root.displaysVisible
-                    && target
-                    && displayPopup.targetScreen
-                    && displayPopup.targetScreen.name === target.name) {
-                root.hideDisplays();
-                return;
-            }
-
-            root.showDisplaysOn(outputName);
+            root.toggleDisplaysOn(outputName);
         }
 
         function hideDisplays(): void {
@@ -360,29 +332,12 @@ Scope {
             }
         }
 
-        function showShellPreview(): void {
-            root.showShellPreview();
+        function displaysAreVisible(): bool {
+            return root.controlCenterVisible
+                && root.activeModuleId === "displays";
         }
 
-        function showShellPreviewOn(outputName: string): void {
-            root.showShellPreviewOn(outputName);
-        }
-
-        function hideShellPreview(): void {
-            root.hideShellPreview();
-        }
-
-        function toggleShellPreview(): void {
-            root.toggleShellPreview();
-        }
-
-        function shellPreviewIsVisible(): bool {
-            return root.shellPreviewVisible;
-        }
-
-        readonly property string shellPreviewModule:
-            root.shellPreviewModuleId
-
+        // Development gallery API.
         function toggleGallery(): void {
             root.toggleGallery();
         }
@@ -397,10 +352,6 @@ Scope {
 
         function galleryIsVisible(): bool {
             return root.galleryVisible;
-        }
-
-        function displaysAreVisible(): bool {
-            return root.displaysVisible;
         }
     }
 }

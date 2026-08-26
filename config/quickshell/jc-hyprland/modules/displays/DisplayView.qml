@@ -10,7 +10,7 @@ Item {
     property var draftStore
     property var applyService
     property var persistenceService
-    property var theme
+    required property var theme
 
     property bool showCloseAction: true
 

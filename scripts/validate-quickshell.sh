@@ -96,6 +96,83 @@ else
 fi
 
 
+printf '\n==> Phase 2A.3.5 generic IPC and compatibility adapters\n'
+
+main_qml="${main_qml:-$config_dir/Main.qml}"
+
+for generic_ipc_contract in \
+    'function showControlCenter(): void' \
+    'function showControlCenterOn(outputName: string): void' \
+    'function toggleControlCenter(): void' \
+    'function toggleControlCenterOn(outputName: string): void' \
+    'function hideControlCenter(): void' \
+    'function controlCenterIsVisible(): bool' \
+    'function showModule(moduleId: string): void' \
+    'readonly property string activeModule:'
+do
+    if grep -Fq -- "$generic_ipc_contract" "$main_qml" 2>/dev/null; then
+        ok "generic Control Center IPC: $generic_ipc_contract"
+    else
+        fail "generic Control Center IPC missing: $generic_ipc_contract"
+    fi
+done
+
+for legacy_ipc_contract in \
+    'function toggleDisplays(): void' \
+    'function showDisplays(): void' \
+    'function showDisplaysOn(outputName: string): void' \
+    'function toggleDisplaysOn(outputName: string): void' \
+    'function hideDisplays(): void' \
+    'function refreshDisplays(): void' \
+    'function displaysAreVisible(): bool'
+do
+    if grep -Fq -- "$legacy_ipc_contract" "$main_qml" 2>/dev/null; then
+        ok "legacy Displays IPC adapter: $legacy_ipc_contract"
+    else
+        fail "legacy Displays IPC adapter missing: $legacy_ipc_contract"
+    fi
+done
+
+for adapter_contract in \
+    'function showDisplays() {' \
+    'root.showControlCenter();' \
+    'function showDisplaysOn(outputName) {' \
+    'root.showControlCenterOn(outputName);' \
+    'function hideDisplays() {' \
+    'root.hideControlCenter();' \
+    'function toggleDisplays() {' \
+    'root.toggleControlCenter();' \
+    'function toggleDisplaysOn(outputName) {' \
+    'root.toggleControlCenterOn(outputName);'
+do
+    if grep -Fq -- "$adapter_contract" "$main_qml" 2>/dev/null; then
+        ok "legacy Displays adapter routing: $adapter_contract"
+    else
+        fail "legacy Displays adapter routing missing: $adapter_contract"
+    fi
+done
+
+if grep -Fq 'Displays.DisplayPopup {' "$main_qml" 2>/dev/null; then
+    fail "Main.qml must not instantiate legacy DisplayPopup after generic shell promotion"
+else
+    ok "Main.qml has one production Control Center shell"
+fi
+
+preview_residue="$(
+    grep -nE \
+        'shellPreview|ShellPreview|controlCenterShellPreview|displaysVisible|requestedOutputName' \
+        "$main_qml" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$preview_residue" ]]; then
+    ok "Main.qml contains no shell-preview or legacy visibility state"
+else
+    fail "Main.qml still contains preview/legacy state:"
+    printf '%s\n' "$preview_residue" >&2
+fi
+
 printf '\n==> Phase 2A.3.4 modular Displays content contract\n'
 
 display_popup="$config_dir/modules/displays/DisplayPopup.qml"
@@ -109,7 +186,7 @@ for view_contract in \
     'property var draftStore' \
     'property var applyService' \
     'property var persistenceService' \
-    'property var theme' \
+    'required property var theme' \
     'property bool showCloseAction: true' \
     'signal closeRequested()' \
     'signal refreshRequested()' \
@@ -177,10 +254,11 @@ do
 done
 
 for main_content_contract in \
-    'Component {' \
     'id: shellDisplaysComponent' \
     'Displays.DisplayView {' \
     'showCloseAction: false' \
+    'theme: controlCenterShell.theme' \
+    'monitorService: root.monitorServiceHandle' \
     'contentComponent:' \
     '? shellDisplaysComponent' \
     'onApplyRequested: monitorApplyService.applyDirty()' \
@@ -195,19 +273,18 @@ do
 done
 
 for shell_safety_contract in \
-    'function hideShellPreview() {' \
+    'function hideControlCenter() {' \
     'monitorApplyService.busy' \
     'monitorApplyService.pendingConfirmation' \
     'displayPersistenceService.saving' \
     'displayDraftStore.reset();'
 do
     if grep -Fq -- "$shell_safety_contract" "$main_qml" 2>/dev/null; then
-        ok "shell Displays safety contract: $shell_safety_contract"
+        ok "Control Center Displays safety contract: $shell_safety_contract"
     else
-        fail "shell Displays safety contract missing: $shell_safety_contract"
+        fail "Control Center Displays safety contract missing: $shell_safety_contract"
     fi
 done
-
 
 printf '\n==> Phase 2A.3.3 Control Center navigation contract\n'
 
@@ -254,7 +331,8 @@ do
     fi
 done
 
-if grep -A4 -F 'id: "displays"' "$control_center_navigation"     | grep -Fq 'enabled: true'
+if grep -A4 -F 'id: "displays"' "$control_center_navigation" \
+    | grep -Fq 'enabled: true'
 then
     ok "Displays navigation entry is enabled"
 else
@@ -270,7 +348,8 @@ for future_module in \
     network \
     notifications
 do
-    if grep -A4 -F "id: \"$future_module\"" "$control_center_navigation"         | grep -Fq 'enabled: false'
+    if grep -A4 -F "id: \"$future_module\"" "$control_center_navigation" \
+        | grep -Fq 'enabled: false'
     then
         ok "future navigation entry disabled: $future_module"
     else
@@ -279,7 +358,10 @@ do
 done
 
 navigation_hardcoded_colors="$(
-    grep -nE         '#[0-9a-fA-F]{6,8}|Qt\.rgba\('         "$control_center_navigation"         2>/dev/null ||
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "$control_center_navigation" \
+        2>/dev/null ||
         true
 )"
 
@@ -291,7 +373,10 @@ else
 fi
 
 navigation_legacy_aliases="$(
-    grep -nE         'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)'         "$control_center_navigation"         2>/dev/null ||
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "$control_center_navigation" \
+        2>/dev/null ||
         true
 )"
 
@@ -317,13 +402,14 @@ do
 done
 
 for main_nav_contract in \
-    'property string shellPreviewModuleId: "displays"' \
-    'function requestShellPreviewModule(moduleId) {' \
-    'if (moduleId !== "displays")' \
-    'root.shellPreviewModuleId = moduleId;' \
-    'activeModuleId: root.shellPreviewModuleId' \
-    'root.requestShellPreviewModule(moduleId)' \
-    'readonly property string shellPreviewModule:'
+    'property string activeModuleId: "displays"' \
+    'function moduleIsAvailable(moduleId) {' \
+    'return moduleId === "displays";' \
+    'function showModule(moduleId) {' \
+    'root.activeModuleId = moduleId;' \
+    'activeModuleId: root.activeModuleId' \
+    'root.showModule(moduleId)' \
+    'readonly property string activeModule:'
 do
     if grep -Fq -- "$main_nav_contract" "$main_qml" 2>/dev/null; then
         ok "Main navigation ownership contract: $main_nav_contract"
@@ -331,7 +417,6 @@ do
         fail "Main navigation ownership contract missing: $main_nav_contract"
     fi
 done
-
 
 printf '\n==> Phase 2A.3.2 Control Center shell frame contract\n'
 
@@ -368,7 +453,10 @@ do
 done
 
 shell_hardcoded_colors="$(
-    grep -nE         '#[0-9a-fA-F]{6,8}|Qt\.rgba\('         "$control_center_shell"         2>/dev/null ||
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "$control_center_shell" \
+        2>/dev/null ||
         true
 )"
 
@@ -380,7 +468,10 @@ else
 fi
 
 shell_legacy_aliases="$(
-    grep -nE         'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)'         "$control_center_shell"         2>/dev/null ||
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "$control_center_shell" \
+        2>/dev/null ||
         true
 )"
 
@@ -393,21 +484,17 @@ fi
 
 for main_shell_contract in \
     'import qs.modules.controlcenter as ControlCenter' \
-    'property bool shellPreviewVisible: false' \
-    'property string shellPreviewOutputName: ""' \
-    'function canOpenShellPreview() {' \
-    'function showShellPreview() {' \
-    'function showShellPreviewOn(outputName) {' \
-    'function hideShellPreview() {' \
-    'function toggleShellPreview() {' \
+    'property bool controlCenterVisible: false' \
+    'property string controlCenterOutputName: ""' \
+    'function showControlCenter() {' \
+    'function showControlCenterOn(outputName) {' \
+    'function hideControlCenter() {' \
+    'function toggleControlCenter() {' \
+    'function toggleControlCenterOn(outputName) {' \
     'ControlCenter.ControlCenterShell {' \
-    'visible: root.shellPreviewVisible' \
-    'onCloseRequested: root.hideShellPreview()' \
-    'function showShellPreview(): void' \
-    'function showShellPreviewOn(outputName: string): void' \
-    'function hideShellPreview(): void' \
-    'function toggleShellPreview(): void' \
-    'function shellPreviewIsVisible(): bool'
+    'id: controlCenterShell' \
+    'visible: root.controlCenterVisible' \
+    'onCloseRequested: root.hideControlCenter()'
 do
     if grep -Fq -- "$main_shell_contract" "$main_qml" 2>/dev/null; then
         ok "ControlCenterShell Main contract: $main_shell_contract"
@@ -415,20 +502,6 @@ do
         fail "ControlCenterShell Main contract missing: $main_shell_contract"
     fi
 done
-
-for safety_contract in \
-    '!displayDraftStore.hasDirty' \
-    '!monitorApplyService.pendingConfirmation' \
-    '!monitorApplyService.busy' \
-    '!displayPersistenceService.saving'
-do
-    if grep -Fq -- "$safety_contract" "$main_qml" 2>/dev/null; then
-        ok "shell preview safety guard: $safety_contract"
-    else
-        fail "shell preview safety guard missing: $safety_contract"
-    fi
-done
-
 
 printf '\n==> Phase 2A.3.1 Control Center shell architecture contract\n'
 
@@ -1585,7 +1658,7 @@ done
 for persistence_main_contract in \
     'Services.DisplayPersistenceService {' \
     'persistenceService: displayPersistenceService' \
-    'onSaveRequested: displayPersistenceService.saveConfiguration()' \
+    'displayPersistenceService.saveConfiguration()' \
     'onKept: displayPersistenceService.refreshPreview()' \
     'onRolledBack: displayPersistenceService.refreshPreview()'
 do
@@ -1688,7 +1761,7 @@ else
 fi
 
 for ipc_contract in \
-    'property string requestedOutputName:' \
+    'property string controlCenterOutputName:' \
     'function showDisplaysOn(outputName: string): void' \
     'function toggleDisplaysOn(outputName: string): void'
 do
