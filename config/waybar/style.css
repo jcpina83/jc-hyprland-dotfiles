@@ -34,7 +34,7 @@
 
 window#waybar {
     background: transparent;
-    color: @foreground;
+    color: @text-primary;
 }
 
 
@@ -82,11 +82,11 @@ window#waybar {
     padding: 0 11px;
     margin: 0 3px;
 
-    color: @foreground;
+    color: @text-primary;
 
-    background: @glass;
+    background: @surface-glass;
 
-    border: 1px solid @glass-border;
+    border: 1px solid @border-subtle;
     border-radius: 13px;
 }
 
@@ -101,14 +101,14 @@ window#waybar {
     padding-left: 11px;
     padding-right: 11px;
 
-    color: @primary;
+    color: @action-primary;
 
     font-size: 19px;
 }
 
 #custom-launcher:hover {
-    background: @glass-hover;
-    color: @accent;
+    background: @surface-hover;
+    color: @action-accent;
 }
 
 /* ============================================================================
@@ -116,21 +116,21 @@ window#waybar {
  * ========================================================================== */
 
 #custom-amd-gpu {
-    color: @primary;
+    color: @action-primary;
 }
 
 #custom-amd-gpu:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 #custom-amd-gpu.warning {
-    color: @yellow;
+    color: @state-warning;
 }
 
 #custom-amd-gpu.critical {
-    color: @bg;
-    background: @red;
-    border-color: @red;
+    color: @canvas;
+    background: @state-danger;
+    border-color: @state-danger;
 }
 
 /* ============================================================================
@@ -157,7 +157,7 @@ window#waybar {
     margin: 2px;
     padding: 0 6px;
 
-    color: @foreground-alt;
+    color: @text-secondary;
     background: transparent;
 
     border-radius: 9px;
@@ -176,23 +176,23 @@ window#waybar {
 /* Empty workspace */
 
 #workspaces button.empty {
-    color: @muted;
+    color: @text-muted;
 }
 
 
 /* Persistent workspace */
 
 #workspaces button.persistent {
-    color: @foreground-alt;
+    color: @text-secondary;
 }
 
 
 /* Hover */
 
 #workspaces button:hover {
-    color: @foreground;
+    color: @text-primary;
 
-    background: rgba(137, 180, 250, 0.15);
+    background: @surface-selected;
 }
 
 
@@ -201,9 +201,9 @@ window#waybar {
 #workspaces button.active {
     min-width: 38px;
 
-    color: @bg;
+    color: @canvas;
 
-    background: @primary;
+    background: @action-primary;
 
     border-radius: 10px;
 
@@ -214,9 +214,9 @@ window#waybar {
 /* Urgent */
 
 #workspaces button.urgent {
-    color: @bg;
+    color: @canvas;
 
-    background: @red;
+    background: @state-danger;
 
     font-weight: 800;
 }
@@ -227,7 +227,7 @@ window#waybar {
  * ========================================================================== */
 
 #window {
-    color: @foreground-alt;
+    color: @text-secondary;
 
     padding-left: 13px;
     padding-right: 13px;
@@ -252,7 +252,7 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #clock {
-    color: @foreground;
+    color: @text-primary;
 
     font-weight: 700;
 
@@ -261,8 +261,8 @@ window#waybar.empty #window {
 }
 
 #clock:hover {
-    color: @primary;
-    background: @glass-hover;
+    color: @action-primary;
+    background: @surface-hover;
 }
 
 
@@ -271,11 +271,11 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #cpu {
-    color: @green;
+    color: @state-success;
 }
 
 #cpu:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -284,11 +284,11 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #memory {
-    color: @secondary;
+    color: @action-secondary;
 }
 
 #memory:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -297,12 +297,12 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #temperature {
-    color: @accent;
+    color: @action-accent;
 }
 
 #temperature.critical {
-    color: @bg;
-    background: @red;
+    color: @canvas;
+    background: @state-danger;
 }
 
 
@@ -311,16 +311,16 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #network {
-    color: @green;
+    color: @state-success;
 }
 
 #network:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 #network.disconnected,
 #network.disabled {
-    color: @red;
+    color: @state-danger;
 }
 
 
@@ -329,13 +329,13 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #custom-network_traffic {
-    color: @accent;
+    color: @action-accent;
 
     font-family: "JetBrainsMono Nerd Font", monospace;
 }
 
 #custom-network_traffic:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -344,15 +344,15 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #pulseaudio {
-    color: @secondary;
+    color: @action-secondary;
 }
 
 #pulseaudio:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 #pulseaudio.muted {
-    color: @red;
+    color: @state-danger;
 }
 
 
@@ -362,20 +362,20 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #battery {
-    color: @green;
+    color: @state-success;
 }
 
 #battery.charging,
 #battery.plugged {
-    color: @primary;
+    color: @action-primary;
 }
 
 #battery.warning:not(.charging) {
-    color: @yellow;
+    color: @state-warning;
 }
 
 #battery.critical:not(.charging) {
-    color: @red;
+    color: @state-danger;
 }
 
 
@@ -385,7 +385,7 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #backlight {
-    color: @yellow;
+    color: @state-warning;
 }
 
 
@@ -394,11 +394,11 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #idle_inhibitor {
-    color: @muted;
+    color: @text-muted;
 }
 
 #idle_inhibitor.activated {
-    color: @yellow;
+    color: @state-warning;
 }
 
 
@@ -407,11 +407,11 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #custom-updates {
-    color: @primary;
+    color: @action-primary;
 }
 
 #custom-updates:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -424,7 +424,7 @@ window#waybar.empty #window {
 }
 
 #custom-keyboard-layout:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -435,15 +435,15 @@ window#waybar.empty #window {
 #custom-notification {
     min-width: 24px;
 
-    color: @secondary;
+    color: @action-secondary;
 
     font-size: 16px;
 }
 
 #custom-notification:hover {
-    color: @foreground;
+    color: @text-primary;
 
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -453,11 +453,11 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #custom-media {
-    color: @accent;
+    color: @action-accent;
 }
 
 #custom-media:hover {
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -486,15 +486,15 @@ window#waybar.empty #window {
 #custom-shortcuts {
     min-width: 24px;
 
-    color: @accent;
+    color: @action-accent;
 
     font-size: 17px;
 }
 
 #custom-shortcuts:hover {
-    color: @foreground;
+    color: @text-primary;
 
-    background: @glass-hover;
+    background: @surface-hover;
 }
 
 
@@ -503,7 +503,7 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 #custom-power {
-    color: @red;
+    color: @state-danger;
 
     padding-left: 12px;
     padding-right: 12px;
@@ -512,11 +512,11 @@ window#waybar.empty #window {
 }
 
 #custom-power:hover {
-    color: @bg;
+    color: @canvas;
 
-    background: @red;
+    background: @state-danger;
 
-    border-color: @red;
+    border-color: @state-danger;
 }
 
 
@@ -525,16 +525,16 @@ window#waybar.empty #window {
  * ========================================================================== */
 
 tooltip {
-    color: @foreground;
+    color: @text-primary;
 
-    background: @glass-light;
+    background: @surface-overlay;
 
-    border: 1px solid @glass-border;
+    border: 1px solid @border-subtle;
     border-radius: 12px;
 }
 
 tooltip label {
-    color: @foreground;
+    color: @text-primary;
 
     padding: 7px;
 }
@@ -545,11 +545,11 @@ tooltip label {
  * ========================================================================== */
 
 .warning {
-    color: @yellow;
+    color: @state-warning;
 }
 
 .critical {
-    color: @red;
+    color: @state-danger;
 }
 
 
@@ -559,13 +559,13 @@ tooltip label {
 
 @keyframes blink-critical {
     0% {
-        color: @foreground;
-        background: @glass;
+        color: @text-primary;
+        background: @surface-glass;
     }
 
     100% {
-        color: @bg;
-        background: @red;
+        color: @canvas;
+        background: @state-danger;
     }
 }
 
@@ -585,13 +585,13 @@ tooltip label {
 #custom-control-center {
     min-width: 24px;
 
-    color: @primary;
+    color: @action-primary;
 
     font-size: 17px;
 }
 
 #custom-control-center:hover {
-    color: @accent;
+    color: @action-accent;
 
-    background: @glass-hover;
+    background: @surface-hover;
 }
