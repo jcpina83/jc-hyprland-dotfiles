@@ -36,6 +36,8 @@ required_files=(
     "components/JcIconButton.qml"
     "components/JcChip.qml"
     "components/JcToggle.qml"
+    "components/JcSlider.qml"
+    "components/JcComboBox.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -83,6 +85,105 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2.5 input component contract\n'
+
+jc_slider="$config_dir/components/JcSlider.qml"
+jc_combo_box="$config_dir/components/JcComboBox.qml"
+
+for slider_contract in \
+    'import QtQuick.Controls as Controls' \
+    'Controls.Slider {' \
+    'required property var theme' \
+    'property bool controlEnabled: true' \
+    'enabled: root.controlEnabled' \
+    'snapMode: root.stepSize > 0' \
+    'root.visualPosition' \
+    'root.theme.controlSurfaceDefault' \
+    'root.theme.controlIconActive' \
+    'root.theme.controlIconDisabled' \
+    'root.theme.controlBorderFocus' \
+    'root.theme.focusRingWidth' \
+    'root.theme.focusRingColor' \
+    'root.theme.motionPress' \
+    'root.theme.motionHover' \
+    'root.theme.motionControl'
+do
+    if grep -Fq -- "$slider_contract" "$jc_slider" 2>/dev/null; then
+        ok "JcSlider contract: $slider_contract"
+    else
+        fail "JcSlider contract missing: $slider_contract"
+    fi
+done
+
+for combo_contract in \
+    'import QtQuick.Controls as Controls' \
+    'Controls.ComboBox {' \
+    'required property var theme' \
+    'property var options: []' \
+    'property string selectedValue: ""' \
+    'property string placeholder: "Select"' \
+    'property bool controlEnabled: true' \
+    'signal valueSelected(string value)' \
+    'textRole: "label"' \
+    'valueRole: "value"' \
+    'function indexForSelectedValue(): int' \
+    'function syncCurrentIndex(): void' \
+    'onActivated: index =>' \
+    'delegate: Controls.ItemDelegate {' \
+    'popup: Controls.Popup {' \
+    'root.theme.controlSurfaceDefault' \
+    'root.theme.controlSurfaceHover' \
+    'root.theme.controlSurfacePressed' \
+    'root.theme.controlSurfaceSelected' \
+    'root.theme.controlTextDisabled' \
+    'root.theme.controlTextSelected' \
+    'root.theme.surfaceOverlay' \
+    'root.theme.focusRingColor' \
+    'root.theme.motionControl'
+do
+    if grep -Fq -- "$combo_contract" "$jc_combo_box" 2>/dev/null; then
+        ok "JcComboBox contract: $combo_contract"
+    else
+        fail "JcComboBox contract missing: $combo_contract"
+    fi
+done
+
+input_files=(
+    "$jc_slider"
+    "$jc_combo_box"
+)
+
+input_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "${input_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$input_hardcoded_colors" ]]; then
+    ok "input components contain no hardcoded colors"
+else
+    fail "input components contain hardcoded colors:"
+    printf '%s\n' "$input_hardcoded_colors" >&2
+fi
+
+input_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "${input_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$input_legacy_aliases" ]]; then
+    ok "input components use canonical Theme API tokens"
+else
+    fail "input components use legacy Theme API aliases:"
+    printf '%s\n' "$input_legacy_aliases" >&2
 fi
 
 
