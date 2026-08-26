@@ -6,13 +6,17 @@ import qs.services as Services
 import qs.theme as Theme
 import qs.modules.displays as Displays
 import qs.modules.dev as Dev
+import qs.modules.controlcenter as ControlCenter
 
 Scope {
     id: root
 
     property bool displaysVisible: false
     property bool galleryVisible: false
+    property bool shellPreviewVisible: false
+
     property string requestedOutputName: ""
+    property string shellPreviewOutputName: ""
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -37,6 +41,9 @@ Scope {
 
     function showDisplays() {
         root.galleryVisible = false;
+        root.shellPreviewVisible = false;
+        root.shellPreviewOutputName = "";
+
         root.requestedOutputName = "";
         root.displaysVisible = true;
         root.prepareDisplays();
@@ -46,6 +53,8 @@ Scope {
         const target = root.resolveScreen(outputName);
 
         root.galleryVisible = false;
+        root.shellPreviewVisible = false;
+        root.shellPreviewOutputName = "";
 
         root.requestedOutputName =
             target && target.name === outputName ? outputName : "";
@@ -65,6 +74,55 @@ Scope {
         displayDraftStore.reset();
     }
 
+    function canOpenShellPreview() {
+        return !displayDraftStore.hasDirty
+            && !monitorApplyService.pendingConfirmation
+            && !monitorApplyService.busy
+            && !displayPersistenceService.saving;
+    }
+
+    function showShellPreview() {
+        if (!root.canOpenShellPreview())
+            return;
+
+        root.galleryVisible = false;
+
+        if (root.displaysVisible)
+            root.hideDisplays();
+
+        root.shellPreviewOutputName = "";
+        root.shellPreviewVisible = true;
+    }
+
+    function showShellPreviewOn(outputName) {
+        if (!root.canOpenShellPreview())
+            return;
+
+        const target = root.resolveScreen(outputName);
+
+        root.galleryVisible = false;
+
+        if (root.displaysVisible)
+            root.hideDisplays();
+
+        root.shellPreviewOutputName =
+            target && target.name === outputName ? outputName : "";
+
+        root.shellPreviewVisible = true;
+    }
+
+    function hideShellPreview() {
+        root.shellPreviewVisible = false;
+        root.shellPreviewOutputName = "";
+    }
+
+    function toggleShellPreview() {
+        if (root.shellPreviewVisible)
+            root.hideShellPreview();
+        else
+            root.showShellPreview();
+    }
+
     function showGallery() {
         if (monitorApplyService.pendingConfirmation
                 || displayPersistenceService.saving)
@@ -72,6 +130,9 @@ Scope {
 
         if (root.displaysVisible)
             root.hideDisplays();
+
+        root.shellPreviewVisible = false;
+        root.shellPreviewOutputName = "";
 
         root.galleryVisible = true;
     }
@@ -152,6 +213,22 @@ Scope {
         onSaveRequested: displayPersistenceService.saveConfiguration()
     }
 
+    ControlCenter.ControlCenterShell {
+        id: controlCenterShellPreview
+
+        visible: root.shellPreviewVisible
+
+        targetScreen:
+            root.resolveScreen(
+                root.shellPreviewOutputName
+                    || monitorService.focusedOutputName
+            )
+
+        theme: theme
+
+        onCloseRequested: root.hideShellPreview()
+    }
+
     Dev.ComponentGallery {
         id: componentGallery
 
@@ -211,6 +288,26 @@ Scope {
                 monitorService.refresh();
                 displayPersistenceService.refreshPreview();
             }
+        }
+
+        function showShellPreview(): void {
+            root.showShellPreview();
+        }
+
+        function showShellPreviewOn(outputName: string): void {
+            root.showShellPreviewOn(outputName);
+        }
+
+        function hideShellPreview(): void {
+            root.hideShellPreview();
+        }
+
+        function toggleShellPreview(): void {
+            root.toggleShellPreview();
+        }
+
+        function shellPreviewIsVisible(): bool {
+            return root.shellPreviewVisible;
         }
 
         function toggleGallery(): void {

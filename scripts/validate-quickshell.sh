@@ -43,6 +43,7 @@ required_files=(
     "components/JcPopup.qml"
     "components/JcMetricRing.qml"
     "modules/dev/ComponentGallery.qml"
+    "modules/controlcenter/ControlCenterShell.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -91,6 +92,103 @@ else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
 fi
+
+
+printf '\n==> Phase 2A.3.2 Control Center shell frame contract\n'
+
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+main_qml="${main_qml:-$config_dir/Main.qml}"
+
+for shell_contract in \
+    'PanelWindow {' \
+    'required property var targetScreen' \
+    'required property var theme' \
+    'readonly property int preferredWidth: 1080' \
+    'readonly property int preferredHeight: 820' \
+    'root.targetScreen.width' \
+    'root.targetScreen.height' \
+    'implicitWidth:' \
+    'implicitHeight:' \
+    'screen: root.targetScreen' \
+    'top: true' \
+    'right: true' \
+    'top: root.screenMargin' \
+    'right: root.screenMargin' \
+    'sequence: "Escape"' \
+    'Components.JcSurface {' \
+    'surfaceRole: "glass-raised"' \
+    'Components.JcSectionHeader {' \
+    'Components.JcIconButton {' \
+    'Components.JcDivider {'
+do
+    if grep -Fq -- "$shell_contract" "$control_center_shell" 2>/dev/null; then
+        ok "ControlCenterShell contract: $shell_contract"
+    else
+        fail "ControlCenterShell contract missing: $shell_contract"
+    fi
+done
+
+shell_hardcoded_colors="$(
+    grep -nE         '#[0-9a-fA-F]{6,8}|Qt\.rgba\('         "$control_center_shell"         2>/dev/null ||
+        true
+)"
+
+if [[ -z "$shell_hardcoded_colors" ]]; then
+    ok "ControlCenterShell contains no hardcoded colors"
+else
+    fail "ControlCenterShell contains hardcoded colors:"
+    printf '%s\n' "$shell_hardcoded_colors" >&2
+fi
+
+shell_legacy_aliases="$(
+    grep -nE         'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)'         "$control_center_shell"         2>/dev/null ||
+        true
+)"
+
+if [[ -z "$shell_legacy_aliases" ]]; then
+    ok "ControlCenterShell uses canonical Theme API tokens"
+else
+    fail "ControlCenterShell uses legacy Theme API aliases:"
+    printf '%s\n' "$shell_legacy_aliases" >&2
+fi
+
+for main_shell_contract in \
+    'import qs.modules.controlcenter as ControlCenter' \
+    'property bool shellPreviewVisible: false' \
+    'property string shellPreviewOutputName: ""' \
+    'function canOpenShellPreview() {' \
+    'function showShellPreview() {' \
+    'function showShellPreviewOn(outputName) {' \
+    'function hideShellPreview() {' \
+    'function toggleShellPreview() {' \
+    'ControlCenter.ControlCenterShell {' \
+    'visible: root.shellPreviewVisible' \
+    'onCloseRequested: root.hideShellPreview()' \
+    'function showShellPreview(): void' \
+    'function showShellPreviewOn(outputName: string): void' \
+    'function hideShellPreview(): void' \
+    'function toggleShellPreview(): void' \
+    'function shellPreviewIsVisible(): bool'
+do
+    if grep -Fq -- "$main_shell_contract" "$main_qml" 2>/dev/null; then
+        ok "ControlCenterShell Main contract: $main_shell_contract"
+    else
+        fail "ControlCenterShell Main contract missing: $main_shell_contract"
+    fi
+done
+
+for safety_contract in \
+    '!displayDraftStore.hasDirty' \
+    '!monitorApplyService.pendingConfirmation' \
+    '!monitorApplyService.busy' \
+    '!displayPersistenceService.saving'
+do
+    if grep -Fq -- "$safety_contract" "$main_qml" 2>/dev/null; then
+        ok "shell preview safety guard: $safety_contract"
+    else
+        fail "shell preview safety guard missing: $safety_contract"
+    fi
+done
 
 
 printf '\n==> Phase 2A.3.1 Control Center shell architecture contract\n'
