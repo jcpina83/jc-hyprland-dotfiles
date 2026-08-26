@@ -489,6 +489,36 @@ a través del mismo target IPC `controlCenter`, sin procesos runtime adicionales
 
 ---
 
+# Arquitectura del Control Center shell
+
+Phase 2A.3 introduce un único shell de producción alrededor de los módulos del
+Control Center.
+
+El contrato detallado vive en:
+
+```text
+docs/control-center-shell.md
+```
+
+La separación principal será:
+
+```text
+Main.qml                 composición / estado de navegación / guards
+ControlCenterShell.qml   PanelWindow + navegación + content host
+feature modules          UI específica
+services                 estado y orquestación de backend
+runtime wrappers         integración externa estable
+```
+
+Los métodos IPC específicos de Displays se conservarán temporalmente como
+adaptadores de compatibilidad mientras el wrapper estable migra internamente al
+IPC genérico del Control Center.
+
+Safe Apply y persistencia bloquean tanto el cierre como la navegación fuera de
+Displays mientras exista una operación que requiera confirmación o guardado.
+
+---
+
 # Estado observado, draft y aplicado
 
 El Control Center mantiene cuatro estados deliberadamente separados:

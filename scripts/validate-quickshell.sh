@@ -93,6 +93,72 @@ else
 fi
 
 
+printf '\n==> Phase 2A.3.1 Control Center shell architecture contract\n'
+
+control_center_shell_doc="$repo_root/docs/control-center-shell.md"
+architecture_doc="$repo_root/docs/architecture.md"
+
+if [[ -r "$control_center_shell_doc" ]]; then
+    ok "Control Center shell architecture documentation"
+else
+    fail "missing docs/control-center-shell.md"
+fi
+
+for shell_doc_contract in \
+    'Main.qml` remains the composition and orchestration root.' \
+    'ControlCenterShell.qml` owns:' \
+    'signal moduleRequested(string moduleId)' \
+    'MonitorApplyService.pendingConfirmation' \
+    'DisplayPersistenceService.saving' \
+    'showControlCenter()' \
+    'showControlCenterOn(outputName)' \
+    'toggleControlCenter()' \
+    'toggleControlCenterOn(outputName)' \
+    'hideControlCenter()' \
+    'controlCenterIsVisible()' \
+    'showModule(moduleId)' \
+    'Existing display-specific methods remain compatibility adapters during the migration:' \
+    'The Component Gallery remains a separate development window.' \
+    '2A.3.4 Modular content host + Displays structural adapter' \
+    'Phase 2A.4 follows with the actual Displays visual redesign.'
+do
+    if grep -Fq -- "$shell_doc_contract" \
+        "$control_center_shell_doc" 2>/dev/null
+    then
+        ok "Control Center shell contract: $shell_doc_contract"
+    else
+        fail "Control Center shell contract missing: $shell_doc_contract"
+    fi
+done
+
+for module_id in \
+    displays \
+    wallpapers \
+    themes \
+    quick-settings \
+    performance \
+    media \
+    network \
+    notifications
+do
+    if grep -Fxq -- "$module_id" \
+        "$control_center_shell_doc" 2>/dev/null
+    then
+        ok "Control Center navigation id: $module_id"
+    else
+        fail "Control Center navigation id missing: $module_id"
+    fi
+done
+
+if grep -Fq -- 'docs/control-center-shell.md' \
+    "$architecture_doc" 2>/dev/null
+then
+    ok "architecture references Control Center shell contract"
+else
+    fail "architecture must reference docs/control-center-shell.md"
+fi
+
+
 printf '\n==> Phase 2A.2.10 component library closure\n'
 
 component_library_doc="$repo_root/docs/component-library.md"
