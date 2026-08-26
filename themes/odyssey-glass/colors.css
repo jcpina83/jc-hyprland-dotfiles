@@ -31,6 +31,39 @@
 @define-color glass-border   rgba(137, 180, 250, 0.20);
 
 
+/* ============================================================================
+ * Semantic Design System API
+ *
+ * New consumers should prefer these names. Palette names above remain the
+ * physical theme values; these aliases describe how the values are used.
+ * ========================================================================== */
+
+@define-color canvas          @bg;
+@define-color canvas-alt      @bg-alt;
+
+@define-color surface-base    @surface;
+@define-color surface-raised  @surface-alt;
+@define-color surface-overlay @glass-light;
+@define-color surface-hover   @glass-hover;
+
+@define-color border-subtle   @glass-border;
+@define-color border-default  @glass-border;
+@define-color border-accent   rgba(116, 199, 236, 0.34);
+
+@define-color text-primary    @foreground;
+@define-color text-secondary  @foreground-alt;
+@define-color text-muted      @muted;
+
+@define-color action-primary   @primary;
+@define-color action-secondary @secondary;
+@define-color action-accent    @accent;
+
+@define-color state-success @green;
+@define-color state-warning @yellow;
+@define-color state-danger  @red;
+@define-color state-info    @cyan;
+
+
 /*
  * Compatibility aliases.
  *
