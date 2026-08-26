@@ -41,6 +41,7 @@ required_files=(
     "components/JcNavItem.qml"
     "components/JcTooltip.qml"
     "components/JcPopup.qml"
+    "components/JcMetricRing.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -88,6 +89,74 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2.8 metric visualization component contract\n'
+
+jc_metric_ring="$config_dir/components/JcMetricRing.qml"
+
+for metric_contract in \
+    'required property var theme' \
+    'property real value: 0' \
+    'property real minimum: 0' \
+    'property real maximum: 100' \
+    'property string label: ""' \
+    'property string unit: "%"' \
+    'property string status: "normal"' \
+    'property int decimals: 0' \
+    'readonly property real normalizedValue:' \
+    'readonly property color metricColor:' \
+    'case "success":' \
+    'case "warning":' \
+    'case "critical":' \
+    'case "info":' \
+    'return root.theme.danger;' \
+    'return root.theme.accent;' \
+    'property real animatedProgress:' \
+    'Behavior on animatedProgress {' \
+    'root.theme.motionEmphasized' \
+    'root.theme.easingEmphasized' \
+    'Canvas {' \
+    'ringCanvas.requestPaint()' \
+    'root.theme.textSizeMetric' \
+    'root.theme.textSizeCaption'
+do
+    if grep -Fq -- "$metric_contract" "$jc_metric_ring" 2>/dev/null; then
+        ok "JcMetricRing contract: $metric_contract"
+    else
+        fail "JcMetricRing contract missing: $metric_contract"
+    fi
+done
+
+metric_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "$jc_metric_ring" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$metric_hardcoded_colors" ]]; then
+    ok "metric component contains no hardcoded colors"
+else
+    fail "metric component contains hardcoded colors:"
+    printf '%s\n' "$metric_hardcoded_colors" >&2
+fi
+
+metric_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "$jc_metric_ring" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$metric_legacy_aliases" ]]; then
+    ok "metric component uses canonical Theme API tokens"
+else
+    fail "metric component uses legacy Theme API aliases:"
+    printf '%s\n' "$metric_legacy_aliases" >&2
 fi
 
 
