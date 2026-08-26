@@ -12,6 +12,10 @@ PanelWindow {
 
     property string title: "Control Center"
     property string activeModuleId: "displays"
+    property string activeModuleTitle: "Displays"
+    property string statusText: "Ready"
+    property string statusDetail: ""
+    property bool transitionLocked: false
     property Component contentComponent: null
 
     readonly property var activeContentItem:
@@ -72,7 +76,11 @@ PanelWindow {
 
     Shortcut {
         sequence: "Escape"
-        onActivated: root.closeRequested()
+
+        onActivated: {
+            if (!root.transitionLocked)
+                root.closeRequested();
+        }
     }
 
     Components.JcSurface {
@@ -97,13 +105,14 @@ PanelWindow {
 
                     theme: root.theme
                     title: root.title
-                    subtitle: "Modular shell · Phase 2A.3"
+                    subtitle: root.activeModuleTitle
                 }
 
                 Components.JcIconButton {
                     theme: root.theme
                     icon: "×"
                     accessibleName: "Close Control Center"
+                    controlEnabled: !root.transitionLocked
 
                     onClicked: root.closeRequested()
                 }
@@ -128,6 +137,7 @@ PanelWindow {
 
                     theme: root.theme
                     activeModuleId: root.activeModuleId
+                    navigationLocked: root.transitionLocked
 
                     onModuleRequested: moduleId =>
                         root.moduleRequested(moduleId)
@@ -140,6 +150,46 @@ PanelWindow {
                     Layout.fillHeight: true
 
                     sourceComponent: root.contentComponent
+                }
+            }
+
+            Components.JcDivider {
+                Layout.fillWidth: true
+                theme: root.theme
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.theme.spaceMd
+
+                Text {
+                    text: root.statusText
+
+                    color: root.transitionLocked
+                        ? root.theme.warning
+                        : root.theme.textSecondary
+
+                    font.family: root.theme.fontFamilySans
+                    font.pixelSize: root.theme.textSizeBody
+                    font.weight: root.theme.fontWeightMedium
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    Layout.maximumWidth:
+                        Math.max(240, root.implicitWidth * 0.46)
+
+                    text: root.statusDetail
+                    color: root.theme.textMuted
+
+                    horizontalAlignment: Text.AlignRight
+                    wrapMode: Text.WordWrap
+
+                    font.family: root.theme.fontFamilySans
+                    font.pixelSize: root.theme.textSizeCaption
                 }
             }
         }

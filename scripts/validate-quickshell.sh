@@ -1818,6 +1818,79 @@ else
 fi
 
 
+printf '\n==> Phase 2A.3.6 guarded shell transitions\n'
+
+main_qml="${main_qml:-$config_dir/Main.qml}"
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+control_center_nav="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+control_center_shell_doc="$repo_root/docs/control-center-shell.md"
+
+for guarded_main_contract in \
+    'readonly property bool controlCenterTransitionLocked:' \
+    'readonly property string controlCenterStatusText:' \
+    'readonly property string controlCenterStatusDetail:' \
+    '&& root.controlCenterTransitionLocked)' \
+    'if (root.controlCenterTransitionLocked)' \
+    'transitionLocked: root.controlCenterTransitionLocked' \
+    'statusText: root.controlCenterStatusText' \
+    'statusDetail: root.controlCenterStatusDetail'
+do
+    if grep -Fq -- "$guarded_main_contract" "$main_qml" 2>/dev/null; then
+        ok "guarded Main contract: $guarded_main_contract"
+    else
+        fail "guarded Main contract missing: $guarded_main_contract"
+    fi
+done
+
+for guarded_shell_contract in \
+    'property string activeModuleTitle: "Displays"' \
+    'property string statusText: "Ready"' \
+    'property string statusDetail: ""' \
+    'property bool transitionLocked: false' \
+    'subtitle: root.activeModuleTitle' \
+    'controlEnabled: !root.transitionLocked' \
+    'if (!root.transitionLocked)' \
+    'navigationLocked: root.transitionLocked' \
+    'text: root.statusText' \
+    'text: root.statusDetail'
+do
+    if grep -Fq -- "$guarded_shell_contract" \
+        "$control_center_shell" 2>/dev/null
+    then
+        ok "guarded shell contract: $guarded_shell_contract"
+    else
+        fail "guarded shell contract missing: $guarded_shell_contract"
+    fi
+done
+
+for guarded_nav_contract in \
+    'property bool navigationLocked: false' \
+    '&& (!root.navigationLocked'
+do
+    if grep -Fq -- "$guarded_nav_contract" "$control_center_nav" 2>/dev/null; then
+        ok "guarded navigation contract: $guarded_nav_contract"
+    else
+        fail "guarded navigation contract missing: $guarded_nav_contract"
+    fi
+done
+
+if grep -Fq 'Modular shell · Phase 2A.3' \
+    "$control_center_shell" 2>/dev/null
+then
+    fail "production shell still exposes development-phase header copy"
+else
+    ok "production shell header uses module identity"
+fi
+
+if grep -Fq '## Phase 2A.3.6 — Header, footer and guarded transitions' \
+    "$control_center_shell_doc" 2>/dev/null
+then
+    ok "Phase 2A.3.6 shell documentation"
+else
+    fail "Phase 2A.3.6 shell documentation missing"
+fi
+
+
 printf '\n==> Production PanelWindow dimensions\n'
 
 control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"

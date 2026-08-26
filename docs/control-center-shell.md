@@ -337,3 +337,25 @@ Do not:
 - replace the stable runtime wrapper contract.
 
 Those boundaries are already validated and must remain intact.
+
+
+## Phase 2A.3.6 — Header, footer and guarded transitions
+
+The production shell exposes generic presentation state for transition safety:
+
+- `transitionLocked`
+- `statusText`
+- `statusDetail`
+- `activeModuleTitle`
+
+`Main.qml` remains responsible for translating feature-specific runtime state
+into those generic shell properties. `ControlCenterShell.qml` does not depend
+directly on display services.
+
+While a guarded operation is active, closing the Control Center, leaving the
+current module, and opening the development gallery are blocked. The shell
+reflects the lock state in the close action, navigation, and footer status.
+
+The production header identifies the active module instead of exposing
+development-phase copy. The footer communicates ready, draft, apply,
+confirmation, and persistence state without owning feature mutation logic.

@@ -9,6 +9,7 @@ Item {
     required property var theme
 
     property string activeModuleId: "displays"
+    property bool navigationLocked: false
 
     signal moduleRequested(string moduleId)
 
@@ -117,6 +118,9 @@ Item {
 
                         controlEnabled:
                             Boolean(modelData.enabled)
+                            && (!root.navigationLocked
+                                || root.activeModuleId
+                                    === String(modelData.id))
 
                         onClicked:
                             root.moduleRequested(

@@ -17,6 +17,44 @@ Scope {
     property string controlCenterOutputName: ""
     property string activeModuleId: "displays"
 
+    readonly property bool controlCenterTransitionLocked:
+        monitorApplyService.busy
+        || monitorApplyService.pendingConfirmation
+        || displayPersistenceService.saving
+
+    readonly property string controlCenterStatusText: {
+        if (displayPersistenceService.saving)
+            return "Saving display configuration…";
+
+        if (monitorApplyService.pendingConfirmation)
+            return "Safe Apply confirmation pending";
+
+        if (monitorApplyService.busy)
+            return "Applying display changes…";
+
+        if (displayDraftStore.hasDirty)
+            return displayDraftStore.dirtyCount
+                + " draft change(s) pending";
+
+        return "Ready";
+    }
+
+    readonly property string controlCenterStatusDetail: {
+        if (displayPersistenceService.saving)
+            return "Finish saving before closing or changing modules.";
+
+        if (monitorApplyService.pendingConfirmation)
+            return "Keep or roll back the display change before leaving.";
+
+        if (monitorApplyService.busy)
+            return "Wait for the display operation to finish.";
+
+        if (displayDraftStore.hasDirty)
+            return "Draft changes have not been applied.";
+
+        return "No pending Control Center operation.";
+    }
+
     // Explicit binding handle for dynamically-instantiated feature views.
     readonly property var monitorServiceHandle: monitorService
 
@@ -51,6 +89,11 @@ Scope {
         if (!root.moduleIsAvailable(moduleId))
             return;
 
+        if (root.controlCenterVisible
+                && root.activeModuleId !== moduleId
+                && root.controlCenterTransitionLocked)
+            return;
+
         const wasVisible = root.controlCenterVisible;
         const moduleChanged = root.activeModuleId !== moduleId;
 
@@ -79,9 +122,7 @@ Scope {
     function hideControlCenter() {
         // Never hide the confirmation UI while display mutation or
         // persistence is in progress.
-        if (monitorApplyService.busy
-                || monitorApplyService.pendingConfirmation
-                || displayPersistenceService.saving)
+        if (root.controlCenterTransitionLocked)
             return;
 
         root.controlCenterVisible = false;
@@ -131,9 +172,7 @@ Scope {
 
 
     function showGallery() {
-        if (monitorApplyService.busy
-                || monitorApplyService.pendingConfirmation
-                || displayPersistenceService.saving)
+        if (root.controlCenterTransitionLocked)
             return;
 
         if (root.controlCenterVisible) {
@@ -234,6 +273,13 @@ Scope {
 
         theme: theme
         activeModuleId: root.activeModuleId
+        activeModuleTitle:
+            root.activeModuleId === "displays"
+                ? "Displays"
+                : root.activeModuleId
+        transitionLocked: root.controlCenterTransitionLocked
+        statusText: root.controlCenterStatusText
+        statusDetail: root.controlCenterStatusDetail
 
         contentComponent:
             root.activeModuleId === "displays"
