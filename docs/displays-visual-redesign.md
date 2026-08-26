@@ -15,8 +15,8 @@ new window architecture and not a display-backend rewrite.
 2A.4.1 Displays UI audit + visual migration contract       ✓
 2A.4.2 DisplayView shell/content cleanup                   ✓
 2A.4.3 DisplayCard migration to canonical components       ✓
-2A.4.4 Mode / scale / transform controls                   ← CURRENT
-2A.4.5 Layout editor visual integration
+2A.4.4 Mode / scale / transform controls                   ✓
+2A.4.5 Layout editor visual integration                    ← CURRENT
 2A.4.6 Safe Apply / persistence presentation
 2A.4.7 Retire Displays visual compatibility layer
 2A.4.8 Responsive + keyboard + visual validation
@@ -153,12 +153,13 @@ may be redesigned visually without moving runtime apply logic into the editor.
 
 ### DisplayLayout.qml
 
-`DisplayLayout.qml` is part of the current Displays module tree and represents
-the read-only topology visualization surface.
+The Phase 2A.4.5 usage audit confirmed that `DisplayLayout.qml` had no runtime
+consumer. `DisplayView.qml` hosts `DisplayLayoutEditor.qml` directly, while the
+remaining references to the read-only component were documentation and
+validator bookkeeping.
 
-Phase 2A.4.5 must resolve its final visual role and confirm tracked runtime
-usage before it is removed, merged, or repurposed. It must not be deleted only
-because the editable topology view exists.
+`DisplayLayout.qml` is therefore retired in Phase 2A.4.5 rather than carrying
+a second topology renderer with duplicated geometry and legacy visual tokens.
 
 ---
 
@@ -180,15 +181,11 @@ DisplayCard
     ad-hoc typography
     ChoiceGroup-heavy mode controls
 
-DisplayLayout
-    JcCard root
-    raw topology rectangles
-    legacy surface / border aliases
-
 DisplayLayoutEditor
-    JcCard root
-    raw canvas / monitor rectangles
+    legacy JcCard root
+    raw canvas / monitor geometry
     legacy surface / border aliases
+    hard-coded typography and fallback colors
 ```
 
 Raw `Rectangle` remains valid for geometry-specific visuals such as monitor
@@ -485,3 +482,45 @@ setTransform(...)
 
 This step changes presentation and keyboard interaction only. It does not
 change Safe Apply, persistence, topology, monitor discovery, or mode parsing.
+
+
+---
+
+## Phase 2A.4.5 — Layout editor visual integration
+
+`DisplayLayoutEditor.qml` now uses the canonical visual platform while keeping
+the topology model and mutation boundary unchanged.
+
+```text
+editor shell            -> JcSurface (raised)
+section heading         -> JcSectionHeader
+topology status         -> success / danger semantic tokens
+canvas                  -> raw Rectangle (geometry-specific)
+monitor nodes           -> raw Rectangle (geometry-specific)
+reference display       -> JcComboBox
+relative positioning    -> JcButton
+```
+
+The canvas and monitor rectangles are intentionally retained because they
+represent topology geometry rather than generic application surfaces. Their
+colors, borders, spacing, radius, and typography now come from semantic Theme
+tokens.
+
+The interaction boundary is unchanged:
+
+```text
+projectedMonitors()
+outputHasOverlap(...)
+snapPosition(...)
+setPosition(...)
+snapRelative(...)
+topologyValid
+```
+
+Dragging still commits only to draft position state. Relative placement still
+delegates to `snapRelative(...)`; runtime apply, Safe Apply confirmation, and
+persistence remain outside the layout editor.
+
+The usage audit also confirmed that `DisplayLayout.qml` had no runtime
+consumer. It is retired in this phase to avoid maintaining two independent
+topology renderers.

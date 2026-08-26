@@ -56,7 +56,6 @@ required_files=(
     "services/MonitorApplyService.qml"
     "services/DisplayPersistenceService.qml"
     "modules/displays/DisplayView.qml"
-    "modules/displays/DisplayLayout.qml"
     "modules/displays/DisplayLayoutEditor.qml"
     "modules/displays/DisplayCard.qml"
 )
@@ -2609,12 +2608,143 @@ if grep -Fq \
     '2A.4.3 DisplayCard migration to canonical components       ✓' \
     "$displays_visual_doc" 2>/dev/null \
     && grep -Fq \
-        '2A.4.4 Mode / scale / transform controls                   ← CURRENT' \
+        '2A.4.4 Mode / scale / transform controls                   ✓' \
         "$displays_visual_doc" 2>/dev/null
 then
-    ok "Phase 2A.4 roadmap advanced to selection controls"
+    ok "Phase 2A.4 roadmap records selection controls complete"
 else
-    fail "Phase 2A.4 roadmap status is not aligned with selection controls"
+    fail "Phase 2A.4 roadmap does not record selection controls complete"
+fi
+
+
+printf '\n==> Phase 2A.4.5 layout editor visual integration\n'
+
+display_layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+retired_display_layout="$config_dir/modules/displays/DisplayLayout.qml"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+
+for layout_editor_visual_contract in \
+    'Components.JcSurface {' \
+    'surfaceRole: "raised"' \
+    'cornerRadius: root.theme.radiusMd' \
+    'contentColumn.implicitHeight' \
+    'id: contentColumn' \
+    'Components.JcSectionHeader {' \
+    'color: root.theme.surfaceSunken' \
+    'root.theme.surfaceSelected' \
+    'root.theme.surfaceInteractive' \
+    'root.theme.danger' \
+    'root.theme.borderAccent' \
+    'Components.JcComboBox {' \
+    'Components.JcButton {' \
+    'root.theme.textSizeBody' \
+    'root.theme.textSizeCaption'
+do
+    if grep -Fq -- "$layout_editor_visual_contract" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        ok "DisplayLayoutEditor visual contract: $layout_editor_visual_contract"
+    else
+        fail "DisplayLayoutEditor visual contract missing: $layout_editor_visual_contract"
+    fi
+done
+
+for layout_editor_runtime_contract in \
+    'root.draftStore.projectedMonitors()' \
+    'root.draftStore.outputHasOverlap(monitor.output)' \
+    'root.draftStore.snapPosition(' \
+    'root.draftStore.setPosition(' \
+    'root.draftStore.snapRelative(' \
+    'root.draftStore.topologyValid' \
+    'TapHandler {' \
+    'DragHandler {' \
+    'onClicked: root.snapSelected("left")' \
+    'onClicked: root.snapSelected("right")' \
+    'onClicked: root.snapSelected("above")' \
+    'onClicked: root.snapSelected("below")'
+do
+    if grep -Fq -- "$layout_editor_runtime_contract" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        ok "DisplayLayoutEditor topology contract: $layout_editor_runtime_contract"
+    else
+        fail "DisplayLayoutEditor topology contract missing: $layout_editor_runtime_contract"
+    fi
+done
+
+for layout_editor_residue in \
+    'Components.JcCard {' \
+    'Components.JcChoiceGroup {' \
+    'root.theme.spacingSm' \
+    'root.theme.radiusSmall' \
+    'root.theme.background' \
+    'root.theme.surfaceAlt' \
+    'root.theme.error' \
+    'font.bold:' \
+    '"#'
+do
+    if grep -Fq -- "$layout_editor_residue" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        fail "DisplayLayoutEditor visual residue remains: $layout_editor_residue"
+    else
+        ok "DisplayLayoutEditor excludes visual residue: $layout_editor_residue"
+    fi
+done
+
+layout_rectangle_count="$(
+    grep -Fc 'Rectangle {' "$display_layout_editor" 2>/dev/null || true
+)"
+
+if [[ "$layout_rectangle_count" == "2" ]]; then
+    ok "DisplayLayoutEditor keeps only canvas and monitor geometry rectangles"
+else
+    fail "DisplayLayoutEditor expected 2 geometry Rectangles, found $layout_rectangle_count"
+fi
+
+if [[ -e "$retired_display_layout" ]]; then
+    fail "retired DisplayLayout.qml still exists"
+else
+    ok "unused DisplayLayout.qml retired"
+fi
+
+runtime_layout_refs="$(
+    grep -RFn \
+        --include='*.qml' \
+        --exclude='DisplayLayoutEditor.qml' \
+        'DisplayLayout {' \
+        "$config_dir" 2>/dev/null || true
+)"
+
+if [[ -n "$runtime_layout_refs" ]]; then
+    fail "runtime still references retired DisplayLayout component"
+    printf '%s\n' "$runtime_layout_refs" >&2
+else
+    ok "no runtime DisplayLayout component references remain"
+fi
+
+if grep -Fq \
+    '## Phase 2A.4.5 — Layout editor visual integration' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        'DisplayLayout.qml` had no runtime' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.5 migration and retirement documentation"
+else
+    fail "Phase 2A.4.5 migration documentation missing"
+fi
+
+if grep -Fq \
+    '2A.4.4 Mode / scale / transform controls                   ✓' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        '2A.4.5 Layout editor visual integration                    ← CURRENT' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4 roadmap advanced to layout editor integration"
+else
+    fail "Phase 2A.4 roadmap status is not aligned with layout editor integration"
 fi
 
 

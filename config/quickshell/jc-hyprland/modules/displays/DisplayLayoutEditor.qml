@@ -3,8 +3,11 @@ import QtQuick.Layouts
 
 import qs.components as Components
 
-Components.JcCard {
+Components.JcSurface {
     id: root
+
+    surfaceRole: "raised"
+    cornerRadius: root.theme.radiusMd
 
     property var draftStore
     property bool editorEnabled: true
@@ -27,7 +30,7 @@ Components.JcCard {
     readonly property real topologyHeight:
         Math.max(1, root.maximumY - root.minimumY)
 
-    readonly property real canvasPadding: 18
+    readonly property real canvasPadding: root.theme.spaceLg
     readonly property real usableWidth:
         Math.max(1, canvas.width - root.canvasPadding * 2)
     readonly property real usableHeight:
@@ -42,7 +45,9 @@ Components.JcCard {
     readonly property var anchorOptions:
         root.buildAnchorOptions()
 
-    implicitHeight: 390
+    implicitHeight:
+        contentColumn.implicitHeight
+        + (root.theme.spaceMd * 2)
 
     function buildAnchorOptions() {
         const options = [];
@@ -242,51 +247,48 @@ Components.JcCard {
     }
 
     ColumnLayout {
+        id: contentColumn
+
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: root.theme ? root.theme.spacingSm : 10
+        anchors.margins: root.theme.spaceMd
+        spacing: root.theme.spaceMd
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: root.theme.spaceMd
 
-            ColumnLayout {
+            Components.JcSectionHeader {
                 Layout.fillWidth: true
-                spacing: 2
 
-                Text {
-                    text: "Visual layout"
-                    color: root.theme
-                        ? root.theme.textPrimary
-                        : "#f2f2f4"
-
-                    font.pixelSize: 14
-                    font.bold: true
-                }
-
-                Text {
-                    text:
-                        "Drag a display. Nearby edges and centers snap "
-                        + "automatically."
-
-                    color: root.theme
-                        ? root.theme.textSecondary
-                        : "#b8b8c0"
-
-                    font.pixelSize: 10
-                }
+                theme: root.theme
+                title: "Visual layout"
+                subtitle:
+                    "Drag a display. Nearby edges and centers snap "
+                    + "automatically."
             }
 
             Text {
-                text: root.draftStore && root.draftStore.topologyValid
-                    ? "Topology valid"
-                    : "Layout conflict"
+                text: {
+                    if (!root.draftStore)
+                        return "Topology unavailable";
 
-                color: root.draftStore && root.draftStore.topologyValid
-                    ? (root.theme ? root.theme.success : "#a6e3a1")
-                    : (root.theme ? root.theme.error : "#f38ba8")
+                    return root.draftStore.topologyValid
+                        ? "Topology valid"
+                        : "Layout conflict";
+                }
 
-                font.pixelSize: 11
-                font.bold: true
+                color: {
+                    if (!root.draftStore)
+                        return root.theme.textSecondary;
+
+                    return root.draftStore.topologyValid
+                        ? root.theme.success
+                        : root.theme.danger;
+                }
+
+                font.family: root.theme.fontFamilySans
+                font.pixelSize: root.theme.textSizeBody
+                font.weight: root.theme.fontWeightSemibold
             }
         }
 
@@ -294,20 +296,15 @@ Components.JcCard {
             id: canvas
 
             Layout.fillWidth: true
-            Layout.preferredHeight: 250
+            Layout.preferredHeight: root.theme.controlHeightLarge * 5
 
             clip: true
 
-            radius: root.theme ? root.theme.radiusSmall : 8
+            radius: root.theme.radiusMd
+            color: root.theme.surfaceSunken
 
-            color: root.theme
-                ? root.theme.background
-                : "#1b1b1f"
-
-            border.width: 1
-            border.color: root.theme
-                ? root.theme.border
-                : "#3b3b43"
+            border.width: root.theme.borderWidthThin
+            border.color: root.theme.borderSubtle
 
             Repeater {
                 model: root.projectedMonitors
@@ -355,68 +352,62 @@ Components.JcCard {
                         monitor.logicalHeight * root.topologyScale
                     )
 
-                    radius: root.theme ? root.theme.radiusSmall : 8
+                    radius: root.theme.radiusSm
 
                     color: {
-                        if (monitorRect.overlapping) {
-                            return root.theme
-                                ? Qt.rgba(
-                                    root.theme.error.r,
-                                    root.theme.error.g,
-                                    root.theme.error.b,
-                                    0.18
-                                )
-                                : "#40242d";
-                        }
+                        if (monitorRect.overlapping)
+                            return root.theme.surfacePressed;
 
-                        if (monitorRect.selected) {
-                            return root.theme
-                                ? root.theme.surfaceAlt
-                                : "#2d2d33";
-                        }
+                        if (monitorRect.selected)
+                            return root.theme.surfaceSelected;
 
-                        return root.theme
-                            ? root.theme.surface
-                            : "#242429";
+                        return root.theme.surfaceInteractive;
                     }
 
-                    border.width: monitorRect.selected ? 2 : 1
+                    border.width: monitorRect.selected
+                        ? root.theme.borderWidthStrong
+                        : root.theme.borderWidthThin
 
                     border.color: {
-                        if (monitorRect.overlapping) {
-                            return root.theme
-                                ? root.theme.error
-                                : "#f38ba8";
-                        }
+                        if (monitorRect.overlapping)
+                            return root.theme.danger;
 
-                        if (monitorRect.selected) {
-                            return root.theme
-                                ? root.theme.accent
-                                : "#89b4fa";
-                        }
+                        if (monitorRect.selected)
+                            return root.theme.borderAccent;
 
-                        return root.theme
-                            ? root.theme.border
-                            : "#3b3b43";
+                        return root.theme.borderDefault;
+                    }
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: root.theme.motionSelection
+                            easing.type: root.theme.easingStandard
+                        }
+                    }
+
+                    Behavior on border.color {
+                        ColorAnimation {
+                            duration: root.theme.motionSelection
+                            easing.type: root.theme.easingStandard
+                        }
                     }
 
                     Column {
                         anchors.centerIn: parent
-                        width: parent.width - 12
-                        spacing: 2
+                        width: parent.width - (root.theme.spaceSm * 2)
+                        spacing: root.theme.space2Xs
 
                         Text {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
 
                             text: monitor.output
+                            color: root.theme.textPrimary
 
-                            color: root.theme
-                                ? root.theme.textPrimary
-                                : "#f2f2f4"
+                            font.family: root.theme.fontFamilySans
+                            font.pixelSize: root.theme.textSizeBody
+                            font.weight: root.theme.fontWeightSemibold
 
-                            font.pixelSize: 12
-                            font.bold: true
                             elide: Text.ElideRight
                         }
 
@@ -429,11 +420,12 @@ Components.JcCard {
                                 + "×"
                                 + Math.round(monitor.logicalHeight)
 
-                            color: root.theme
-                                ? root.theme.textSecondary
-                                : "#b8b8c0"
+                            color: root.theme.textSecondary
 
-                            font.pixelSize: 10
+                            font.family: root.theme.fontFamilySans
+                            font.pixelSize: root.theme.textSizeCaption
+                            font.weight: root.theme.fontWeightRegular
+
                             elide: Text.ElideRight
                         }
 
@@ -447,14 +439,13 @@ Components.JcCard {
                                 + Math.round(monitor.y)
 
                             color: monitor.dirty
-                                ? (root.theme
-                                    ? root.theme.warning
-                                    : "#f9e2af")
-                                : (root.theme
-                                    ? root.theme.textSecondary
-                                    : "#b8b8c0")
+                                ? root.theme.warning
+                                : root.theme.textSecondary
 
-                            font.pixelSize: 9
+                            font.family: root.theme.fontFamilySans
+                            font.pixelSize: root.theme.textSizeCaption
+                            font.weight: root.theme.fontWeightRegular
+
                             elide: Text.ElideRight
                         }
                     }
@@ -503,31 +494,33 @@ Components.JcCard {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: root.theme.spaceSm
 
             Text {
                 text: root.selectedOutput.length > 0
                     ? "Move " + root.selectedOutput + " relative to"
                     : "Select a display"
 
-                color: root.theme
-                    ? root.theme.textSecondary
-                    : "#b8b8c0"
+                color: root.theme.textSecondary
 
-                font.pixelSize: 10
+                font.family: root.theme.fontFamilySans
+                font.pixelSize: root.theme.textSizeCaption
+                font.weight: root.theme.fontWeightRegular
             }
 
-            Components.JcChoiceGroup {
+            Components.JcComboBox {
                 Layout.fillWidth: true
 
                 theme: root.theme
                 options: root.anchorOptions
                 selectedValue: root.anchorOutput
+                placeholder: root.anchorOptions.length > 0
+                    ? "Select reference display"
+                    : "No reference display"
+
                 controlEnabled:
                     root.editorEnabled
                     && root.anchorOptions.length > 0
-
-                emptyText: "No anchor display"
 
                 onValueSelected: value => {
                     root.anchorOutput = value;
@@ -537,7 +530,7 @@ Components.JcCard {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: root.theme.spaceXs
 
             Components.JcButton {
                 theme: root.theme
@@ -592,14 +585,12 @@ Components.JcCard {
             }
 
             Text {
-                text:
-                    "Negative coordinates are allowed."
+                text: "Negative coordinates are allowed."
+                color: root.theme.textSecondary
 
-                color: root.theme
-                    ? root.theme.textSecondary
-                    : "#b8b8c0"
-
-                font.pixelSize: 9
+                font.family: root.theme.fontFamilySans
+                font.pixelSize: root.theme.textSizeCaption
+                font.weight: root.theme.fontWeightRegular
             }
         }
     }
