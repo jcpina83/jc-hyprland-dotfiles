@@ -34,6 +34,8 @@ required_files=(
     "theme/Theme.qml"
     "components/JcButton.qml"
     "components/JcIconButton.qml"
+    "components/JcChip.qml"
+    "components/JcToggle.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -81,6 +83,122 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2.4 selection component contract\n'
+
+jc_chip="$config_dir/components/JcChip.qml"
+jc_toggle="$config_dir/components/JcToggle.qml"
+jc_choice_group="$config_dir/components/JcChoiceGroup.qml"
+
+for chip_contract in \
+    'required property var theme' \
+    'property string text: ""' \
+    'property bool controlEnabled: true' \
+    'property bool checked: false' \
+    'property bool compact: false' \
+    'signal clicked()' \
+    'root.theme.controlSurfaceDefault' \
+    'root.theme.controlSurfaceHover' \
+    'root.theme.controlSurfacePressed' \
+    'root.theme.controlSurfaceSelected' \
+    'root.theme.controlBorderSelected' \
+    'root.theme.controlTextDisabled' \
+    'root.theme.controlTextSelected' \
+    'root.theme.radiusPill' \
+    'root.theme.motionSelection'
+do
+    if grep -Fq -- "$chip_contract" "$jc_chip" 2>/dev/null; then
+        ok "JcChip contract: $chip_contract"
+    else
+        fail "JcChip contract missing: $chip_contract"
+    fi
+done
+
+for toggle_contract in \
+    'required property var theme' \
+    'property string text: ""' \
+    'property bool controlEnabled: true' \
+    'property bool checked: false' \
+    'signal toggled(bool value)' \
+    'root.theme.controlSurfaceDefault' \
+    'root.theme.controlSurfaceHover' \
+    'root.theme.controlSurfacePressed' \
+    'root.theme.controlSurfaceSelected' \
+    'root.theme.controlIconDefault' \
+    'root.theme.controlIconActive' \
+    'root.theme.controlIconDisabled' \
+    'root.theme.radiusPill' \
+    'root.theme.motionControl' \
+    'onClicked: root.toggled(!root.checked)'
+do
+    if grep -Fq -- "$toggle_contract" "$jc_toggle" 2>/dev/null; then
+        ok "JcToggle contract: $toggle_contract"
+    else
+        fail "JcToggle contract missing: $toggle_contract"
+    fi
+done
+
+for choice_contract in \
+    'required property var theme' \
+    'property var options: []' \
+    'property string selectedValue: ""' \
+    'property string emptyText: "No options"' \
+    'property bool controlEnabled: true' \
+    'signal valueSelected(string value)' \
+    'spacing: root.theme.spaceXs' \
+    'delegate: JcChip {' \
+    'root.theme.textSecondary' \
+    'root.theme.textSizeBody'
+do
+    if grep -Fq -- "$choice_contract" "$jc_choice_group" 2>/dev/null; then
+        ok "JcChoiceGroup contract: $choice_contract"
+    else
+        fail "JcChoiceGroup contract missing: $choice_contract"
+    fi
+done
+
+if grep -Fq -- 'delegate: JcButton {' "$jc_choice_group" 2>/dev/null; then
+    fail "JcChoiceGroup still uses action buttons for selection"
+else
+    ok "JcChoiceGroup selection is composed from JcChip"
+fi
+
+selection_files=(
+    "$jc_chip"
+    "$jc_toggle"
+    "$jc_choice_group"
+)
+
+selection_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "${selection_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$selection_hardcoded_colors" ]]; then
+    ok "selection components contain no hardcoded colors"
+else
+    fail "selection components contain hardcoded colors:"
+    printf '%s\n' "$selection_hardcoded_colors" >&2
+fi
+
+selection_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "${selection_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$selection_legacy_aliases" ]]; then
+    ok "selection components use canonical Theme API tokens"
+else
+    fail "selection components use legacy Theme API aliases:"
+    printf '%s\n' "$selection_legacy_aliases" >&2
 fi
 
 

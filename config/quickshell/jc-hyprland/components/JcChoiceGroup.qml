@@ -4,7 +4,7 @@ import Quickshell
 Item {
     id: root
 
-    property var theme
+    required property var theme
     property var options: []
     property string selectedValue: ""
     property string emptyText: "No options"
@@ -12,7 +12,7 @@ Item {
 
     signal valueSelected(string value)
 
-    implicitHeight: options.length > 0
+    implicitHeight: root.options.length > 0
         ? choiceFlow.implicitHeight
         : emptyLabel.implicitHeight
 
@@ -29,12 +29,12 @@ Item {
         visible: root.options.length > 0
 
         width: root.width
-        spacing: root.theme ? root.theme.spacingXs : 6
+        spacing: root.theme.spaceXs
 
         Repeater {
             model: optionModel
 
-            delegate: JcButton {
+            delegate: JcChip {
                 required property var modelData
 
                 theme: root.theme
@@ -42,11 +42,13 @@ Item {
 
                 text: String(modelData.label)
                 checked: String(modelData.value) === root.selectedValue
+
                 controlEnabled:
                     root.controlEnabled
                     && modelData.enabled !== false
 
-                onClicked: root.valueSelected(String(modelData.value))
+                onClicked:
+                    root.valueSelected(String(modelData.value))
             }
         }
     }
@@ -59,7 +61,10 @@ Item {
         width: root.width
         text: root.emptyText
 
-        color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-        font.pixelSize: 12
+        color: root.theme.textSecondary
+
+        font.family: root.theme.fontFamilySans
+        font.pixelSize: root.theme.textSizeBody
+        font.weight: root.theme.fontWeightRegular
     }
 }
