@@ -42,6 +42,7 @@ required_files=(
     "components/JcTooltip.qml"
     "components/JcPopup.qml"
     "components/JcMetricRing.qml"
+    "modules/dev/ComponentGallery.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -89,6 +90,93 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2.9 component gallery contract\n'
+
+main_qml="${main_qml:-$config_dir/Main.qml}"
+component_gallery="$config_dir/modules/dev/ComponentGallery.qml"
+
+for gallery_contract in \
+    'PanelWindow {' \
+    'required property var targetScreen' \
+    'required property var theme' \
+    'signal closeRequested()' \
+    'Shortcut {' \
+    'sequence: "Escape"' \
+    'Components.JcSurface {' \
+    'Components.JcSectionHeader {' \
+    'Components.JcButton {' \
+    'Components.JcIconButton {' \
+    'Components.JcChip {' \
+    'Components.JcToggle {' \
+    'Components.JcChoiceGroup {' \
+    'Components.JcSlider {' \
+    'Components.JcComboBox {' \
+    'Components.JcNavItem {' \
+    'Components.JcTooltip {' \
+    'Components.JcPopup {' \
+    'Components.JcMetricRing {' \
+    'Components.JcDivider {' \
+    'Components.JcCard {'
+do
+    if grep -Fq -- "$gallery_contract" "$component_gallery" 2>/dev/null; then
+        ok "ComponentGallery contract: $gallery_contract"
+    else
+        fail "ComponentGallery contract missing: $gallery_contract"
+    fi
+done
+
+for gallery_main_contract in \
+    'import qs.modules.dev as Dev' \
+    'property bool galleryVisible: false' \
+    'function showGallery() {' \
+    'function hideGallery() {' \
+    'function toggleGallery() {' \
+    'Dev.ComponentGallery {' \
+    'visible: root.galleryVisible' \
+    'onCloseRequested: root.hideGallery()' \
+    'function toggleGallery(): void' \
+    'function showGallery(): void' \
+    'function hideGallery(): void' \
+    'function galleryIsVisible(): bool'
+do
+    if grep -Fq -- "$gallery_main_contract" "$main_qml" 2>/dev/null; then
+        ok "ComponentGallery Main contract: $gallery_main_contract"
+    else
+        fail "ComponentGallery Main contract missing: $gallery_main_contract"
+    fi
+done
+
+gallery_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "$component_gallery" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$gallery_hardcoded_colors" ]]; then
+    ok "ComponentGallery contains no hardcoded colors"
+else
+    fail "ComponentGallery contains hardcoded colors:"
+    printf '%s\n' "$gallery_hardcoded_colors" >&2
+fi
+
+gallery_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "$component_gallery" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$gallery_legacy_aliases" ]]; then
+    ok "ComponentGallery uses canonical Theme API tokens"
+else
+    fail "ComponentGallery uses legacy Theme API aliases:"
+    printf '%s\n' "$gallery_legacy_aliases" >&2
 fi
 
 

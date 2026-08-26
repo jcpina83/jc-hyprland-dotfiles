@@ -5,11 +5,13 @@ import Quickshell.Io
 import qs.services as Services
 import qs.theme as Theme
 import qs.modules.displays as Displays
+import qs.modules.dev as Dev
 
 Scope {
     id: root
 
     property bool displaysVisible: false
+    property bool galleryVisible: false
     property string requestedOutputName: ""
 
     function resolveScreen(outputName) {
@@ -34,6 +36,7 @@ Scope {
     }
 
     function showDisplays() {
+        root.galleryVisible = false;
         root.requestedOutputName = "";
         root.displaysVisible = true;
         root.prepareDisplays();
@@ -41,6 +44,8 @@ Scope {
 
     function showDisplaysOn(outputName) {
         const target = root.resolveScreen(outputName);
+
+        root.galleryVisible = false;
 
         root.requestedOutputName =
             target && target.name === outputName ? outputName : "";
@@ -58,6 +63,28 @@ Scope {
         root.displaysVisible = false;
         root.requestedOutputName = "";
         displayDraftStore.reset();
+    }
+
+    function showGallery() {
+        if (monitorApplyService.pendingConfirmation
+                || displayPersistenceService.saving)
+            return;
+
+        if (root.displaysVisible)
+            root.hideDisplays();
+
+        root.galleryVisible = true;
+    }
+
+    function hideGallery() {
+        root.galleryVisible = false;
+    }
+
+    function toggleGallery() {
+        if (root.galleryVisible)
+            root.hideGallery();
+        else
+            root.showGallery();
     }
 
     Theme.Theme {
@@ -125,6 +152,21 @@ Scope {
         onSaveRequested: displayPersistenceService.saveConfiguration()
     }
 
+    Dev.ComponentGallery {
+        id: componentGallery
+
+        visible: root.galleryVisible
+
+        targetScreen:
+            root.resolveScreen(
+                monitorService.focusedOutputName
+            )
+
+        theme: theme
+
+        onCloseRequested: root.hideGallery()
+    }
+
     IpcHandler {
         target: "controlCenter"
 
@@ -169,6 +211,22 @@ Scope {
                 monitorService.refresh();
                 displayPersistenceService.refreshPreview();
             }
+        }
+
+        function toggleGallery(): void {
+            root.toggleGallery();
+        }
+
+        function showGallery(): void {
+            root.showGallery();
+        }
+
+        function hideGallery(): void {
+            root.hideGallery();
+        }
+
+        function galleryIsVisible(): bool {
+            return root.galleryVisible;
         }
 
         function displaysAreVisible(): bool {

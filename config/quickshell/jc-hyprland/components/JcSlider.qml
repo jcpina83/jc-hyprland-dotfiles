@@ -47,7 +47,8 @@ Controls.Slider {
         width: root.availableWidth
 
         implicitWidth: root.theme.controlHeightLarge * 4
-        implicitHeight: root.theme.borderWidthStrong * 2
+        implicitHeight: root.theme.borderWidthThin * 2
+        height: implicitHeight
 
         Rectangle {
             anchors.fill: parent
