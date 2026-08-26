@@ -12,6 +12,10 @@ PanelWindow {
 
     property string title: "Control Center"
     property string activeModuleId: "displays"
+    property Component contentComponent: null
+
+    readonly property var activeContentItem:
+        contentLoader.item
 
     readonly property int preferredWidth: 1080
     readonly property int preferredHeight: 820
@@ -93,7 +97,7 @@ PanelWindow {
 
                     theme: root.theme
                     title: root.title
-                    subtitle: "Shell frame · Phase 2A.3.2"
+                    subtitle: "Modular shell · Phase 2A.3"
                 }
 
                 Components.JcIconButton {
@@ -129,39 +133,13 @@ PanelWindow {
                         root.moduleRequested(moduleId)
                 }
 
-                Components.JcSurface {
+                Loader {
+                    id: contentLoader
+
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
-                    theme: root.theme
-                    surfaceRole: "base"
-                    cornerRadius: root.theme.radiusLg
-
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        spacing: root.theme.spaceXs
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-
-                            text: "Content Host"
-                            color: root.theme.textPrimary
-
-                            font.family: root.theme.fontFamilySans
-                            font.pixelSize: root.theme.textSizeCardTitle
-                            font.weight: root.theme.fontWeightSemibold
-                        }
-
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-
-                            text: "Displays adapter arrives in Phase 2A.3.4"
-                            color: root.theme.textSecondary
-
-                            font.family: root.theme.fontFamilySans
-                            font.pixelSize: root.theme.textSizeBody
-                        }
-                    }
+                    sourceComponent: root.contentComponent
                 }
             }
         }

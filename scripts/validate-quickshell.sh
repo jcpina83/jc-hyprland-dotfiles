@@ -56,6 +56,7 @@ required_files=(
     "services/MonitorApplyService.qml"
     "services/DisplayPersistenceService.qml"
     "modules/displays/DisplayPopup.qml"
+    "modules/displays/DisplayView.qml"
     "modules/displays/DisplayLayout.qml"
     "modules/displays/DisplayLayoutEditor.qml"
     "modules/displays/DisplayCard.qml"
@@ -93,6 +94,119 @@ else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
 fi
+
+
+printf '\n==> Phase 2A.3.4 modular Displays content contract\n'
+
+display_popup="$config_dir/modules/displays/DisplayPopup.qml"
+display_view="$config_dir/modules/displays/DisplayView.qml"
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+main_qml="${main_qml:-$config_dir/Main.qml}"
+
+for view_contract in \
+    'Item {' \
+    'property var monitorService' \
+    'property var draftStore' \
+    'property var applyService' \
+    'property var persistenceService' \
+    'property var theme' \
+    'property bool showCloseAction: true' \
+    'signal closeRequested()' \
+    'signal refreshRequested()' \
+    'signal resetRequested()' \
+    'signal applyRequested()' \
+    'signal keepRequested()' \
+    'signal rollbackRequested()' \
+    'signal saveRequested()' \
+    'DisplayLayoutEditor {' \
+    'delegate: DisplayCard {' \
+    'Save Configuration'
+do
+    if grep -Fq -- "$view_contract" "$display_view" 2>/dev/null; then
+        ok "DisplayView contract: $view_contract"
+    else
+        fail "DisplayView contract missing: $view_contract"
+    fi
+done
+
+for forbidden_view_contract in \
+    'PanelWindow {' \
+    'property var targetScreen' \
+    'screen:' \
+    'hyprctl' \
+    'Process {'
+do
+    if grep -Fq -- "$forbidden_view_contract" "$display_view" 2>/dev/null; then
+        fail "DisplayView must not contain: $forbidden_view_contract"
+    else
+        ok "DisplayView excludes: $forbidden_view_contract"
+    fi
+done
+
+for popup_adapter_contract in \
+    'PanelWindow {' \
+    'property var targetScreen' \
+    'screen: root.targetScreen' \
+    'implicitWidth: 820' \
+    'implicitHeight: 700' \
+    'DisplayView {' \
+    'anchors.fill: parent' \
+    'onCloseRequested: root.closeRequested()' \
+    'onSaveRequested: root.saveRequested()'
+do
+    if grep -Fq -- "$popup_adapter_contract" "$display_popup" 2>/dev/null; then
+        ok "DisplayPopup adapter contract: $popup_adapter_contract"
+    else
+        fail "DisplayPopup adapter contract missing: $popup_adapter_contract"
+    fi
+done
+
+for shell_content_contract in \
+    'property Component contentComponent: null' \
+    'readonly property var activeContentItem:' \
+    'contentLoader.item' \
+    'Loader {' \
+    'id: contentLoader' \
+    'sourceComponent: root.contentComponent'
+do
+    if grep -Fq -- "$shell_content_contract" "$control_center_shell" 2>/dev/null; then
+        ok "ControlCenterShell content-host contract: $shell_content_contract"
+    else
+        fail "ControlCenterShell content-host contract missing: $shell_content_contract"
+    fi
+done
+
+for main_content_contract in \
+    'Component {' \
+    'id: shellDisplaysComponent' \
+    'Displays.DisplayView {' \
+    'showCloseAction: false' \
+    'contentComponent:' \
+    '? shellDisplaysComponent' \
+    'onApplyRequested: monitorApplyService.applyDirty()' \
+    'monitorApplyService.rollbackPending("user")' \
+    'displayPersistenceService.saveConfiguration()'
+do
+    if grep -Fq -- "$main_content_contract" "$main_qml" 2>/dev/null; then
+        ok "Main modular Displays contract: $main_content_contract"
+    else
+        fail "Main modular Displays contract missing: $main_content_contract"
+    fi
+done
+
+for shell_safety_contract in \
+    'function hideShellPreview() {' \
+    'monitorApplyService.busy' \
+    'monitorApplyService.pendingConfirmation' \
+    'displayPersistenceService.saving' \
+    'displayDraftStore.reset();'
+do
+    if grep -Fq -- "$shell_safety_contract" "$main_qml" 2>/dev/null; then
+        ok "shell Displays safety contract: $shell_safety_contract"
+    else
+        fail "shell Displays safety contract missing: $shell_safety_contract"
+    fi
+done
 
 
 printf '\n==> Phase 2A.3.3 Control Center navigation contract\n'
@@ -1429,6 +1543,7 @@ printf '\n==> Phase 1C.3 persistence UI contract\n'
 
 persistence_service="$config_dir/services/DisplayPersistenceService.qml"
 display_popup="$config_dir/modules/displays/DisplayPopup.qml"
+display_view="$config_dir/modules/displays/DisplayView.qml"
 main_qml="$config_dir/Main.qml"
 
 for persistence_ui_contract in \
@@ -1460,10 +1575,10 @@ for persistence_popup_contract in \
     'Save Configuration' \
     'root.persistenceService.canSave'
 do
-    if grep -Fq "$persistence_popup_contract" "$display_popup" 2>/dev/null; then
+    if grep -Fq "$persistence_popup_contract" "$display_view" 2>/dev/null; then
         ok "$persistence_popup_contract"
     else
-        fail "DisplayPopup persistence contract missing: $persistence_popup_contract"
+        fail "DisplayView persistence contract missing: $persistence_popup_contract"
     fi
 done
 

@@ -42,8 +42,13 @@ Scope {
 
     function showDisplays() {
         root.galleryVisible = false;
-        root.shellPreviewVisible = false;
-        root.shellPreviewOutputName = "";
+
+        if (root.shellPreviewVisible) {
+            root.hideShellPreview();
+
+            if (root.shellPreviewVisible)
+                return;
+        }
 
         root.requestedOutputName = "";
         root.displaysVisible = true;
@@ -54,8 +59,13 @@ Scope {
         const target = root.resolveScreen(outputName);
 
         root.galleryVisible = false;
-        root.shellPreviewVisible = false;
-        root.shellPreviewOutputName = "";
+
+        if (root.shellPreviewVisible) {
+            root.hideShellPreview();
+
+            if (root.shellPreviewVisible)
+                return;
+        }
 
         root.requestedOutputName =
             target && target.name === outputName ? outputName : "";
@@ -123,9 +133,17 @@ Scope {
     }
 
     function hideShellPreview() {
+        // Once Displays is hosted here, preserve the same safety boundary as
+        // the production display popup.
+        if (monitorApplyService.busy
+                || monitorApplyService.pendingConfirmation
+                || displayPersistenceService.saving)
+            return;
+
         root.shellPreviewVisible = false;
         root.shellPreviewOutputName = "";
         root.shellPreviewModuleId = "displays";
+        displayDraftStore.reset();
     }
 
     function toggleShellPreview() {
@@ -143,8 +161,12 @@ Scope {
         if (root.displaysVisible)
             root.hideDisplays();
 
-        root.shellPreviewVisible = false;
-        root.shellPreviewOutputName = "";
+        if (root.shellPreviewVisible) {
+            root.hideShellPreview();
+
+            if (root.shellPreviewVisible)
+                return;
+        }
 
         root.galleryVisible = true;
     }
@@ -225,6 +247,33 @@ Scope {
         onSaveRequested: displayPersistenceService.saveConfiguration()
     }
 
+    Component {
+        id: shellDisplaysComponent
+
+        Displays.DisplayView {
+            monitorService: monitorService
+            draftStore: displayDraftStore
+            applyService: monitorApplyService
+            persistenceService: displayPersistenceService
+            theme: theme
+
+            showCloseAction: false
+
+            onRefreshRequested: {
+                monitorService.refresh();
+                displayPersistenceService.refreshPreview();
+            }
+
+            onResetRequested: displayDraftStore.reset()
+            onApplyRequested: monitorApplyService.applyDirty()
+            onKeepRequested: monitorApplyService.keepPending()
+            onRollbackRequested:
+                monitorApplyService.rollbackPending("user")
+            onSaveRequested:
+                displayPersistenceService.saveConfiguration()
+        }
+    }
+
     ControlCenter.ControlCenterShell {
         id: controlCenterShellPreview
 
@@ -238,6 +287,11 @@ Scope {
 
         theme: theme
         activeModuleId: root.shellPreviewModuleId
+
+        contentComponent:
+            root.shellPreviewModuleId === "displays"
+                ? shellDisplaysComponent
+                : null
 
         onCloseRequested: root.hideShellPreview()
 
