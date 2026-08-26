@@ -33,6 +33,7 @@ required_files=(
     "Main.qml"
     "theme/Theme.qml"
     "components/JcButton.qml"
+    "components/JcIconButton.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
@@ -80,6 +81,113 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2.3 action component contract\n'
+
+jc_button="$config_dir/components/JcButton.qml"
+jc_icon_button="$config_dir/components/JcIconButton.qml"
+
+for button_contract in \
+    'required property var theme' \
+    'property string text: ""' \
+    'property bool controlEnabled: true' \
+    'property bool checked: false' \
+    'property bool compact: false' \
+    'signal clicked()' \
+    'root.theme.controlSurfaceDefault' \
+    'root.theme.controlSurfaceHover' \
+    'root.theme.controlSurfacePressed' \
+    'root.theme.controlSurfaceSelected' \
+    'root.theme.controlBorderDefault' \
+    'root.theme.controlBorderHover' \
+    'root.theme.controlBorderPressed' \
+    'root.theme.controlBorderSelected' \
+    'root.theme.controlTextDisabled' \
+    'root.theme.controlTextSelected' \
+    'root.theme.controlHeightCompact' \
+    'root.theme.controlHeightDefault' \
+    'root.theme.radiusSm' \
+    'root.theme.borderWidthThin' \
+    'root.theme.opacityDisabled' \
+    'root.theme.motionHover' \
+    'root.theme.motionPress' \
+    'root.theme.motionSelection' \
+    'root.theme.motionControl' \
+    'root.theme.easingStandard'
+do
+    if grep -Fq -- "$button_contract" "$jc_button" 2>/dev/null; then
+        ok "JcButton contract: $button_contract"
+    else
+        fail "JcButton contract missing: $button_contract"
+    fi
+done
+
+for icon_button_contract in \
+    'required property var theme' \
+    'property string icon: ""' \
+    'property string accessibleName: ""' \
+    'property bool controlEnabled: true' \
+    'property bool checked: false' \
+    'property bool compact: false' \
+    'signal clicked()' \
+    'root.theme.controlSurfaceDefault' \
+    'root.theme.controlSurfaceHover' \
+    'root.theme.controlSurfacePressed' \
+    'root.theme.controlSurfaceSelected' \
+    'root.theme.controlIconDefault' \
+    'root.theme.controlIconActive' \
+    'root.theme.controlIconDisabled' \
+    'root.theme.controlHeightCompact' \
+    'root.theme.controlHeightDefault' \
+    'root.theme.iconSizeSm' \
+    'root.theme.iconSizeMd' \
+    'root.theme.motionHover' \
+    'root.theme.motionPress' \
+    'root.theme.motionSelection' \
+    'root.theme.motionControl'
+do
+    if grep -Fq -- "$icon_button_contract" "$jc_icon_button" 2>/dev/null; then
+        ok "JcIconButton contract: $icon_button_contract"
+    else
+        fail "JcIconButton contract missing: $icon_button_contract"
+    fi
+done
+
+action_files=(
+    "$jc_button"
+    "$jc_icon_button"
+)
+
+action_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "${action_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$action_hardcoded_colors" ]]; then
+    ok "action components contain no hardcoded colors"
+else
+    fail "action components contain hardcoded colors:"
+    printf '%s\n' "$action_hardcoded_colors" >&2
+fi
+
+action_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "${action_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$action_legacy_aliases" ]]; then
+    ok "action components use canonical Theme API tokens"
+else
+    fail "action components use legacy Theme API aliases:"
+    printf '%s\n' "$action_legacy_aliases" >&2
 fi
 
 

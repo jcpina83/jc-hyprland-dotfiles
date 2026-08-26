@@ -3,7 +3,8 @@ import QtQuick
 Rectangle {
     id: root
 
-    property var theme
+    // Public API preserved from the Phase 1 component.
+    required property var theme
     property string text: ""
     property bool controlEnabled: true
     property bool checked: false
@@ -11,39 +12,104 @@ Rectangle {
 
     signal clicked()
 
-    implicitWidth: label.implicitWidth + (compact ? 20 : 28)
-    implicitHeight: compact ? 30 : 34
+    readonly property bool hovered:
+        root.controlEnabled && pointerArea.containsMouse
 
-    radius: theme ? theme.radiusSmall : 8
+    readonly property bool pressed:
+        root.controlEnabled && pointerArea.pressed
 
-    color: {
-        if (root.checked) {
-            if (root.theme)
-                return Qt.rgba(
-                    root.theme.accent.r,
-                    root.theme.accent.g,
-                    root.theme.accent.b,
-                    0.16
-                );
+    readonly property int horizontalPadding:
+        root.compact
+            ? root.theme.spaceSm
+            : root.theme.spaceSm + root.theme.space2Xs
 
-            return "#263449";
-        }
+    readonly property int transitionDuration: {
+        if (root.pressed)
+            return root.theme.motionPress;
 
-        if (!root.controlEnabled)
-            return theme ? theme.surfaceAlt : "#2d2d33";
+        if (root.hovered)
+            return root.theme.motionHover;
 
-        if (mouseArea.containsMouse)
-            return theme ? theme.surfaceAlt : "#2d2d33";
+        if (root.checked)
+            return root.theme.motionSelection;
 
-        return theme ? theme.surface : "#242429";
+        return root.theme.motionControl;
     }
 
-    border.width: 1
-    border.color: root.checked
-        ? (theme ? theme.accent : "#89b4fa")
-        : (theme ? theme.border : "#3b3b43")
+    readonly property color resolvedSurfaceColor: {
+        if (!root.controlEnabled)
+            return root.theme.controlSurfaceDefault;
 
-    opacity: root.controlEnabled ? 1.0 : 0.55
+        if (root.pressed)
+            return root.theme.controlSurfacePressed;
+
+        if (root.checked)
+            return root.theme.controlSurfaceSelected;
+
+        if (root.hovered)
+            return root.theme.controlSurfaceHover;
+
+        return root.theme.controlSurfaceDefault;
+    }
+
+    readonly property color resolvedBorderColor: {
+        if (!root.controlEnabled)
+            return root.theme.controlBorderDefault;
+
+        if (root.pressed)
+            return root.theme.controlBorderPressed;
+
+        if (root.checked)
+            return root.theme.controlBorderSelected;
+
+        if (root.hovered)
+            return root.theme.controlBorderHover;
+
+        return root.theme.controlBorderDefault;
+    }
+
+    readonly property color resolvedTextColor: {
+        if (!root.controlEnabled)
+            return root.theme.controlTextDisabled;
+
+        if (root.checked)
+            return root.theme.controlTextSelected;
+
+        return root.theme.controlTextDefault;
+    }
+
+    implicitWidth:
+        label.implicitWidth
+        + (root.horizontalPadding * 2)
+
+    implicitHeight: root.compact
+        ? root.theme.controlHeightCompact
+        : root.theme.controlHeightDefault
+
+    radius: root.theme.radiusSm
+
+    color: root.resolvedSurfaceColor
+
+    border.width: root.theme.borderWidthThin
+    border.color: root.resolvedBorderColor
+
+    opacity: root.controlEnabled
+        ? root.theme.opacityEnabled
+        : root.theme.opacityDisabled
+
+    Behavior on color {
+        ColorAnimation {
+            duration: root.transitionDuration
+            easing.type: root.theme.easingStandard
+        }
+    }
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: root.theme.motionControl
+            easing.type: root.theme.easingStandard
+        }
+    }
 
     Text {
         id: label
@@ -51,21 +117,35 @@ Rectangle {
         anchors.centerIn: parent
         text: root.text
 
-        color: root.checked
-            ? (root.theme ? root.theme.accent : "#89b4fa")
-            : (root.theme ? root.theme.textPrimary : "#f2f2f4")
+        color: root.resolvedTextColor
 
-        font.pixelSize: root.compact ? 12 : 13
-        font.weight: root.checked ? Font.DemiBold : Font.Medium
+        font.family: root.theme.fontFamilySans
+        font.pixelSize: root.compact
+            ? root.theme.textSizeBody
+            : root.theme.textSizeBodyLarge
+
+        font.weight: root.checked
+            ? root.theme.fontWeightSemibold
+            : root.theme.fontWeightMedium
+
+        Behavior on color {
+            ColorAnimation {
+                duration: root.transitionDuration
+                easing.type: root.theme.easingStandard
+            }
+        }
     }
 
     MouseArea {
-        id: mouseArea
+        id: pointerArea
 
         anchors.fill: parent
+
         enabled: root.controlEnabled
         hoverEnabled: true
+
         cursorShape: Qt.PointingHandCursor
+
         onClicked: root.clicked()
     }
 }
