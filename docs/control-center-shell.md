@@ -391,3 +391,23 @@ Directional focus skips disabled modules and wraps for Up/Down. If only one
 module is enabled, directional keys keep focus on that module. Transition locks
 are respected because navigation only targets delegates whose
 `controlEnabled` state is true.
+
+
+### Phase 2A.3.7c — Shell and module motion
+
+Control Center motion uses the semantic motion tokens from `Theme.qml` and is
+kept intentionally lightweight:
+
+- opening the shell fades and translates the visual surface by a short distance;
+- loading or changing the hosted module fades and translates the content;
+- footer status changes use a short opacity/color transition;
+- navigation selection continues to use the motion already provided by
+  `JcNavItem`.
+
+The `PanelWindow` geometry itself is not animated. Layout-managed `x`/`y`
+coordinates are not animated either; translation is applied through QML
+`Translate` transforms so layouts retain geometry ownership.
+
+Closing remains immediate and existing guarded-transition behavior is
+unchanged. Display Safe Apply, persistence, and feature mutation services do
+not depend on animation completion.

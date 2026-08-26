@@ -2017,6 +2017,58 @@ else
 fi
 
 
+printf '\n==> Phase 2A.3.7c shell and module motion\n'
+
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+control_center_shell_doc="$repo_root/docs/control-center-shell.md"
+
+for shell_motion_contract in \
+    'function playShellEnterMotion() {' \
+    'function playStatusMotion() {' \
+    'id: shellEnterAnimation' \
+    'id: contentEnterAnimation' \
+    'id: statusChangeAnimation' \
+    'target: shellSurface' \
+    'target: shellTranslate' \
+    'target: contentLoader' \
+    'target: contentTranslate' \
+    'duration: root.theme.motionPanel' \
+    'duration: root.theme.motionSelection' \
+    'easing.type: root.theme.easingEnter' \
+    'id: contentHost' \
+    'transform: Translate {' \
+    'contentEnterAnimation.restart()' \
+    'id: statusRow' \
+    'Behavior on color {'
+do
+    if grep -Fq -- "$shell_motion_contract" \
+        "$control_center_shell" 2>/dev/null
+    then
+        ok "shell motion contract: $shell_motion_contract"
+    else
+        fail "shell motion contract missing: $shell_motion_contract"
+    fi
+done
+
+if grep -Eq \
+    'Layout\.(preferredX|preferredY)|Behavior on (x|y)|NumberAnimation \{[[:space:]]*property: "(x|y)"' \
+    "$control_center_shell" 2>/dev/null
+then
+    fail "ControlCenterShell must not animate layout-managed geometry"
+else
+    ok "ControlCenterShell motion avoids layout-managed geometry"
+fi
+
+if grep -Fq \
+    '### Phase 2A.3.7c — Shell and module motion' \
+    "$control_center_shell_doc" 2>/dev/null
+then
+    ok "Phase 2A.3.7c shell documentation"
+else
+    fail "Phase 2A.3.7c shell documentation missing"
+fi
+
+
 printf '\n==> Production PanelWindow dimensions\n'
 
 control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
