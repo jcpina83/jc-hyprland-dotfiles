@@ -131,34 +131,22 @@ QtObject {
 
     // =========================================================================
     // Interaction states
-    //
-    // Components should map their visual state to these tokens rather than
-    // inventing local hover/pressed/selected/disabled colors.
     // =========================================================================
 
-    // -------------------------------------------------------------------------
     // Control surfaces
-    // -------------------------------------------------------------------------
-
     readonly property color controlSurfaceDefault: surfaceInteractive
     readonly property color controlSurfaceHover: surfaceHover
     readonly property color controlSurfacePressed: surfacePressed
     readonly property color controlSurfaceSelected: surfaceSelected
 
-    // -------------------------------------------------------------------------
     // Control borders
-    // -------------------------------------------------------------------------
-
     readonly property color controlBorderDefault: borderDefault
     readonly property color controlBorderHover: borderStrong
     readonly property color controlBorderPressed: borderStrong
     readonly property color controlBorderSelected: borderAccent
     readonly property color controlBorderFocus: borderFocus
 
-    // -------------------------------------------------------------------------
     // Control content
-    // -------------------------------------------------------------------------
-
     readonly property color controlTextDefault: textPrimary
     readonly property color controlTextSecondary: textSecondary
     readonly property color controlTextDisabled: textMuted
@@ -168,29 +156,17 @@ QtObject {
     readonly property color controlIconActive: accent
     readonly property color controlIconDisabled: textMuted
 
-    // -------------------------------------------------------------------------
     // Interaction opacity
-    // -------------------------------------------------------------------------
-
     readonly property real opacityEnabled: 1.00
     readonly property real opacityInactive: 0.72
     readonly property real opacityDisabled: 0.48
     readonly property real opacitySubtle: 0.62
 
-    // -------------------------------------------------------------------------
     // Focus
-    // -------------------------------------------------------------------------
-
     readonly property int focusRingWidth: 2
     readonly property color focusRingColor: borderFocus
 
-    // -------------------------------------------------------------------------
     // Semantic feedback surfaces
-    //
-    // Status banners, validation chips and future toast/notification components
-    // can share these semantic colors without embedding theme-specific values.
-    // -------------------------------------------------------------------------
-
     readonly property color successSurface: Qt.rgba(
         success.r,
         success.g,
@@ -251,10 +227,7 @@ QtObject {
     // Geometry scale
     // =========================================================================
 
-    // -------------------------------------------------------------------------
     // Spacing
-    // -------------------------------------------------------------------------
-
     readonly property int space2Xs: 4
     readonly property int spaceXs: 6
     readonly property int spaceSm: 10
@@ -263,10 +236,7 @@ QtObject {
     readonly property int spaceXl: 32
     readonly property int space2Xl: 40
 
-    // -------------------------------------------------------------------------
     // Radius
-    // -------------------------------------------------------------------------
-
     readonly property int radiusXs: 6
     readonly property int radiusSm: 8
     readonly property int radiusMd: 12
@@ -275,10 +245,7 @@ QtObject {
     readonly property int radius2Xl: 32
     readonly property int radiusPill: 999
 
-    // -------------------------------------------------------------------------
     // Common geometry
-    // -------------------------------------------------------------------------
-
     readonly property int borderWidthThin: 1
     readonly property int borderWidthStrong: 2
 
@@ -295,17 +262,11 @@ QtObject {
     // Typography scale
     // =========================================================================
 
-    // -------------------------------------------------------------------------
     // Font families
-    // -------------------------------------------------------------------------
-
     readonly property string fontFamilySans: "sans-serif"
     readonly property string fontFamilyMono: "monospace"
 
-    // -------------------------------------------------------------------------
     // Primitive font-size scale
-    // -------------------------------------------------------------------------
-
     readonly property int fontSize2Xs: 9
     readonly property int fontSizeXs: 10
     readonly property int fontSizeSm: 11
@@ -317,10 +278,7 @@ QtObject {
     readonly property int fontSize4Xl: 22
     readonly property int fontSize5Xl: 28
 
-    // -------------------------------------------------------------------------
     // Semantic typography
-    // -------------------------------------------------------------------------
-
     readonly property int textSizeMicro: fontSize2Xs
     readonly property int textSizeCaption: fontSizeXs
     readonly property int textSizeLabel: fontSizeSm
@@ -331,22 +289,52 @@ QtObject {
     readonly property int textSizePanelTitle: fontSize4Xl
     readonly property int textSizeMetric: fontSize5Xl
 
-    // -------------------------------------------------------------------------
     // Font weights
-    // -------------------------------------------------------------------------
-
     readonly property int fontWeightRegular: Font.Normal
     readonly property int fontWeightMedium: Font.Medium
     readonly property int fontWeightSemibold: Font.DemiBold
     readonly property int fontWeightBold: Font.Bold
 
-    // -------------------------------------------------------------------------
     // Line-height multipliers
-    // -------------------------------------------------------------------------
-
     readonly property real lineHeightCompact: 1.15
     readonly property real lineHeightBody: 1.35
     readonly property real lineHeightRelaxed: 1.50
+
+    // =========================================================================
+    // Motion / animation
+    //
+    // Motion is intentionally restrained. The Control Center should feel
+    // responsive and polished without becoming visually noisy.
+    //
+    // Components should consume semantic durations/easings rather than embedding
+    // arbitrary animation timings.
+    // =========================================================================
+
+    // Global multiplier leaves a future accessibility/profile hook without
+    // changing individual component contracts.
+    readonly property real motionScale: 1.0
+
+    // Primitive duration scale (milliseconds)
+    readonly property int motionInstant: 0
+    readonly property int motionFast: Math.round(100 * motionScale)
+    readonly property int motionNormal: Math.round(160 * motionScale)
+    readonly property int motionSlow: Math.round(240 * motionScale)
+    readonly property int motionEmphasis: Math.round(320 * motionScale)
+
+    // Semantic durations
+    readonly property int motionHover: motionFast
+    readonly property int motionPress: motionFast
+    readonly property int motionSelection: motionNormal
+    readonly property int motionControl: motionNormal
+    readonly property int motionPanel: motionSlow
+    readonly property int motionDialog: motionSlow
+    readonly property int motionEmphasized: motionEmphasis
+
+    // Easing contract
+    readonly property int easingStandard: Easing.OutCubic
+    readonly property int easingEnter: Easing.OutCubic
+    readonly property int easingExit: Easing.InCubic
+    readonly property int easingEmphasized: Easing.InOutCubic
 
     // =========================================================================
     // Compatibility aliases
