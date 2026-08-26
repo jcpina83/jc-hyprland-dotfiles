@@ -2384,13 +2384,136 @@ if grep -Fq \
     '2A.4.1 Displays UI audit + visual migration contract       ✓' \
     "$displays_visual_doc" 2>/dev/null \
     && grep -Fq \
-        '2A.4.2 DisplayView shell/content cleanup                   ← CURRENT' \
+        '2A.4.2 DisplayView shell/content cleanup                   ✓' \
         "$displays_visual_doc" 2>/dev/null
 then
-    ok "Phase 2A.4 roadmap advanced to DisplayView cleanup"
+    ok "Phase 2A.4 roadmap records DisplayView cleanup complete"
 else
-    fail "Phase 2A.4 roadmap status is not aligned with DisplayView cleanup"
+    fail "Phase 2A.4 roadmap does not record DisplayView cleanup complete"
 fi
+
+
+printf '\n==> Phase 2A.4.3 DisplayCard canonical surface migration\n'
+
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+
+for display_card_visual_contract in \
+    'Components.JcSurface {' \
+    'surfaceRole: "raised"' \
+    'cornerRadius: root.theme.radiusMd' \
+    'Components.JcDivider {' \
+    'spacing: root.theme.spaceSm' \
+    'columnSpacing: root.theme.spaceLg' \
+    'rowSpacing: root.theme.spaceXs' \
+    'root.theme.textSizeBody' \
+    'root.theme.textSizeCaption'
+do
+    if grep -Fq -- "$display_card_visual_contract" \
+        "$display_card" 2>/dev/null
+    then
+        ok "DisplayCard visual contract: $display_card_visual_contract"
+    else
+        fail "DisplayCard visual contract missing: $display_card_visual_contract"
+    fi
+done
+
+for display_card_retired_visual in \
+    'Components.JcCard {' \
+    'root.theme.spacingSm' \
+    'root.theme.border' \
+    'font.bold:' \
+    '"#f2f2f4"' \
+    '"#b8b8c0"' \
+    '"#f9e2af"' \
+    '"#a6e3a1"' \
+    '"#89b4fa"' \
+    '"#3b3b43"'
+do
+    if grep -Fq -- "$display_card_retired_visual" \
+        "$display_card" 2>/dev/null
+    then
+        fail "DisplayCard visual compatibility residue: $display_card_retired_visual"
+    else
+        ok "DisplayCard excludes visual compatibility residue: $display_card_retired_visual"
+    fi
+done
+
+display_card_choice_count="$(
+    grep -Fc 'Components.JcChoiceGroup {' "$display_card" 2>/dev/null || true
+)"
+
+if [[ "$display_card_choice_count" == "4" ]]; then
+    ok "DisplayCard preserves four choice controls for Phase 2A.4.4"
+else
+    fail "DisplayCard expected 4 preserved JcChoiceGroup controls, found $display_card_choice_count"
+fi
+
+for display_card_draft_contract in \
+    'setEnabled(' \
+    'setResolution(' \
+    'setRefreshMode(' \
+    'setScale(' \
+    'setTransform('
+do
+    if grep -Fq -- "$display_card_draft_contract" \
+        "$display_card" 2>/dev/null
+    then
+        ok "DisplayCard preserved draft mutation: $display_card_draft_contract"
+    else
+        fail "DisplayCard draft mutation missing: $display_card_draft_contract"
+    fi
+done
+
+if grep -Fq \
+    '## Phase 2A.4.3 — DisplayCard canonical surface migration' \
+    "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.3 migration documentation"
+else
+    fail "Phase 2A.4.3 migration documentation missing"
+fi
+
+if grep -Fq \
+    '2A.4.2 DisplayView shell/content cleanup                   ✓' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        '2A.4.3 DisplayCard migration to canonical components       ← CURRENT' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4 roadmap advanced to DisplayCard migration"
+else
+    fail "Phase 2A.4 roadmap status is not aligned with DisplayCard migration"
+fi
+
+
+printf '\n==> Phase 2A.4.3 DisplayCard delegate runtime binding\n'
+
+display_view="$config_dir/modules/displays/DisplayView.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+
+for delegate_runtime_contract in \
+    'delegate: DisplayCard {' \
+    'required property var modelData' \
+    'monitor: modelData'
+do
+    if grep -Fq -- "$delegate_runtime_contract" "$display_view" 2>/dev/null; then
+        ok "DisplayCard delegate runtime contract: $delegate_runtime_contract"
+    else
+        fail "DisplayCard delegate runtime contract missing: $delegate_runtime_contract"
+    fi
+done
+
+for monitor_guard_contract in \
+    'root.monitor' \
+    'root.draftStore.enableDisableReason(root.monitor.output)'
+do
+    if grep -Fq -- "$monitor_guard_contract" "$display_card" 2>/dev/null; then
+        ok "DisplayCard monitor lifecycle guard: $monitor_guard_contract"
+    else
+        fail "DisplayCard monitor lifecycle guard missing: $monitor_guard_contract"
+    fi
+done
 
 
 printf '\n==> Production PanelWindow dimensions\n'

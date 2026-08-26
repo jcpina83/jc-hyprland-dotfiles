@@ -13,8 +13,8 @@ new window architecture and not a display-backend rewrite.
 
 ```text
 2A.4.1 Displays UI audit + visual migration contract       ✓
-2A.4.2 DisplayView shell/content cleanup                   ← CURRENT
-2A.4.3 DisplayCard migration to canonical components
+2A.4.2 DisplayView shell/content cleanup                   ✓
+2A.4.3 DisplayCard migration to canonical components       ← CURRENT
 2A.4.4 Mode / scale / transform controls
 2A.4.5 Layout editor visual integration
 2A.4.6 Safe Apply / persistence presentation
@@ -411,3 +411,35 @@ removed. Persistence behavior is unchanged.
 Safe Apply feedback surfaces, monitor cards, mode controls, and the layout
 editor remain intentionally unchanged here. Their visual migrations belong to
 later Phase 2A.4 steps.
+
+
+---
+
+## Phase 2A.4.3 — DisplayCard canonical surface migration
+
+`DisplayCard.qml` now uses the Phase 2 semantic component vocabulary for its
+card-level presentation.
+
+The card root is `JcSurface` with the `raised` semantic role. Generic
+separation uses `JcDivider`; spacing, typography, and colors use canonical
+Theme tokens rather than Phase 1 aliases or literal fallbacks.
+
+The small focused-monitor dot remains a raw `Rectangle` intentionally because
+it represents monitor-specific geometry rather than a reusable generic surface.
+
+The draft mutation boundary remains unchanged:
+
+```text
+setEnabled(...)
+setResolution(...)
+setRefreshMode(...)
+setScale(...)
+setTransform(...)
+```
+
+The four existing `JcChoiceGroup` controls are deliberately preserved in this
+step. Resolution, refresh rate, scale, and orientation control strategy belongs
+to Phase 2A.4.4 and must be evaluated separately from the card-surface
+migration.
+
+No runtime apply or persistence responsibility is added to `DisplayCard.qml`.

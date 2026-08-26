@@ -379,6 +379,8 @@ Item {
                             : []
 
                         delegate: DisplayCard {
+                            required property var modelData
+
                             width: contentColumn.width
 
                             theme: root.theme

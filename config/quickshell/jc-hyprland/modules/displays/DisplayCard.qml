@@ -3,8 +3,11 @@ import QtQuick.Layouts
 
 import qs.components as Components
 
-Components.JcCard {
+Components.JcSurface {
     id: root
+
+    surfaceRole: "raised"
+    cornerRadius: root.theme.radiusMd
 
     property var monitor
     property var draftStore
@@ -35,27 +38,27 @@ Components.JcCard {
             ? root.draftStore.transformOptionsFor(root.monitor.output)
             : []
 
-    implicitHeight: content.implicitHeight + 28
+    implicitHeight: content.implicitHeight + (root.theme.spaceMd * 2)
 
     ColumnLayout {
         id: content
 
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: root.theme ? root.theme.spacingSm : 10
+        anchors.margins: root.theme.spaceMd
+        spacing: root.theme.spaceSm
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 10
+            spacing: root.theme.spaceSm
 
             Rectangle {
-                width: 10
-                height: 10
-                radius: 5
+                width: root.theme.spaceSm
+                height: root.theme.spaceSm
+                radius: root.theme.radiusPill
 
                 color: root.monitor && root.monitor.focused
-                    ? (root.theme ? root.theme.accent : "#89b4fa")
-                    : (root.theme ? root.theme.textSecondary : "#b8b8c0")
+                    ? root.theme.accent
+                    : root.theme.textSecondary
             }
 
             Text {
@@ -65,9 +68,9 @@ Components.JcCard {
                     ? root.monitor.output
                     : "Unknown output"
 
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 16
-                font.bold: true
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBodyLarge
+                font.weight: root.theme.fontWeightSemibold
                 elide: Text.ElideRight
             }
 
@@ -89,11 +92,13 @@ Components.JcCard {
                 }
 
                 color: root.draft && !root.draft.enabled
-                    ? (root.theme ? root.theme.warning : "#f9e2af")
-                    : (root.theme ? root.theme.success : "#a6e3a1")
+                    ? (root.theme.warning)
+                    : (root.theme.success)
 
-                font.pixelSize: 12
-                font.bold: root.draft ? root.draft.dirty : false
+                font.pixelSize: root.theme.textSizeBody
+                font.weight: root.draft && root.draft.dirty
+                    ? root.theme.fontWeightSemibold
+                    : root.theme.fontWeightMedium
             }
         }
 
@@ -114,21 +119,21 @@ Components.JcCard {
                     .join(" ");
             }
 
-            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-            font.pixelSize: 12
+            color: root.theme.textSecondary
+            font.pixelSize: root.theme.textSizeBody
             elide: Text.ElideRight
         }
 
         GridLayout {
             Layout.fillWidth: true
             columns: 2
-            columnSpacing: 20
-            rowSpacing: 6
+            columnSpacing: root.theme.spaceLg
+            rowSpacing: root.theme.spaceXs
 
             Text {
                 text: "Current mode"
-                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                font.pixelSize: 12
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
@@ -137,26 +142,26 @@ Components.JcCard {
                         + " @ " + root.monitor.refreshRate.toFixed(2) + " Hz"
                     : "—"
 
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 12
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
                 text: "Scale"
-                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                font.pixelSize: 12
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
                 text: root.monitor ? root.monitor.scale.toFixed(2) : "—"
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 12
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
                 text: "Orientation"
-                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                font.pixelSize: 12
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
@@ -164,14 +169,14 @@ Components.JcCard {
                     ? root.draftStore.transformLabel(root.monitor.transform)
                     : "—"
 
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 12
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
                 text: "Logical size"
-                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                font.pixelSize: 12
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
@@ -180,14 +185,14 @@ Components.JcCard {
                         + "×" + Math.round(root.monitor.logicalHeight)
                     : "—"
 
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 12
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
                 text: "Position"
-                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                font.pixelSize: 12
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
@@ -195,14 +200,14 @@ Components.JcCard {
                     ? root.monitor.x + " × " + root.monitor.y
                     : "—"
 
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 12
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
                 text: "Available modes"
-                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                font.pixelSize: 12
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeBody
             }
 
             Text {
@@ -210,15 +215,14 @@ Components.JcCard {
                     ? String(root.monitor.availableModes.length)
                     : "0"
 
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 12
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBody
             }
         }
 
-        Rectangle {
+        Components.JcDivider {
             Layout.fillWidth: true
-            implicitHeight: 1
-            color: root.theme ? root.theme.border : "#3b3b43"
+            theme: root.theme
         }
 
         RowLayout {
@@ -228,9 +232,9 @@ Components.JcCard {
                 Layout.fillWidth: true
 
                 text: "Draft settings"
-                color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                font.pixelSize: 13
-                font.bold: true
+                color: root.theme.textPrimary
+                font.pixelSize: root.theme.textSizeBodyLarge
+                font.weight: root.theme.fontWeightSemibold
             }
 
             Text {
@@ -239,17 +243,17 @@ Components.JcCard {
                     : "Matches current"
 
                 color: root.draft && root.draft.dirty
-                    ? (root.theme ? root.theme.warning : "#f9e2af")
-                    : (root.theme ? root.theme.success : "#a6e3a1")
+                    ? (root.theme.warning)
+                    : (root.theme.success)
 
-                font.pixelSize: 11
-                font.bold: true
+                font.pixelSize: root.theme.textSizeCaption
+                font.weight: root.theme.fontWeightSemibold
             }
         }
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: root.theme.spaceSm
 
             Text {
                 Layout.fillWidth: true
@@ -258,8 +262,8 @@ Components.JcCard {
                     ? "Display is enabled in the draft."
                     : "Display is disabled in the draft."
 
-                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                font.pixelSize: 11
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeCaption
             }
 
             Components.JcButton {
@@ -294,26 +298,27 @@ Components.JcCard {
 
         Text {
             visible:
-                root.draft
+                root.monitor
+                && root.draft
                 && root.draft.enabled
                 && root.draftStore
                 && root.draftStore.enableDisableReason(root.monitor.output).length > 0
 
             Layout.fillWidth: true
 
-            text: root.draftStore
+            text: root.monitor && root.draftStore
                 ? root.draftStore.enableDisableReason(root.monitor.output)
                 : ""
 
-            color: root.theme ? root.theme.warning : "#f9e2af"
-            font.pixelSize: 10
+            color: root.theme.warning
+            font.pixelSize: root.theme.textSizeCaption
             wrapMode: Text.Wrap
         }
 
         Text {
             text: "Resolution"
-            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-            font.pixelSize: 11
+            color: root.theme.textSecondary
+            font.pixelSize: root.theme.textSizeCaption
         }
 
         Components.JcChoiceGroup {
@@ -337,8 +342,8 @@ Components.JcCard {
 
         Text {
             text: "Refresh rate"
-            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-            font.pixelSize: 11
+            color: root.theme.textSecondary
+            font.pixelSize: root.theme.textSizeCaption
         }
 
         Components.JcChoiceGroup {
@@ -362,8 +367,8 @@ Components.JcCard {
 
         Text {
             text: "Scale"
-            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-            font.pixelSize: 11
+            color: root.theme.textSecondary
+            font.pixelSize: root.theme.textSizeCaption
         }
 
         Components.JcChoiceGroup {
@@ -387,8 +392,8 @@ Components.JcCard {
 
         Text {
             text: "Orientation"
-            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-            font.pixelSize: 11
+            color: root.theme.textSecondary
+            font.pixelSize: root.theme.textSizeCaption
         }
 
         Components.JcChoiceGroup {
@@ -438,8 +443,8 @@ Components.JcCard {
                     + "×" + Math.round(logical.height);
             }
 
-            color: root.theme ? root.theme.accent : "#89b4fa"
-            font.pixelSize: 11
+            color: root.theme.accent
+            font.pixelSize: root.theme.textSizeCaption
             wrapMode: Text.Wrap
         }
 
@@ -450,8 +455,8 @@ Components.JcCard {
                 "Options marked “move required” can be selected. Use the "
                 + "visual layout editor to resolve any overlap before Safe Apply."
 
-            color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-            font.pixelSize: 10
+            color: root.theme.textSecondary
+            font.pixelSize: root.theme.textSizeCaption
             wrapMode: Text.Wrap
         }
     }
