@@ -64,7 +64,7 @@ __pycache__/
 
 local/
 host.env
-monitors.conf
+monitors.lua
 wallpaper.env
 active-theme
 
@@ -76,11 +76,11 @@ active-theme
 # ------------------------------------------------------------------------------
 
 hosts/*/host.env
-hosts/*/monitors.conf
+hosts/*/monitors.lua
 hosts/*/wallpaper.env
 
 !hosts/example/host.env
-!hosts/example/monitors.conf
+!hosts/example/monitors.lua
 !hosts/example/wallpaper.env
 
 # ------------------------------------------------------------------------------

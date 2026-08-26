@@ -17,7 +17,7 @@ config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 local_dir="$config_home/jc-hyprland-dotfiles/local"
 
 host_env="$local_dir/host.env"
-monitors_conf="$local_dir/monitors.conf"
+monitors_lua="$local_dir/monitors.lua"
 wallpaper_env="$local_dir/wallpaper.env"
 
 cd "$repo_root" || exit 1
@@ -133,7 +133,7 @@ fi
 # Monitor serial numbers
 # ==============================================================================
 
-if [[ -r "$monitors_conf" ]]; then
+if [[ -r "$monitors_lua" ]]; then
 
     found_serial=false
 
@@ -149,7 +149,7 @@ if [[ -r "$monitors_conf" ]]; then
 
     done < <(
         grep -oE 'HNT[A-Z][0-9]{6,}' \
-            "$monitors_conf" \
+            "$monitors_lua" \
             2>/dev/null |
             sort -u
     )
@@ -160,7 +160,7 @@ if [[ -r "$monitors_conf" ]]; then
     fi
 
 else
-    ok "no local monitors.conf available for comparison"
+    ok "no local monitors.lua available for comparison"
 fi
 
 

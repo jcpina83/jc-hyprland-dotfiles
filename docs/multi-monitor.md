@@ -1,14 +1,14 @@
 # Multi-monitor
 
 El soporte multi-monitor de `jc-hyprland-dotfiles` está diseñado alrededor de
-**roles lógicos**, discovery dinámico y estado machine-local.
+**roles lógicos**, discovery dinámico, geometría lógica y estado machine-local.
 
-El objetivo es evitar que temas, Waybar, Quickshell o scripts compartidos dependan
-de conectores, seriales o modelos físicos específicos.
+El objetivo es evitar que temas, Waybar, Quickshell o scripts compartidos
+dependan de conectores, seriales o modelos físicos específicos.
 
 ---
 
-# Principio principal
+# Roles y hardware
 
 El runtime usa roles:
 
@@ -17,59 +17,59 @@ MAIN_OUTPUT
 SECONDARY_OUTPUT
 ```
 
-y no nombres físicos hardcodeados dentro de temas o configuración compartida.
-
-Ejemplo machine-local:
-
-```bash
-MAIN_OUTPUT=DP-3
-SECONDARY_OUTPUT=DP-1
-```
-
-Estos valores viven en:
+La asociación con conectores físicos vive en:
 
 ```text
 ~/.config/jc-hyprland-dotfiles/local/host.env
 ```
 
-El ejemplo anterior es únicamente ilustrativo; cada host mantiene sus propios
-outputs.
+Ejemplo ilustrativo:
+
+```ini
+MAIN_OUTPUT=DP-3
+SECONDARY_OUTPUT=DP-1
+
+MAIN_WORKSPACES=1,2,3,4,5
+SECONDARY_WORKSPACES=6,7,8,9,10
+```
+
+Cada host mantiene sus propios valores.
+
+Los seriales/descriptores usados para identidad estable del hardware permanecen
+en `local/monitors.lua`, fuera de Git.
 
 ---
 
-# Separación entre rol y hardware
+# Fuentes de estado
 
-```mermaid
-flowchart LR
-    HW["Physical monitor<br/>connector · EDID · modes"]
-    HOST["host.env<br/>logical role mapping"]
-    ROLE["MAIN / SECONDARY"]
-    APP["Waybar · workspace rules · wallpapers"]
-    QS["Quickshell live discovery"]
-
-    HW --> HOST
-    HOST --> ROLE
-    ROLE --> APP
-    HW --> QS
-```
-
-Hay dos fuentes de información con responsabilidades diferentes:
-
-## Configuración machine-local
-
-Define **qué función lógica** tiene cada monitor.
+Hay cuatro estados deliberadamente distintos:
 
 ```text
-MAIN_OUTPUT
-SECONDARY_OUTPUT
-MAIN_WORKSPACES
-SECONDARY_WORKSPACES
+Observed
+   ↓
+Draft
+   ↓
+Applied Runtime
+   ↓
+Persistent
 ```
 
-## Discovery runtime
+## Observed
 
-Quickshell/Hyprland descubre **qué hardware existe y cómo está configurado en
-este momento**.
+Lo que Hyprland está utilizando ahora.
+
+Fuentes:
+
+```text
+Quickshell.Hyprland
+hyprctl -j monitors all
+```
+
+Normalizado por:
+
+```text
+MonitorService.qml
+```
 
 Incluye:
 
@@ -78,7 +78,7 @@ output
 description
 make
 model
-serial        runtime only
+serial              runtime only
 width
 height
 refreshRate
@@ -92,58 +92,129 @@ activeWorkspace
 availableModes
 ```
 
-Los seriales pueden observarse en runtime, pero no deben publicarse ni
-versionarse en documentación/config compartida.
+## Draft
+
+Lo que el usuario está editando sin modificar todavía el compositor.
+
+Responsable:
+
+```text
+DisplayDraftStore.qml
+```
+
+## Applied Runtime
+
+Estado enviado a Hyprland y confirmado con `Keep`.
+
+Responsable:
+
+```text
+MonitorApplyService.qml
+      ↓
+jc-displayctl
+```
+
+No implica persistencia.
+
+## Persistent
+
+Estado que debe sobrevivir a reload/logout/reboot.
+
+Fuente:
+
+```text
+~/.config/jc-hyprland-dotfiles/local/monitors.lua
+```
+
+Writer:
+
+```text
+jc-displaycfg
+```
 
 ---
 
 # Estado persistente
 
-La configuración real del host permanece fuera de Git:
+La configuración física real del host permanece fuera de Git:
 
 ```text
 ~/.config/jc-hyprland-dotfiles/local/
 ├── host.env
-└── monitors.conf
+├── monitors.lua
+├── backups/
+│   └── displays/
+└── wallpaper.env
 ```
 
 ## `host.env`
 
 Define roles y workspace ownership.
 
-Ejemplo:
+## `monitors.lua`
 
-```ini
-PROFILE=desktop
+Es la única fuente persistente de displays.
 
-MAIN_OUTPUT=<main-output>
-SECONDARY_OUTPUT=<secondary-output>
+Ejemplo conceptual:
 
-MAIN_WORKSPACES=1,2,3,4,5
-SECONDARY_WORKSPACES=6,7,8,9,10
+```lua
+hl.monitor({
+    output = "desc:<monitor-description>",
+    mode = "3440x1440@120.00000",
+    position = "328x0",
+    scale = 1,
+    transform = 0,
+    disabled = false,
+    vrr = 2,
+})
 ```
 
-## `monitors.conf`
+Puede conservar propiedades estáticas adicionales:
 
-Define la configuración persistente específica del host.
+```lua
+bitdepth = 10,
+cm = "srgb",
+```
 
-Esta separación permite cambiar:
+y reglas machine-local:
 
-- monitor físico,
-- conector,
+```lua
+hl.workspace_rule({
+    workspace = "6",
+    monitor = "desc:<monitor-description>",
+    persistent = true,
+})
+```
+
+El writer de persistencia modifica únicamente el estado de los bloques de
+monitor que posee y preserva el resto del Lua.
+
+---
+
+# Identidad estable del monitor
+
+El conector (`DP-1`, `DP-3`, etc.) es útil en runtime pero puede cambiar por:
+
 - GPU,
+- cableado,
 - docking,
-- resolución,
+- orden de enumeración,
+- hardware distinto.
 
-sin modificar temas ni módulos compartidos.
+Cuando existe una descripción estable, el estado persistente puede utilizar:
+
+```text
+desc:<description>
+```
+
+Los descriptores reales del host no deben publicarse en documentación o archivos
+versionados.
 
 ---
 
 # Geometría de Hyprland
 
-Hyprland posiciona monitores dentro de un espacio lógico 2D.
-
-Conceptualmente:
+Hyprland posiciona monitores en un espacio lógico 2D.
 
 ```text
 (x, y)
@@ -156,64 +227,74 @@ Conceptualmente:
 └───────────────────┘
 ```
 
-La geometría lógica depende de:
-
-```text
-physical resolution
-        │
-        ▼
-      scale
-        │
-        ▼
-    transform
-        │
-        ▼
-logical width / height
-```
-
 Para una pantalla sin rotación:
 
 ```text
-logicalWidth  = width  / scale
-logicalHeight = height / scale
+logicalWidth  = physicalWidth  / scale
+logicalHeight = physicalHeight / scale
 ```
 
-Cuando el transform intercambia ejes —por ejemplo rotaciones de 90° o 270°— el
-ancho y alto lógicos se intercambian.
+Para transform 90°/270°, los ejes lógicos se intercambian.
+
+Las posiciones pueden ser negativas.
 
 ---
 
-# Topología
+# Topología proyectada
 
-Dos monitores pueden organizarse, por ejemplo:
+`DisplayLayoutEditor.qml` representa el **draft**, no solamente el estado
+observado.
 
-```text
-             ┌─────────────────────┐
-             │      SECONDARY      │
-             │                     │
-             └─────────────────────┘
-┌─────────────────────────────────────────┐
-│                  MAIN                   │
-│                                         │
-└─────────────────────────────────────────┘
-```
-
-Pero esta topología no se codifica como dibujo estático.
-
-`DisplayLayout.qml` calcula la representación a partir de:
+La geometría proyectada se calcula a partir de:
 
 ```text
-x
-y
-logicalWidth
-logicalHeight
+draft mode
+draft scale
+draft transform
+draft position
+draft enabled
 ```
 
-obtenidos del estado observado.
+Esto permite detectar conflictos antes de enviar cambios al compositor.
+
+Reglas:
+
+```text
+✓ touching edges permitido
+✓ overlap bloqueado
+✓ posiciones negativas permitidas
+✓ monitor disabled removido de la topología proyectada
+```
 
 ---
 
-# Quickshell MonitorService
+# Editor visual
+
+El editor permite:
+
+- drag de monitores,
+- snap de bordes,
+- Left,
+- Right,
+- Above,
+- Below,
+- centrado en el eje ortogonal.
+
+El drag usa coordenadas lógicas y solo confirma la posición al finalizar el
+gesto.
+
+Un cambio de scale o transform puede crear temporalmente un conflicto de layout.
+En ese estado:
+
+```text
+Safe Apply = blocked
+```
+
+hasta que la posición sea corregida.
+
+---
+
+# MonitorService
 
 Ruta:
 
@@ -224,31 +305,14 @@ config/quickshell/jc-hyprland/services/MonitorService.qml
 Responsabilidad:
 
 - discovery,
-- normalización,
 - estado observado,
 - geometría lógica,
 - modos disponibles,
-- monitor enfocado.
+- output enfocado,
+- outputs deshabilitados.
 
-Arquitectura:
-
-```mermaid
-flowchart LR
-    H1["Quickshell.Hyprland"]
-    H2["hyprctl -j monitors all"]
-    MS["MonitorService"]
-    UI["Display UI"]
-
-    H1 --> MS
-    H2 --> MS
-    MS --> UI
-```
-
-La combinación es deliberada:
-
-- `Quickshell.Hyprland` aporta estado live e integración IPC.
-- `hyprctl -j monitors all` aporta una vista detallada incluyendo
-  `availableModes`.
+La lista incluye outputs deshabilitados porque el Control Center debe poder
+volver a activarlos.
 
 ---
 
@@ -256,191 +320,274 @@ La combinación es deliberada:
 
 Los modos no se hardcodean.
 
-Ejemplo de dato runtime:
+El Control Center usa:
 
 ```text
-3440x1440@165.00Hz
-3440x1440@120.00Hz
-3440x1440@99.98Hz
-3440x1440@59.97Hz
-```
-
-Otro monitor puede reportar:
-
-```text
-5120x2160@179.99Hz
-5120x2160@120.00Hz
-5120x2160@59.98Hz
-3840x2160@179.98Hz
-...
-```
-
-El Control Center debe usar exclusivamente lo que el monitor reporta como
-disponible.
-
----
-
-# Resolución y refresh rate no son independientes
-
-La selección futura seguirá:
-
-```text
+hyprctl -j monitors all
+      ↓
 availableModes
-      │
-      ▼
+      ↓
 MonitorModeParser
-      │
       ├── resolutions
-      │
       └── refresh rates per resolution
 ```
 
-Si una resolución reporta:
+Ejemplo conceptual:
 
 ```text
-2560x1440@180.00Hz
-2560x1440@120.00Hz
-2560x1440@59.95Hz
+3440x1440@165.00
+3440x1440@120.00
+3440x1440@99.98
+3440x1440@59.97
 ```
 
-el selector de refresh rate solo debe ofrecer esos valores para esa resolución.
+Una resolución únicamente ofrece los refresh rates que aparecen asociados a
+ella.
 
-No debe permitirse construir arbitrariamente una combinación que el monitor no
-haya anunciado.
+Duplicados exactos pueden deduplicarse.
+
+Valores distintos como:
+
+```text
+120.00
+119.88
+```
+
+siguen siendo modos diferentes.
 
 ---
 
-# Duplicados y valores cercanos
+# Scale
 
-Algunos EDID/modes pueden contener entradas repetidas.
-
-Ejemplo:
+Los candidatos actuales del Control Center se filtran desde:
 
 ```text
-1920x1080@60.00Hz
-1920x1080@60.00Hz
+1
+1.25
+1.5
+1.75
+2
 ```
 
-Los duplicados exactos pueden deduplicarse.
+y solo se ofrecen cuando producen dimensiones lógicas válidas para la
+resolución seleccionada.
 
-En cambio:
-
-```text
-1920x1080@120.00Hz
-1920x1080@119.88Hz
-```
-
-son modos distintos y deben conservarse como tales.
-
-La lógica de parseo debe vivir fuera de los componentes visuales.
+El scale forma parte tanto del draft como del runtime/persistencia.
 
 ---
 
-# Estado observado, draft y aplicado
+# Orientation / transform
 
-La edición futura no modificará directamente `MonitorService`.
+Hyprland usa valores transform `0..7`.
 
-```mermaid
-flowchart LR
-    OBS["Observed<br/>MonitorService"]
-    DRAFT["Draft<br/>DisplayDraftStore"]
-    APPLY["ApplyService"]
-    HY["Hyprland"]
-    PERSIST["Persistence"]
-    CONF["monitors.conf"]
+El draft y la persistencia conservan ese valor explícitamente.
 
-    OBS --> DRAFT
-    DRAFT --> APPLY
-    APPLY --> HY
-    DRAFT --> PERSIST
-    PERSIST --> CONF
+Los cambios de orientación actualizan inmediatamente:
+
+```text
+logicalWidth
+logicalHeight
+projected topology
+layout validation
 ```
 
-## Observed
-
-Representa lo que Hyprland está usando.
-
-## Draft
-
-Representa lo que el usuario está editando.
-
-## Applied
-
-Representa los cambios enviados al runtime.
-
-Esto permite:
-
-- Cancel,
-- Reset,
-- dirty tracking,
-- validación,
-- preview,
-- rollback.
+sin aplicar todavía el monitor al runtime.
 
 ---
 
-# Runtime Apply vs Save permanently
+# Enable / Disable
 
-Son operaciones separadas.
-
-## Apply
-
-Modifica el runtime de Hyprland.
-
-Objetivo futuro:
+`enabled` existe en:
 
 ```text
-ApplyService
+Observed
+Draft
+Projected topology
+Runtime transaction
+Persistent state
+```
+
+Reglas de seguridad:
+
+```text
+✓ debe quedar al menos un monitor activo
+✓ el monitor enfocado no puede deshabilitarse
+✓ backend repite los guards de la UI
+✓ outputs disabled siguen visibles en el Control Center
+```
+
+Para reactivar un monitor previamente deshabilitado, el backend utiliza
+explícitamente:
+
+```lua
+disabled = false
+```
+
+junto con su geometría reusable.
+
+La persistencia Lua puede conservar:
+
+```lua
+disabled = true
+mode = "..."
+position = "..."
+scale = ...
+transform = ...
+```
+
+en el mismo bloque, por lo que deshabilitar no destruye la información necesaria
+para una reactivación futura.
+
+---
+
+# Runtime apply
+
+`MonitorApplyService.qml` no ejecuta mutaciones raw desde la UI.
+
+Flujo:
+
+```text
+Display UI
     ↓
-hyprctl
+DisplayDraftStore
+    ↓
+MonitorApplyService
+    ↓
+jc-displayctl
+    ↓
+hyprctl eval hl.monitor(...)
 ```
 
-## Save permanently
-
-Actualiza:
-
-```text
-~/.config/jc-hyprland-dotfiles/local/monitors.conf
-```
-
-Un cambio temporal no debe persistirse automáticamente.
+`jc-displayctl` valida contra el estado live antes de modificar el compositor.
 
 ---
 
-# Safe apply
+# Safe Apply
 
-Cambiar configuración de pantallas tiene riesgo de producir:
+Cambiar pantallas puede causar:
 
 - pantalla negra,
 - modo no útil,
-- layout fuera de alcance,
-- combinación no deseada.
+- monitor fuera del alcance,
+- layout inválido,
+- desactivación accidental.
 
-Por eso el roadmap contempla:
+El flujo validado es:
 
 ```text
-Apply draft
+Safe Apply
     │
-    ▼
-temporary runtime state
-    │
-    ▼
-confirmation countdown
-    │
-    ├── Keep changes
-    │
-    └── Rollback
+    ├── snapshot previous runtime
+    ├── apply draft
+    ├── create rollback transaction
+    └── start systemd user watchdog
+                │
+                ├── Keep → cancel watchdog
+                └── timeout → rollback
 ```
 
-El rollback debe restaurar el estado observado anterior.
+El watchdog es externo a Quickshell.
+
+Si Quickshell muere, el rollback continúa disponible.
+
+---
+
+# Keep
+
+`Keep` confirma únicamente el estado runtime.
+
+No escribe automáticamente:
+
+```text
+local/monitors.lua
+```
+
+Esta separación es intencional.
+
+---
+
+# Save Configuration
+
+La persistencia la realiza:
+
+```text
+jc-displaycfg
+```
+
+CLI:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg status
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg preview
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg save
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg backups
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg restore-last
+```
+
+La operación es global porque `hyprctl reload` también lo es.
+
+## Preview
+
+`preview` genera un candidate sin mutar el archivo.
+
+Debe mostrar únicamente diferencias reales, por ejemplo:
+
+```diff
+- mode = "3440x1440@164.99899",
++ mode = "3440x1440@120.00000",
+```
+
+sin tocar `workspace_rule(...)` ni extras no modificados.
+
+## Save transaction
+
+```text
+save
+ │
+ ├── require clean configerrors
+ ├── capture live monitor snapshot
+ ├── build monitors.lua candidate
+ ├── preserve non-monitor Lua
+ ├── backup
+ ├── atomic replace
+ ├── hyprctl reload
+ ├── wait for convergence
+ ├── verify runtime == pre-save runtime
+ └── success
+```
+
+En fallo:
+
+```text
+restore backup
+     ↓
+hyprctl reload
+     ↓
+return error
+```
+
+---
+
+# Workspaces
+
+Los roles lógicos pueden mantenerse en `host.env`:
+
+```ini
+MAIN_WORKSPACES=1,2,3,4,5
+SECONDARY_WORKSPACES=6,7,8,9,10
+```
+
+La asociación persistente a un hardware concreto puede vivir en
+`local/monitors.lua` mediante `hl.workspace_rule(...)`.
+
+Cuando un output se deshabilita, Hyprland reacomoda los workspaces; al volver a
+activarlo, las reglas persistentes restauran su ownership esperado.
 
 ---
 
 # Waybar
 
-Waybar sigue usando roles machine-local.
-
-La configuración se renderiza para dos instancias independientes:
+Waybar mantiene dos instancias independientes para los roles:
 
 ```text
 MAIN_OUTPUT
@@ -450,27 +597,16 @@ SECONDARY_OUTPUT
     └── secondary Waybar
 ```
 
-El runtime de Waybar no necesita conocer EDID ni seriales.
+El comportamiento de Waybar durante Enable / Disable de monitores fue validado
+sin agregar un restart artificial desde el backend de displays.
 
----
-
-# Workspaces
-
-La asociación lógica puede mantenerse en `host.env`:
-
-```ini
-MAIN_WORKSPACES=1,2,3,4,5
-SECONDARY_WORKSPACES=6,7,8,9,10
-```
-
-La intención es que el mismo esquema sobreviva a un cambio físico de monitor
-si el nuevo monitor recibe el mismo rol lógico.
+El backend de monitores no posee el lifecycle de Waybar.
 
 ---
 
 # Wallpapers
 
-Los wallpapers también usan roles:
+Los wallpapers utilizan roles:
 
 ```text
 main
@@ -478,126 +614,97 @@ secondary
 both
 ```
 
-El backend de wallpaper no debe depender directamente del nombre físico de un
-monitor en archivos de tema.
+El backend de wallpaper es independiente del de displays.
 
-La traducción entre rol lógico y output real pertenece al runtime.
-
----
-
-# Control Center — fases
-
-## Phase 1A
-
-Estado actual:
-
-```text
-✓ monitor discovery
-✓ availableModes
-✓ focused output
-✓ topology
-✓ display cards
-✓ read-only UI
-✓ IPC
-✓ runtime wrapper
-✓ quality gates
-```
-
-No modifica monitores.
-
-## Phase 1B
-
-Planeado:
-
-```text
-DisplayDraftStore
-MonitorModeParser
-ResolutionSelector
-RefreshRateSelector
-ScaleSelector
-OrientationSelector
-ApplyService
-Safe Apply
-Rollback
-```
-
-## Phase 1C
-
-Planeado:
-
-```text
-persistent monitors.conf writer
-validation
-runtime + persistence reconciliation
-```
-
-## Phase 1D
-
-Planeado:
-
-```text
-Waybar Control Center button
-Hyprland keybind
-startup integration
-```
+Un cambio de monitor no debe reiniciar arbitrariamente Awww/Hyprpaper.
 
 ---
 
 # Portabilidad
 
-La configuración multi-monitor debe seguir estas reglas:
-
 ```text
 DO
 ✓ guardar roles en host.env
-✓ guardar configuración física en monitors.conf
+✓ guardar configuración física en monitors.lua
+✓ mantener seriales fuera de Git
 ✓ descubrir modos en runtime
 ✓ usar geometría lógica
 ✓ usar wrappers/services
+✓ separar Keep de Save
+✓ validar Apply y Save
 
 DON'T
-✗ guardar seriales en Git
+✗ guardar seriales machine-local en Git
 ✗ meter conectores en themes
 ✗ hardcodear resoluciones en QML
-✗ hacer que UI ejecute comandos directamente
-✗ asumir que todos los hosts tienen dos monitores idénticos
+✗ hacer que UI ejecute hyprctl directamente
+✗ asumir exactamente dos monitores en la lógica base
+✗ reiniciar wallpaper/Waybar desde display apply sin necesidad
 ```
 
 ---
 
 # Diagnóstico
 
-El estado observado puede inspeccionarse con:
+Estado observado:
 
 ```bash
 hyprctl -j monitors all
 ```
 
-El doctor del proyecto valida que los outputs configurados como roles estén
-activos cuando corresponde.
-
-Para Quickshell:
+Errores de configuración:
 
 ```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-control-center ipc-show
+hyprctl configerrors
 ```
 
-Y para abrir el módulo de displays:
+Control Center:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-control-center show
+```
+
+Estado de persistencia:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg status
+```
+
+Preview:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg preview
+```
+
+---
+
+# Estado de fases
+
+```text
+Phase 1A    discovery / read-only                         ✓
+Phase 1B.1  draft editing                                 ✓
+Phase 1B.2  runtime mode apply                            ✓
+Phase 1B.3  Safe Apply / Keep / rollback                  ✓
+Phase 1B.4  scale / orientation                           ✓
+Phase 1B.5  visual topology editor                        ✓
+Phase 1B.6  Enable / Disable                              ✓
+Phase 1C.1  Lua persistence backend                       ✓
+Phase 1C.2  pre-Lua compatibility cleanup                 ✓
+Phase 1C.3  Save Configuration UI orchestration           next
 ```
 
 ---
 
 # Regla principal
 
-La configuración compartida debe poder sobrevivir a:
+La configuración compartida debe sobrevivir a:
 
 ```text
 cambio de monitor
 cambio de conector
 cambio de resolución
+cambio de scale
+cambio de orientación
 cambio de distro
 cambio de tema
 ```
@@ -612,4 +719,6 @@ Los roles definen **qué función cumple**.
 
 La UI presenta **qué puede cambiarse**.
 
-Y la persistencia decide **qué debe conservarse**.
+El backend aplica **qué se usa temporalmente**.
+
+La persistencia decide **qué debe conservarse**.

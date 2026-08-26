@@ -117,8 +117,8 @@ hl.monitor({
 })
 ```
 
-This avoids the information loss of the old Hyprlang `monitor = ..., disable`
-form.
+This keeps the reusable geometry available even while the monitor is
+persistently disabled.
 
 ## Save transaction
 
@@ -160,15 +160,12 @@ Backups live in:
 ~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg restore-last
 ```
 
-## Legacy Hyprlang cleanup
+## Lua migration status
 
-The active display path no longer requires:
+The Lua persistence path has been validated end-to-end on the primary host,
+including preview, atomic save, Hyprland reload, post-reload verification and
+automatic rollback behavior.
 
-```text
-local/monitors.conf
-config/hypr/hyprlang/
-config/hypr/jc-dotfiles.conf
-```
-
-These legacy artifacts should only be removed after the Lua persistence path is
-validated on the real host.
+The pre-Lua compatibility path is therefore retired. Display runtime and
+persistence now share `local/monitors.lua` as their single machine-local source
+of truth.

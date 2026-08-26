@@ -232,7 +232,8 @@ Phase 1B.4  Scale / orientation                              ✓
 Phase 1B.5  Visual topology / position editor                ✓
 Phase 1B.6  Safe monitor Enable / Disable                    ✓
 Phase 1C.1  Atomic persistent monitors.lua integration       ✓
-Phase 1C.2  Remove deprecated Hyprlang compatibility path    next
+Phase 1C.2  Remove deprecated Hyprlang compatibility path    ✓
+Phase 1C.3  Save Configuration UI orchestration              next
 ```
 
 Display state deliberately remains separated into four layers:
@@ -609,10 +610,9 @@ local/monitors.lua
       └── jc-displaycfg   preview / backup / atomic persistence / restore
 ```
 
-The deprecated `monitors.conf`, `jc-dotfiles.conf` and
-`config/hypr/hyprlang/` path are not part of the supported runtime. Any
-remaining copies during the migration are cleanup artifacts and must not be
-sourced by a current installation.
+The former `monitors.conf`, `jc-dotfiles.conf` and pre-Lua configuration tree
+were retired after the Lua persistence path was validated end-to-end. Current
+installations must use the Lua integration exclusively.
 
 Official Hyprland configuration reference:
 
@@ -855,7 +855,7 @@ make wallpaper-apply
 - [x] Safe monitor Enable / Disable
 - [x] Atomic persistent monitor configuration in `local/monitors.lua`
 - [x] Waybar hotplug behavior validated with monitor Enable / Disable
-- [ ] Remove deprecated Hyprlang repository/runtime artifacts
+- [x] Remove deprecated Hyprlang repository/runtime artifacts
 - [ ] Connect global `Save Configuration` action to the Control Center UI
 - [ ] Repository screenshots
 

@@ -1,50 +1,55 @@
 # Arquitectura
 
-`jc-hyprland-dotfiles` está diseñado como un entorno Hyprland **modular, portable,
-theme-driven y consciente del hardware**, evitando convertir toda la configuración
-del escritorio en un único bloque acoplado a una distribución o máquina.
+`jc-hyprland-dotfiles` está diseñado como un entorno Hyprland **modular,
+portable, theme-driven y consciente del hardware**.
 
 La arquitectura separa deliberadamente:
 
 - configuración reutilizable,
 - adaptadores de distribución,
-- estado local de la máquina,
+- estado machine-local,
 - runtime,
 - temas,
-- UI/Control Center,
+- UI / Control Center,
 - automatización y quality gates.
+
+El objetivo es que un cambio de distribución, hardware, tema o implementación
+visual no obligue a reescribir el resto del entorno.
 
 ---
 
-## Objetivos de arquitectura
-
-Los principios principales son:
+# Principios de arquitectura
 
 1. **Separación de responsabilidades**  
-   Cada capa debe tener una responsabilidad clara y mínima.
+   Cada capa mantiene una responsabilidad pequeña y explícita.
 
 2. **Portabilidad entre distribuciones**  
-   Las diferencias de Arch, Garuda y openSUSE viven fuera de la configuración
-   común del escritorio.
+   Arch, Garuda y openSUSE se resuelven mediante adaptadores y no contaminan la
+   configuración común.
 
 3. **Portabilidad entre máquinas**  
-   Monitores, GPU, wallpapers locales y otros datos del host no deben quedar
-   hardcodeados en Git.
+   Seriales, conectores, layouts físicos y otros datos del host viven fuera de
+   Git.
 
-4. **Runtime desacoplado**  
-   Waybar, binds y otros consumidores no deben conocer detalles internos de
-   implementación cuando existe un wrapper estable.
+4. **Lua como única configuración soportada de Hyprland**  
+   El proyecto está alineado con Hyprland `0.55+` y su modelo de configuración
+   Lua. El host principal está validado actualmente con Hyprland `0.56.2`.
 
-5. **Temas como contrato visual**  
-   Los componentes consumen formatos específicos del tema activo sin conocer
-   directamente qué tema fue seleccionado.
+5. **Runtime desacoplado**  
+   Waybar, keybindings y la UI consumen wrappers y servicios estables en lugar
+   de depender directamente de comandos internos.
 
-6. **Configuración segura y reversible**  
-   La instalación favorece symlinks, bridges y archivos locales preservados.
+6. **Temas como contrato visual**  
+   Los consumidores leen el tema activo mediante formatos específicos sin
+   conocer qué tema fue seleccionado.
 
-7. **Evolución incremental**  
-   Nuevas capacidades —como Quickshell— se agregan como módulos y servicios,
-   no como lógica insertada directamente en componentes existentes.
+7. **Configuración segura y reversible**  
+   La instalación preserva estado local y los cambios de monitores usan
+   validación, Safe Apply, watchdog externo, backups y rollback.
+
+8. **Observed ≠ Draft ≠ Applied ≠ Persistent**  
+   El estado observado, la edición, el runtime confirmado y la persistencia son
+   capas diferentes.
 
 ---
 
@@ -54,8 +59,8 @@ Los principios principales son:
 flowchart TB
     D["Distribution adapters<br/>Arch · Garuda · openSUSE"]
     P["Profiles<br/>desktop · future profiles"]
-    H["Machine-local state<br/>host.env · monitors.conf · wallpaper.env"]
-    C["Versioned configuration<br/>Hyprland · Waybar · SwayNC · Foot · Hyprlock · Hypridle · SDDM"]
+    H["Machine-local state<br/>host.env · monitors.lua · wallpaper.env"]
+    C["Versioned configuration<br/>Hyprland Lua · Waybar · SwayNC · Foot · Hyprlock · Hypridle · SDDM"]
     T["Theme engine<br/>Odyssey Glass · Cyber Noir"]
     Q["Quickshell Control Center"]
     I["Installer / configurators"]
@@ -78,16 +83,14 @@ flowchart TB
     Q <--> W
 ```
 
-La idea central es que **ninguna capa inferior deba conocer innecesariamente
-detalles de una capa superior**.
+La idea central es que las capas compartidas no deben conocer identidad física
+del host salvo a través de contratos machine-local explícitos.
 
 ---
 
 # Capas del proyecto
 
 ## 1. Distribución
-
-Ruta:
 
 ```text
 distros/
@@ -98,26 +101,21 @@ distros/
 
 Responsabilidad:
 
-- paquetes,
-- diferencias de package manager,
+- instalación de paquetes,
+- package manager,
 - integración específica de la distribución,
 - preparación de dependencias.
 
 No debe contener:
 
-- configuración de monitores,
-- temas,
-- reglas Waybar,
+- seriales de monitor,
+- layout físico,
+- configuración visual común,
 - estado local del usuario.
-
-La configuración común del escritorio debe seguir funcionando sin conocer qué
-adaptador de distribución la instaló.
 
 ---
 
 ## 2. Perfiles
-
-Ruta:
 
 ```text
 profiles/
@@ -128,58 +126,47 @@ profiles/
 Responsabilidad:
 
 - definir el tipo lógico de estación,
-- habilitar módulos o políticas de escritorio,
-- servir como futura frontera para perfiles como:
-  - desktop,
-  - laptop,
-  - workstation,
-  - gaming,
-  - minimal.
+- habilitar políticas reutilizables,
+- servir como frontera para perfiles futuros.
 
-Un perfil no debe almacenar datos físicos de una máquina concreta.
+Un perfil no contiene identidad de hardware de una máquina concreta.
 
 ---
 
 ## 3. Configuración reutilizable
 
-Ruta principal:
-
 ```text
 config/
-```
-
-Contiene configuración compartida de:
-
-```text
-foot
-hypr
-hypridle
-hyprlock
-quickshell
-sddm
-swaync
-systemd
-waybar
-wofi
+├── foot/
+├── hypr/
+│   └── lua/
+├── hypridle/
+├── hyprlock/
+├── quickshell/
+├── sddm/
+├── swaync/
+├── systemd/
+├── waybar/
+└── wofi/
 ```
 
 Regla:
 
-> `config/` no debe contener identidad de máquina, seriales de monitor,
-> direcciones PCI personales ni rutas absolutas de usuario.
-
-Esta regla permite que el mismo checkout pueda reutilizarse en diferentes hosts.
+> `config/` no debe contener seriales machine-local, conectores específicos del
+> host, rutas `/home/<user>` ni otra identidad privada de la máquina.
 
 ---
 
 ## 4. Estado machine-local
 
-El estado físico y personal vive fuera del checkout:
+La identidad física del host vive fuera del checkout:
 
 ```text
 ~/.config/jc-hyprland-dotfiles/local/
 ├── host.env
-├── monitors.conf
+├── monitors.lua
+├── backups/
+│   └── displays/
 └── wallpaper.env
 ```
 
@@ -187,16 +174,34 @@ El estado físico y personal vive fuera del checkout:
 
 Responsabilidad:
 
-- roles de monitor,
-- workspaces por rol,
+- rol lógico de outputs,
+- ownership de workspaces,
 - perfil,
-- hardware opcional.
+- hardware opcional necesario para runtime helpers.
 
-### `monitors.conf`
+### `monitors.lua`
 
-Responsabilidad:
+Es la **única fuente persistente de configuración de displays**.
 
-- configuración persistente de monitores del host.
+Contiene bloques Lua de Hyprland como:
+
+```lua
+hl.monitor({
+    output = "desc:<hardware-description>",
+    mode = "<width>x<height>@<refresh>",
+    position = "<x>x<y>",
+    scale = 1,
+    transform = 0,
+    disabled = false,
+    vrr = 2,
+})
+```
+
+También puede contener reglas machine-local relacionadas, por ejemplo
+`hl.workspace_rule(...)`.
+
+`monitors.lua` permanece fuera de Git porque puede contener descriptores o
+seriales físicos del host.
 
 ### `wallpaper.env`
 
@@ -207,15 +212,53 @@ Responsabilidad:
 - intervalos,
 - target de wallpaper.
 
-Estos archivos se preservan durante reinstalaciones y actualizaciones.
+---
+
+# Hyprland Lua-only
+
+El runtime soportado utiliza Lua.
+
+```text
+~/.config/hypr/hyprland.lua
+        │
+        └── require("jc-dotfiles/init")
+                         │
+                         ├── theme.lua
+                         ├── appearance.lua
+                         ├── gaming.lua
+                         ├── animations.lua
+                         ├── autostart.lua
+                         ├── local/monitors.lua
+                         └── keybindings.lua
+```
+
+La integración de `jc-hyprland-dotfiles` se mantiene al final del archivo base de
+la distribución para que el proyecto pueda aplicar overrides sin mantener un
+fork completo de `hyprland.lua`.
+
+El repositorio activo contiene únicamente:
+
+```text
+config/hypr/
+└── lua/
+    ├── animations.lua
+    ├── appearance.lua
+    ├── autostart.lua
+    ├── gaming.lua
+    ├── init.lua
+    ├── keybindings.lua
+    ├── README.md
+    └── theme.lua
+```
+
+El camino de configuración pre-Lua fue retirado después de validar
+end-to-end la persistencia con `local/monitors.lua`.
 
 ---
 
 # Runtime namespace
 
-El checkout del repositorio no debe convertirse en una API implícita para todos
-los consumidores.
-
+El checkout del repositorio no es una API para los consumidores del escritorio.
 El instalador expone un namespace estable:
 
 ```text
@@ -227,6 +270,8 @@ El instalador expone un namespace estable:
 │   ├── amd-gpu.sh
 │   ├── apply-wallpaper.sh
 │   ├── jc-control-center
+│   ├── jc-displaycfg
+│   ├── jc-displayctl
 │   ├── jc-theme
 │   ├── launch-foot.sh
 │   ├── launch-wofi.sh
@@ -241,29 +286,18 @@ El instalador expone un namespace estable:
 │
 └── local/
     ├── host.env
-    ├── monitors.conf
+    ├── monitors.lua
+    ├── backups/
+    │   └── displays/
     └── wallpaper.env
 ```
 
-Esto permite que consumidores externos usen:
-
-```text
-jc-control-center toggle
-```
-
-en lugar de conocer directamente:
-
-```text
-qs -c jc-hyprland ipc call controlCenter toggleDisplays
-```
-
-El wrapper funciona como una pequeña API de runtime.
+Los wrappers actúan como API de runtime y permiten cambiar implementaciones sin
+modificar consumidores como Waybar o Quickshell.
 
 ---
 
 # Arquitectura de temas
-
-Ruta:
 
 ```text
 themes/
@@ -290,238 +324,329 @@ El tema activo se expone mediante:
 ~/.config/jc-hyprland-dotfiles/theme
 ```
 
-Los consumidores no deben necesitar saber si el tema actual es `odyssey-glass`,
-`cyber-noir` u otro futuro.
+Consumidores principales:
 
 ```mermaid
 flowchart LR
     T["Active theme"]
-    C1["colors.conf<br/>Hyprlang"]
-    C2["colors.lua<br/>Lua"]
-    C3["colors.css<br/>Waybar · Wofi · SwayNC"]
-    C4["foot-colors.ini<br/>Foot"]
-    C5["hyprlock.env<br/>Hyprlock"]
-    C6["sddm.env<br/>SDDM"]
-    C7["theme.env<br/>metadata + wallpapers"]
+    L["colors.lua<br/>Hyprland Lua"]
+    CSS["colors.css<br/>Waybar · Wofi · SwayNC"]
+    F["foot-colors.ini<br/>Foot"]
+    H["hyprlock.env<br/>Hyprlock"]
+    S["sddm.env<br/>SDDM"]
+    E["theme.env<br/>metadata + wallpapers"]
 
-    T --> C1
-    T --> C2
-    T --> C3
-    T --> C4
-    T --> C5
-    T --> C6
-    T --> C7
+    T --> L
+    T --> CSS
+    T --> F
+    T --> H
+    T --> S
+    T --> E
 ```
 
----
-
-# Arquitectura de Hyprland
-
-La generación actualmente validada utiliza Hyprlang para Hyprland `0.54.x`.
-
-```text
-config/hypr/
-├── hyprlang/
-│   ├── common/
-│   │   ├── animations.conf
-│   │   ├── appearance.conf
-│   │   ├── autostart.conf
-│   │   ├── gaming.conf
-│   │   ├── keybindings.conf
-│   │   └── windowrules.conf
-│   │
-│   └── templates/
-│       └── jc-dotfiles.conf.template
-│
-└── lua/
-    ├── animations.lua
-    ├── appearance.lua
-    ├── autostart.lua
-    ├── init.lua
-    ├── keybindings.lua
-    └── theme.lua
-```
-
-La separación es intencional:
-
-```text
-Hyprland config generation
-          │
-          ├── hyprlang/    estable / activa
-          └── lua/         frontera de migración
-```
-
-Temas, profiles, runtime wrappers, distro adapters y estado local **no deben
-depender del lenguaje de configuración de Hyprland**.
+`colors.conf` puede mantenerse como export legacy de paleta si algún consumidor
+externo lo requiere, pero no forma parte del runtime soportado de Hyprland.
 
 ---
 
 # Quickshell Control Center
 
-Quickshell introduce una nueva capa visual de control, pero no reemplaza la
-separación existente.
-
-Ruta:
+Quickshell es el plano visual de control. La UI no ejecuta directamente comandos
+de configuración de monitores.
 
 ```text
-config/quickshell/jc-hyprland/
-├── shell.qml
-├── Main.qml
-├── components/
-├── modules/
-├── services/
-└── theme/
+Waybar / keybind
+      │
+      ▼
+jc-control-center
+      │
+      ▼
+Quickshell IPC
+      │
+      ▼
+Main.qml
+      │
+      └── DisplayPopup
+              │
+              ├── DisplayLayout / DisplayLayoutEditor
+              ├── DisplayCard
+              ├── DisplayDraftStore
+              ├── MonitorModeParser
+              ├── MonitorService
+              └── MonitorApplyService
 ```
 
-Arquitectura actual:
-
-```mermaid
-flowchart LR
-    EXT["Waybar / Hyprland bind<br/>future consumers"]
-    WRAP["jc-control-center"]
-    IPC["Quickshell IPC"]
-    MAIN["Main.qml<br/>composition root"]
-    UI["DisplayPopup<br/>DisplayLayout · DisplayCard"]
-    MS["MonitorService"]
-    HY["Hyprland"]
-
-    EXT --> WRAP
-    WRAP --> IPC
-    IPC --> MAIN
-    MAIN --> UI
-    MAIN --> MS
-    MS <--> HY
-```
-
-## Responsabilidades
-
-### `shell.qml`
-
-Solo:
-
-- define el `ShellId`,
-- instancia la composición principal.
-
-No debe contener lógica de monitor.
-
-### `Main.qml`
+## `MonitorService.qml`
 
 Responsabilidad:
 
-- composición,
-- visibilidad,
-- screen target,
-- IPC.
-
-No debe consultar directamente `hyprctl`.
-
-### `MonitorService.qml`
-
-Responsabilidad:
-
-- estado observado de monitores,
-- normalización de datos,
-- integración Hyprland/`hyprctl`,
+- discovery,
+- estado observado,
+- normalización,
+- geometría lógica,
+- output enfocado,
+- outputs deshabilitados,
 - `availableModes`.
 
-No debe decidir colores ni layout visual.
+No realiza persistencia.
 
-### `modules/displays/*`
+## `DisplayDraftStore.qml`
 
 Responsabilidad:
 
-- representación,
-- interacción visual,
-- composición de controles.
+- edición temporal,
+- dirty tracking,
+- Enable / Disable draft,
+- topología proyectada,
+- validación de overlap,
+- posición relativa.
 
-No debe ejecutar directamente comandos de configuración.
+## `MonitorModeParser.qml`
+
+Responsabilidad:
+
+- agrupar modos reportados,
+- resolver resolución y refresh,
+- evitar combinaciones inexistentes,
+- preservar modos cercanos distintos.
+
+## `MonitorApplyService.qml`
+
+Orquesta el runtime backend:
+
+```text
+QML
+ ↓
+jc-displayctl
+ ↓
+hyprctl eval hl.monitor(...)
+```
+
+La UI no contiene comandos `hyprctl`.
 
 ---
 
-# Estado observado, draft y aplicado
+# Modelo de estado de displays
 
-La evolución del Control Center seguirá tres estados separados:
+La separación vigente es:
 
 ```text
 Observed State
       │
       ▼
-   Draft State
+Draft State
       │
       ▼
- Applied State
+Applied Runtime State
+      │
+      ▼
+Persistent State
 ```
 
-## Observed State
+## Observed
 
-Lo que Hyprland está ejecutando actualmente.
+Lo que Hyprland reporta actualmente.
 
-Responsable:
+Fuente:
 
 ```text
 MonitorService
+hyprctl -j monitors all
 ```
 
-## Draft State
+## Draft
 
-Cambios seleccionados por el usuario todavía no aplicados.
+Lo que el usuario está editando.
 
-Responsable futuro:
+Fuente:
 
 ```text
 DisplayDraftStore
 ```
 
-## Applied State
+## Applied Runtime
 
-Resultado después de validar y enviar cambios al compositor.
+Cambios enviados al compositor y confirmados con `Keep`.
 
-Responsable futuro:
+Fuente de mutación:
 
 ```text
-ApplyService
+jc-displayctl
 ```
 
-Esta separación permite:
+No implica persistencia.
 
-- Cancel,
-- dirty tracking,
-- preview,
-- validación,
-- rollback,
-- persistencia independiente.
+## Persistent
+
+Configuración que debe sobrevivir a `hyprctl reload`, logout o reboot.
+
+Fuente:
+
+```text
+~/.config/jc-hyprland-dotfiles/local/monitors.lua
+```
+
+Writer:
+
+```text
+jc-displaycfg
+```
 
 ---
 
-# Runtime vs persistencia
+# Runtime apply
 
-Modificar el runtime y guardar configuración persistente son operaciones
-distintas.
+`jc-displayctl` es el backend de mutación de monitores.
 
-```mermaid
-flowchart TB
-    UI["Display UI"]
-    D["Draft"]
-    A["ApplyService"]
-    H["Hyprland runtime"]
-    P["Persistence service"]
-    M["local/monitors.conf"]
+Responsabilidades:
 
-    UI --> D
-    D --> A
-    A --> H
-    D --> P
-    P --> M
+- validar el output contra `hyprctl -j monitors all`,
+- aplicar mode / position / scale / transform,
+- aplicar Enable / Disable,
+- preservar extras persistentes relevantes,
+- impedir deshabilitar el último monitor activo,
+- impedir deshabilitar el monitor enfocado,
+- snapshot del estado anterior,
+- Safe Apply,
+- Keep,
+- rollback manual,
+- rollback automático.
+
+## Safe Apply
+
+```text
+Draft
+  │
+  ▼
+jc-displayctl safe-apply
+  │
+  ├── apply temporary runtime state
+  ├── persist rollback transaction in XDG_RUNTIME_DIR
+  └── systemd-run --user watchdog
+             │
+             └── timeout → rollback
 ```
 
-Esto evita que un cambio experimental se guarde automáticamente como estado
-permanente.
+El watchdog es externo a Quickshell. Cerrar o matar la UI no elimina la garantía
+de rollback.
+
+---
+
+# Persistencia
+
+`jc-displaycfg` mantiene la configuración persistente global de displays.
+
+Comandos:
+
+```bash
+jc-displaycfg status
+jc-displaycfg preview
+jc-displaycfg save
+jc-displaycfg backups
+jc-displaycfg restore-last
+```
+
+La persistencia es **global**, no por tarjeta de monitor.
+
+Motivo:
+
+- `hyprctl reload` recarga la configuración completa;
+- persistir únicamente un monitor podría revertir otro cambio runtime confirmado;
+- el snapshot global mantiene runtime y persistencia reconciliados.
+
+## Save transaction
+
+```text
+save
+ │
+ ├── require clean configerrors
+ ├── snapshot `hyprctl -j monitors all`
+ ├── parse monitor blocks from local/monitors.lua
+ ├── build candidate
+ ├── preserve non-monitor Lua
+ ├── preserve persistent extras
+ ├── backup current monitors.lua
+ ├── same-directory atomic replace
+ ├── hyprctl reload
+ ├── wait for runtime convergence
+ ├── verify runtime against pre-save snapshot
+ └── success
+```
+
+Si falla reload, aparecen config errors o el runtime no converge al estado
+confirmado:
+
+```text
+failure
+   │
+   ├── restore backup atomically
+   ├── hyprctl reload
+   └── return error
+```
+
+Backups:
+
+```text
+~/.config/jc-hyprland-dotfiles/local/backups/displays/
+```
+
+Lua permite persistir `disabled = true` junto con mode, position y scale, por lo
+que la geometría reusable no se pierde al deshabilitar un output.
+
+---
+
+# Geometría lógica
+
+Hyprland posiciona monitores en un espacio lógico 2D.
+
+Para un monitor sin rotación:
+
+```text
+logicalWidth  = width  / scale
+logicalHeight = height / scale
+```
+
+Las rotaciones de 90°/270° intercambian los ejes lógicos.
+
+El Control Center:
+
+- calcula topología proyectada,
+- permite posiciones negativas,
+- detecta overlap,
+- permite touching edges,
+- ofrece snapping,
+- ofrece Left / Right / Above / Below,
+- bloquea Safe Apply mientras el layout proyectado sea inválido.
+
+---
+
+# Enable / Disable
+
+Las salidas deshabilitadas siguen siendo descubribles mediante:
+
+```bash
+hyprctl -j monitors all
+```
+
+Reglas de seguridad:
+
+```text
+✓ nunca deshabilitar el último monitor activo
+✓ nunca deshabilitar el monitor enfocado
+✓ repetir guards en UI y backend
+✓ mantener la tarjeta del monitor deshabilitado
+✓ rollback restaura geometría y enabled state
+✓ re-enable usa disabled = false explícitamente
+```
+
+Waybar ya fue validado durante hotplug lógico causado por Enable / Disable; sus
+workspaces se reacomodan sin acoplar un restart artificial al backend de displays.
 
 ---
 
 # Wallpaper architecture
 
-El subsistema de wallpaper está aislado del Control Center de monitores.
+El subsistema de wallpaper permanece independiente del de displays.
 
 ```text
 Theme / wallpaper.env
@@ -532,27 +657,16 @@ Theme / wallpaper.env
      ┌────┴────┐
      ▼         ▼
    Awww     Hyprpaper
-preferred    fallback
+ preferred    fallback
 ```
 
-La rotación usa unidades systemd de usuario:
-
-```text
-config/systemd/user/
-├── jc-wallpaper-rotation.service
-└── jc-wallpaper-rotation.timer
-```
-
-La configuración local del intervalo permanece en `wallpaper.env`.
-
-Un cambio de monitor no debe reiniciar arbitrariamente el wallpaper backend;
-cada subsistema administra su propio lifecycle.
+Un cambio de monitor no reinicia arbitrariamente el wallpaper backend.
 
 ---
 
 # Quality architecture
 
-La configuración del escritorio se trata como código.
+La configuración se trata como código.
 
 ```mermaid
 flowchart LR
@@ -574,9 +688,7 @@ flowchart LR
     C --> R
 ```
 
-## Gates
-
-### Static
+Los gates incluyen:
 
 ```text
 bash -n
@@ -584,31 +696,15 @@ ShellCheck
 fish -n
 JSON / JSONC validation
 theme validation
-Quickshell structural validation
+Quickshell structural contracts
+display runtime safety contracts
+display persistence contracts
 portability check
-```
-
-### Runtime
-
-```text
 doctor
 Hyprland configerrors
-runtime dependency checks
 runtime symlink integrity
-wallpaper lifecycle
-notification daemon conflicts
-optional Quickshell IPC responsiveness
-```
-
-### Release
-
-```text
+clean-install simulation
 git diff --check
-git diff --cached --check
-make check
-clean working tree
-install-check
-clean-install-check
 ```
 
 ---
@@ -632,93 +728,60 @@ sequenceDiagram
     U->>M: make install
     M->>I: install
     I->>C: create runtime symlinks
-    I->>C: preserve local state
+    I->>C: preserve machine-local state
+    I->>C: install Lua modules
     I->>C: install Quickshell named config
 
     U->>M: make apply
     M->>I: --apply-hyprland
-    I->>H: enable jc-dotfiles bridge
+    I->>H: ensure require("jc-dotfiles/init")
 ```
 
 ---
 
 # Reglas de dependencia
 
-Estas reglas sirven como guía para nuevas funcionalidades:
+Debe mantenerse:
 
 ```text
 UI
-↓ depends on
+↓
 service contracts
-
-services
-↓ depend on
-runtime APIs / commands
-
+↓
 runtime wrappers
-↓ depend on
-implementation details
-
-themes
-↓ expose
-presentation contracts
-
-local state
-↓ contains
-machine identity
-
-distro adapters
-↓ contain
-package/integration differences
+↓
+Hyprland APIs
 ```
 
 No debe ocurrir:
 
 ```text
-theme → serial de monitor
-UI → shell command directo
+theme → serial machine-local
+UI → hyprctl directo
 Waybar → detalles internos de QML
 distro adapter → configuración visual común
 shared config → /home/<user>
+display apply → wallpaper restart
 ```
 
 ---
 
-# Estructura arquitectónica resumida
+# Estado de implementación
 
 ```text
-jc-hyprland-dotfiles/
-├── config/         reusable desktop configuration
-├── distros/        OS/package adapters
-├── docs/           architecture and operational documentation
-├── hosts/example/  machine-local templates
-├── profiles/       logical machine profiles
-├── scripts/        install, validation and runtime implementation
-├── themes/         visual contracts and assets
-│
-├── Makefile        developer / operator interface
-├── install.sh      public installer entrypoint
-├── update.sh       update workflow
-├── uninstall.sh    removal guidance
-└── VERSION
+Phase 1A    read-only display foundation                    ✓
+Phase 1B.1  draft editing                                   ✓
+Phase 1B.2  runtime mode apply                              ✓
+Phase 1B.3  Safe Apply / Keep / external rollback           ✓
+Phase 1B.4  scale / orientation                             ✓
+Phase 1B.5  visual topology / position editor               ✓
+Phase 1B.6  safe monitor Enable / Disable                   ✓
+Phase 1C.1  atomic persistent monitors.lua backend          ✓
+Phase 1C.2  retire pre-Lua compatibility path               ✓
+Phase 1C.3  Quickshell Save Configuration orchestration     next
 ```
 
----
-
-# Evolución prevista
-
-## Control Center
-
-```text
-Phase 1A  read-only display foundation             ✓
-Phase 1B  draft editing                            planned
-Phase 1B  runtime apply                            planned
-Phase 1B  safe confirmation / rollback             planned
-Phase 1C  persistent monitor config                planned
-Phase 1D  Waybar / keybind / startup integration  planned
-```
-
-## Portabilidad
+Portabilidad:
 
 ```text
 Garuda Linux            validated
@@ -726,30 +789,29 @@ Arch Linux              adapter available
 openSUSE Tumbleweed     adapter available
 ```
 
-## Arquitectura futura
-
-- perfiles adicionales,
-- más módulos Quickshell,
-- VRR,
-- HDR/10-bit donde sea soportado,
-- rollback más fuerte,
-- pruebas de instalación por distro,
-- mayor validación automatizada de QML.
-
 ---
 
 # Regla principal
 
-La arquitectura debe seguir permitiendo que cualquiera de estas piezas pueda
-cambiar sin obligar a reescribir las demás:
+La arquitectura debe permitir cambiar de forma independiente:
 
 ```text
 distribution
 hardware
 theme
-Hyprland config generation
+Hyprland release
 runtime implementation
 visual Control Center
 ```
 
-Ese desacoplamiento es la base del proyecto.
+La máquina define **qué hardware tiene**.
+
+Hyprland reporta **cómo está funcionando**.
+
+Los roles definen **qué función cumple**.
+
+La UI define **qué se está editando**.
+
+El runtime backend define **qué se aplica temporalmente**.
+
+La persistencia define **qué debe sobrevivir a un reload/reboot**.

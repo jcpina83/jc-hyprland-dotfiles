@@ -107,6 +107,8 @@ The project follows semantic versioning where practical.
 - Display persistence is global rather than per-monitor so a Hyprland reload
   cannot silently revert another monitor's confirmed runtime-only state.
 - `jq` is treated as a required runtime dependency for the display backends.
+- Removed the deprecated pre-Lua Hyprland compatibility tree, legacy bridge
+  file and legacy monitor template after successful Lua persistence validation.
 
 ### Quality
 
@@ -160,7 +162,6 @@ The project follows semantic versioning where practical.
 
 ### Planned
 
-- Remove the deprecated Hyprlang repository/runtime compatibility artifacts.
 - Connect the global persistent `Save Configuration` action to the Quickshell
   Control Center.
 - Repository screenshots and visual gallery.
