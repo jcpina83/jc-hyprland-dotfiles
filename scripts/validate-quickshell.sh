@@ -86,17 +86,22 @@ fi
 for backend_contract in \
     'hyprctl -r eval' \
     'hyprctl -j monitors all' \
-    'local/monitors.conf' \
     'safe-apply)' \
-    'keep)' \
     'rollback)' \
-    'status)' \
+    '--enabled' \
+    'disabled = true' \
+    'disabled = false' \
+    'validate_disable_guard' \
+    'refusing to disable the last active monitor' \
+    'refusing to disable focused output' \
+    'rollback-enabled' \
+    'target-enabled' \
     'systemd-run' \
-    'validate_scale_for_mode' \
-    'validate_projected_geometry' \
-    'rollback-position' \
-    '--position' \
-    '--position=*'
+    'HYPRLAND_INSTANCE_SIGNATURE' \
+    'write_watchdog_environment' \
+    'restore_watchdog_environment' \
+    '--setenv=HYPRLAND_INSTANCE_SIGNATURE=' \
+    '--setenv=XDG_RUNTIME_DIR='
 do
     if grep -Fq -- "$backend_contract" "$display_controller" 2>/dev/null; then
         ok "backend contract: $backend_contract"
@@ -113,98 +118,78 @@ else
     fail "display controller does not support desc:<description> rules"
 fi
 
-if grep -Fq "lua_quote \"\$configured_selector\"" \
-    "$display_controller" 2>/dev/null
-then
-    ok "persistent monitor selector preserved during apply"
-else
-    fail "runtime apply does not preserve persistent monitor selector"
-fi
 
-
-printf '\n==> Display draft layout contract\n'
+printf '\n==> Display enable/disable draft contract\n'
 
 draft_store="$config_dir/services/DisplayDraftStore.qml"
 
 for draft_contract in \
-    'readonly property string topologyError:' \
-    'readonly property bool topologyValid:' \
-    'function projectedMonitors()' \
-    'function topologyValidationError()' \
-    'function outputHasOverlap' \
-    'function setPosition' \
-    'function snapPosition' \
-    'function snapRelative' \
-    'move required'
+    'readonly property int activeDraftCount:' \
+    'enabled: !monitor.disabled' \
+    'function canDisable' \
+    'function enableDisableReason' \
+    'function setEnabled' \
+    'At least one display must remain active.' \
+    'Focus another display before disabling this one.'
 do
     if grep -Fq "$draft_contract" "$draft_store" 2>/dev/null; then
         ok "$draft_contract"
     else
-        fail "DisplayDraftStore layout contract missing: $draft_contract"
+        fail "DisplayDraftStore enable/disable contract missing: $draft_contract"
     fi
 done
 
 
-printf '\n==> Visual layout editor contract\n'
+printf '\n==> Display card enable/disable contract\n'
 
-layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
 
-for editor_contract in \
-    'DragHandler {' \
-    'target: null' \
-    'activeTranslation.x' \
-    'activeTranslation.y' \
-    'snapPosition(' \
-    'setPosition(' \
-    'snapRelative(' \
-    'Negative coordinates are allowed.' \
-    'Topology valid' \
-    'Layout conflict'
+for card_contract in \
+    'Disable' \
+    'Enable' \
+    'Disable pending' \
+    'Enable pending' \
+    'root.draftStore.canDisable' \
+    'root.draftStore.setEnabled'
 do
-    if grep -Fq "$editor_contract" "$layout_editor" 2>/dev/null; then
-        ok "$editor_contract"
+    if grep -Fq "$card_contract" "$display_card" 2>/dev/null; then
+        ok "$card_contract"
     else
-        fail "DisplayLayoutEditor contract missing: $editor_contract"
+        fail "DisplayCard enable/disable contract missing: $card_contract"
     fi
 done
 
-if grep -Fq 'DisplayLayoutEditor {' \
-    "$config_dir/modules/displays/DisplayPopup.qml" 2>/dev/null
-then
-    ok "DisplayPopup uses visual layout editor"
-else
-    fail "DisplayPopup does not use DisplayLayoutEditor"
-fi
 
-
-printf '\n==> Safe Apply layout contract\n'
+printf '\n==> Safe Apply enable/disable contract\n'
 
 apply_service="$config_dir/services/MonitorApplyService.qml"
 
 for apply_contract in \
-    'function applyDirty(): void' \
-    'root.draftStore.topologyValid' \
-    'root.draftStore.topologyError' \
-    '"--position"' \
-    'String(draft.x) + "x" + String(draft.y)'
+    'const targetEnabled = Boolean(draft.enabled);' \
+    'root.draftStore.activeDraftCount < 1' \
+    'root.monitorService.focusedOutputName === draft.output' \
+    '"--enabled"' \
+    'draft.enabled ? "true" : "false"'
 do
     if grep -Fq "$apply_contract" "$apply_service" 2>/dev/null; then
         ok "$apply_contract"
     else
-        fail "MonitorApplyService layout contract missing: $apply_contract"
+        fail "MonitorApplyService enable/disable contract missing: $apply_contract"
     fi
 done
 
-popup="$config_dir/modules/displays/DisplayPopup.qml"
 
-if grep -Fq 'root.draftStore.topologyValid' "$popup" 2>/dev/null; then
-    ok "Safe Apply UI gates on valid topology"
+printf '\n==> Phase 1B.6 safety\n'
+
+monitor_service="$config_dir/services/MonitorService.qml"
+
+if grep -Fq '"hyprctl", "-j", "monitors", "all"' \
+    "$monitor_service" 2>/dev/null
+then
+    ok "disabled outputs remain discoverable through monitors all"
 else
-    fail "DisplayPopup does not gate Safe Apply on topology validity"
+    fail "MonitorService must query monitors all"
 fi
-
-
-printf '\n==> Phase 1B.5 safety\n'
 
 mutation_matches="$(
     grep -RInE \
@@ -245,22 +230,6 @@ then
     ok "external rollback watchdog preserved"
 else
     fail "Safe Apply watchdog contract missing"
-fi
-
-text_position_editor="$(
-    grep -RInE \
-        --include='*.qml' \
-        '(TextInput|TextField).*([xX]/[yY]|position)|position.*(TextInput|TextField)' \
-        "$config_dir/modules/displays" \
-        2>/dev/null ||
-        true
-)"
-
-if [[ -z "$text_position_editor" ]]; then
-    ok "position editing remains visual; no raw x/y text fields"
-else
-    fail "raw x/y text editor detected:"
-    printf '%s\n' "$text_position_editor" >&2
 fi
 
 

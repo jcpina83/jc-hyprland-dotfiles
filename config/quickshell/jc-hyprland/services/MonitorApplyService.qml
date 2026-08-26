@@ -76,11 +76,22 @@ Scope {
         if (!monitor)
             return "Output is no longer available: " + draft.output;
 
-        if (monitor.disabled)
-            return "Cannot apply a mode to a disabled output.";
+        const targetEnabled = Boolean(draft.enabled);
+
+        if (!targetEnabled) {
+            if (root.draftStore.activeDraftCount < 1)
+                return "At least one display must remain active.";
+
+            if (root.monitorService.focusedOutputName === draft.output) {
+                return "Focus another display before disabling "
+                    + draft.output + ".";
+            }
+
+            return "";
+        }
 
         if (!draft.modeRaw || draft.modeRaw.length === 0)
-            return "Draft has no valid monitor mode.";
+            return "Enabled draft has no valid monitor mode.";
 
         let modeExists = false;
 
@@ -237,6 +248,8 @@ Scope {
             draft.output,
             "--mode",
             runtimeMode,
+            "--enabled",
+            draft.enabled ? "true" : "false",
             "--scale",
             String(draft.scale),
             "--transform",

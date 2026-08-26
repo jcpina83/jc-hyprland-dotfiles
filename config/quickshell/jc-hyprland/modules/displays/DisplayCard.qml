@@ -72,15 +72,28 @@ Components.JcCard {
             }
 
             Text {
-                text: root.monitor && root.monitor.disabled
-                    ? "Disabled"
-                    : "Active"
+                text: {
+                    if (!root.draft)
+                        return root.monitor && root.monitor.disabled
+                            ? "Disabled"
+                            : "Active";
 
-                color: root.monitor && root.monitor.disabled
+                    if (root.draft.enabled)
+                        return root.monitor && root.monitor.disabled
+                            ? "Enable pending"
+                            : "Active";
+
+                    return root.monitor && root.monitor.disabled
+                        ? "Disabled"
+                        : "Disable pending";
+                }
+
+                color: root.draft && !root.draft.enabled
                     ? (root.theme ? root.theme.warning : "#f9e2af")
                     : (root.theme ? root.theme.success : "#a6e3a1")
 
                 font.pixelSize: 12
+                font.bold: root.draft ? root.draft.dirty : false
             }
         }
 
@@ -234,6 +247,69 @@ Components.JcCard {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                Layout.fillWidth: true
+
+                text: root.draft && root.draft.enabled
+                    ? "Display is enabled in the draft."
+                    : "Display is disabled in the draft."
+
+                color: root.theme ? root.theme.textSecondary : "#b8b8c0"
+                font.pixelSize: 11
+            }
+
+            Components.JcButton {
+                theme: root.theme
+                compact: true
+
+                text: root.draft && root.draft.enabled
+                    ? "Disable"
+                    : "Enable"
+
+                controlEnabled: {
+                    if (!root.editorEnabled || !root.draftStore || !root.draft)
+                        return false;
+
+                    if (!root.draft.enabled)
+                        return true;
+
+                    return root.draftStore.canDisable(root.monitor.output);
+                }
+
+                onClicked: {
+                    if (!root.monitor || !root.draftStore || !root.draft)
+                        return;
+
+                    root.draftStore.setEnabled(
+                        root.monitor.output,
+                        !root.draft.enabled
+                    );
+                }
+            }
+        }
+
+        Text {
+            visible:
+                root.draft
+                && root.draft.enabled
+                && root.draftStore
+                && root.draftStore.enableDisableReason(root.monitor.output).length > 0
+
+            Layout.fillWidth: true
+
+            text: root.draftStore
+                ? root.draftStore.enableDisableReason(root.monitor.output)
+                : ""
+
+            color: root.theme ? root.theme.warning : "#f9e2af"
+            font.pixelSize: 10
+            wrapMode: Text.Wrap
+        }
+
         Text {
             text: "Resolution"
             color: root.theme ? root.theme.textSecondary : "#b8b8c0"
@@ -246,8 +322,12 @@ Components.JcCard {
             theme: root.theme
             options: root.resolutionOptions
             selectedValue: root.draft ? root.draft.resolutionKey : ""
-            controlEnabled: root.editorEnabled
-            emptyText: "No valid resolutions reported"
+            controlEnabled:
+                root.editorEnabled
+                && root.draft
+                && root.draft.enabled
+
+            emptyText: "Enable the display to edit resolution"
 
             onValueSelected: value => {
                 if (root.monitor && root.draftStore)
@@ -267,8 +347,12 @@ Components.JcCard {
             theme: root.theme
             options: root.refreshOptions
             selectedValue: root.draft ? root.draft.modeRaw : ""
-            controlEnabled: root.editorEnabled
-            emptyText: "No valid refresh rates reported"
+            controlEnabled:
+                root.editorEnabled
+                && root.draft
+                && root.draft.enabled
+
+            emptyText: "Enable the display to edit refresh rate"
 
             onValueSelected: value => {
                 if (root.monitor && root.draftStore)
@@ -288,8 +372,12 @@ Components.JcCard {
             theme: root.theme
             options: root.scaleOptions
             selectedValue: root.draft ? String(root.draft.scale) : ""
-            controlEnabled: root.editorEnabled
-            emptyText: "No valid scales for this resolution"
+            controlEnabled:
+                root.editorEnabled
+                && root.draft
+                && root.draft.enabled
+
+            emptyText: "Enable the display to edit scale"
 
             onValueSelected: value => {
                 if (root.monitor && root.draftStore)
@@ -309,8 +397,12 @@ Components.JcCard {
             theme: root.theme
             options: root.transformOptions
             selectedValue: root.draft ? String(root.draft.transform) : ""
-            controlEnabled: root.editorEnabled
-            emptyText: "No valid orientation options"
+            controlEnabled:
+                root.editorEnabled
+                && root.draft
+                && root.draft.enabled
+
+            emptyText: "Enable the display to edit orientation"
 
             onValueSelected: value => {
                 if (root.monitor && root.draftStore)
@@ -331,6 +423,9 @@ Components.JcCard {
                     root.draft.scale,
                     root.draft.transform
                 );
+
+                if (!root.draft.enabled)
+                    return "Draft: Disabled";
 
                 return "Draft: "
                     + root.draft.width + "×" + root.draft.height

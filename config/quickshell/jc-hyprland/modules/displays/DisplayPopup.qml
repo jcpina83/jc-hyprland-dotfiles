@@ -241,7 +241,7 @@ PanelWindow {
                         Layout.fillWidth: true
 
                         text:
-                            "Keep this runtime display mode?"
+                            "Keep this runtime display state?"
 
                         color: root.theme
                             ? root.theme.textPrimary
@@ -436,7 +436,7 @@ PanelWindow {
                         if (root.draftStore && root.draftStore.hasDirty)
                             return root.draftStore.topologyValid
                                 ? "Draft display state is ready for Safe Apply."
-                                : "Resolve the visual layout conflict before Safe Apply.";
+                                : "Resolve the display/topology conflict before Safe Apply.";
 
                         if (root.monitorService
                                 && root.monitorService.lastRefresh.length > 0) {
@@ -452,7 +452,7 @@ PanelWindow {
                 }
 
                 Text {
-                    text: "Phase 1B.5 · Visual Layout"
+                    text: "Phase 1B.6 · Enable / Disable"
                     color: root.theme ? root.theme.accent : "#89b4fa"
                     font.pixelSize: 11
                     font.bold: true

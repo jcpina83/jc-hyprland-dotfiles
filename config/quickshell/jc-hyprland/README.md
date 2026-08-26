@@ -4,238 +4,237 @@ Custom Quickshell control-center implementation for `jc-hyprland-dotfiles`.
 
 ## Current milestone
 
-### Phase 1B.5 — Visual Monitor Layout Editor
+### Phase 1B.6 — Enable / Disable Monitors
 
-The display control center now supports draft editing for:
+The display module now supports draft/runtime control for:
 
 - resolution,
 - refresh rate,
 - scale,
 - transform / orientation,
-- logical x/y position through a visual layout editor.
+- visual logical position,
+- enabled / disabled state.
 
-Persistent monitor configuration is still intentionally unchanged.
+Persistence to `local/monitors.conf` is still intentionally deferred.
 
-## Hyprland layout model
+## Important Hyprland semantic
 
-Hyprland positions displays in one virtual logical coordinate space.
+Disabling a monitor is **not** DPMS.
 
-Position is calculated from the monitor's top-left corner and uses the
-**scaled and transformed** resolution.
+Hyprland removes a disabled monitor from the virtual layout and moves its
+windows/workspaces to remaining outputs.
 
-Negative x/y coordinates are valid.
+The runtime rule is:
 
-Two active monitors must not overlap.
-
-```text
-physical mode
-    │
-    ├── scale
-    └── transform
-         │
-         ▼
-logical rectangle
-         │
-         ├── x
-         └── y
-         │
-         ▼
-virtual monitor layout
+```lua
+hl.monitor({
+    output = "...",
+    disabled = true
+})
 ```
 
-## Visual editor
+For this reason, disable is protected by the same Safe Apply transaction used
+for geometry changes.
 
-`DisplayLayoutEditor.qml` renders the draft topology, not only the observed
-Hyprland state.
+## Safety guards
+
+Phase 1B.6 refuses to disable:
+
+1. the last active monitor,
+2. the currently focused monitor.
+
+The focused-monitor rule is intentionally conservative because the Control
+Center follows the focused output. Focus another monitor before disabling the
+current one.
+
+The backend repeats these checks using live `hyprctl -j monitors all` data, so
+the UI is not the only safety boundary.
+
+## Draft model
+
+Each display draft now includes:
 
 ```text
-┌──────────────────────────────────────────┐
-│              Visual layout               │
-│                                          │
-│           ┌──────────────┐               │
-│           │     DP-1     │               │
-│           │ 3440 × 1440  │               │
-│           └──────────────┘               │
-│                                          │
-│     ┌────────────────────────────┐       │
-│     │            DP-3            │       │
-│     │        5120 × 2160         │       │
-│     └────────────────────────────┘       │
-└──────────────────────────────────────────┘
+enabled
+mode
+refresh
+scale
+transform
+x
+y
 ```
 
-A monitor can be dragged. The gesture itself does not mutate Hyprland.
+Observed, draft, temporary runtime and persistent states remain separate.
 
 ```text
-DragHandler
-    │
-    ▼
-visual translation
-    │
- release
-    ▼
-snapPosition()
-    │
-    ▼
-DisplayDraftStore.setPosition()
+Observed state
+      │
+      ▼
+DisplayDraftStore
+      │
+      ├── enabled
+      ├── mode
+      ├── scale
+      ├── transform
+      └── x/y
+      │
+      ▼
+Safe Apply
+      │
+      ▼
+Temporary runtime
 ```
 
-The editor uses `DragHandler { target: null }`; the input handler therefore
-does not own monitor state.
+## Disabled monitor discovery
 
-## Snapping
+The project continues to use:
 
-On drag release, nearby logical coordinates snap against another monitor's:
-
-- left/right edges,
-- top/bottom edges,
-- horizontal center,
-- vertical center.
-
-The editor also provides deterministic relative placement:
-
-```text
-← Left
-Right →
-↑ Above
-↓ Below
+```bash
+hyprctl -j monitors all
 ```
 
-Relative placement centers the moved monitor on the orthogonal axis.
+rather than `hyprctl -j monitors`, because `monitors all` retains inactive /
+disabled outputs.
 
-For example, placing a 2752-wide logical monitor centered above a 5120-wide
-monitor calculates:
+A disabled output can therefore remain visible as a card in the Control Center
+and be enabled again.
 
-```text
-x = anchor.x + (5120 - 2752) / 2
-```
+If Hyprland does not expose a reusable mode for a disabled output, enabling
+fails closed rather than guessing a resolution.
 
-## Scale / orientation interaction
+## Transaction snapshot
 
-Phase 1B.4 disabled scale or orientation choices that immediately caused an
-overlap.
-
-Phase 1B.5 now allows those choices as **draft state** and labels them
-`move required`.
-
-Example:
+The rollback snapshot now stores:
 
 ```text
-Normal
-90° · move required
-180°
-270° · move required
-```
-
-After selecting a rotation, move the display in the visual editor until the
-topology becomes valid.
-
-Safe Apply remains disabled while any two projected monitors overlap.
-
-## Topology validation
-
-`DisplayDraftStore` is the UI/domain source of truth for projected topology.
-
-It validates:
-
-- integer logical x/y,
-- positive logical dimensions,
-- pairwise overlap.
-
-The backend independently validates the same target against live Hyprland
-monitor geometry before mutation.
-
-```text
-Draft topology invalid
-        │
-        ├── visual red conflict
-        ├── error explanation
-        └── Safe Apply disabled
-
-Draft topology valid
-        │
-        ▼
-Safe Apply enabled
-```
-
-## Transaction boundary
-
-Safe Apply continues to change one monitor at a time.
-
-The transaction snapshot includes:
-
-```text
+enabled
 mode
 position
 scale
 transform
 ```
 
-The external `systemd --user` watchdog is scheduled before mutation.
+If the monitor was originally active:
 
 ```text
-Visual draft
-    │
-    ▼
-Topology validation
-    │
-    ▼
-Snapshot current runtime state
-    │
-    ▼
-systemd rollback watchdog
-    │
-    ▼
-Temporary runtime mutation
-    │
-    ▼
-15 s
- ┌──┴──────────────┐
- ▼                 ▼
-Keep            Rollback
+Disable
+  │
+  └── rollback → restore full active state
 ```
 
-If Quickshell exits during confirmation, the external watchdog remains
-responsible for restoring the snapshot.
+If the monitor was originally disabled:
 
-## Runtime CLI
+```text
+Enable
+  │
+  └── rollback → disabled = true
+```
 
-Position preflight:
+This makes Enable and Disable symmetric operations.
+
+## UI behavior
+
+An active display card offers:
+
+```text
+Disable
+```
+
+A disabled display card remains listed and offers:
+
+```text
+Enable
+```
+
+Geometry controls are disabled while the draft monitor is disabled.
+
+A disabled draft disappears from the visual topology because it is no longer
+part of Hyprland's logical layout.
+
+## Safe Apply lifecycle
+
+```text
+Enable / Disable draft
+        │
+        ▼
+Safety validation
+        │
+        ├── at least 1 active
+        ├── focused output protected
+        └── geometry valid when enabling
+        │
+        ▼
+Snapshot enabled + geometry
+        │
+        ▼
+systemd --user rollback watchdog
+        │
+        ▼
+temporary runtime mutation
+        │
+        ▼
+15 seconds
+   ┌────┴─────┐
+   ▼          ▼
+ Keep      Rollback
+```
+
+The watchdog remains authoritative if Quickshell disappears.
+
+### Hyprland IPC environment
+
+The transient `systemd --user` service does not rely on the user manager having
+the same compositor environment as Quickshell.
+
+Before any display mutation, Safe Apply captures the current session IPC
+context under the ephemeral transaction directory:
+
+```text
+HYPRLAND_INSTANCE_SIGNATURE
+XDG_RUNTIME_DIR
+WAYLAND_DISPLAY (when present)
+PATH
+```
+
+The same values are passed explicitly to `systemd-run --setenv=...` and are
+also restored from the pending transaction by the rollback command before
+`hyprctl` is executed. This provides two independent protections against a
+detached watchdog service losing access to the active Hyprland instance.
+
+## CLI
+
+Disable preflight:
 
 ```bash
 ~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
     preflight \
     --output DP-1 \
     --mode 3440x1440@165.00 \
+    --enabled false
+```
+
+Enable preflight:
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
+    preflight \
+    --output DP-1 \
+    --mode 3440x1440@165.00 \
+    --enabled true \
     --scale 1 \
     --transform 0 \
     --position 840x0
 ```
 
-Negative coordinates are supported:
+## Still intentionally blocked
 
-```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    preflight \
-    --output DP-1 \
-    --mode 3440x1440@165.00 \
-    --scale 1 \
-    --transform 1 \
-    --position -1440x800
-```
+Phase 1B.6 does not add:
 
-The Control Center passes the complete draft display state to `safe-apply`.
-
-## Safety boundaries still in place
-
-Phase 1B.5 intentionally does not enable:
-
-- monitor enable/disable,
 - mirror mode,
-- multi-monitor atomic mutation,
-- persistent writes to `local/monitors.conf`.
+- multi-monitor atomic mutations,
+- persistent monitor writes.
 
-Only one dirty display can be applied at a time.
+Only one dirty display can be Safe Applied at a time.
 
 ## Validation
 
@@ -247,7 +246,36 @@ make check
 
 ## Next milestone
 
-Once visual positioning and rollback are validated on the real workstation,
-Phase 1B.6 can add monitor enable/disable semantics.
+With monitor runtime controls complete, Phase 1C can introduce safe persistence
+to the generated machine-local `monitors.conf`.
 
-Persistent `monitors.conf` writes remain Phase 1C.
+## Phase 1B.6 Fix 2 — explicit re-enable
+
+When a monitor already has:
+
+```lua
+disabled = true
+```
+
+supplying only mode, position, scale and transform can be accepted by Hyprland
+without clearing the disabled state.
+
+Every active rule therefore emits the state explicitly:
+
+```lua
+hl.monitor({
+    output = "...",
+    disabled = false,
+    mode = "...",
+    position = "...",
+    scale = ...,
+    transform = ...,
+})
+```
+
+This applies to normal Enable operations and to rollback when the transaction
+snapshot says the monitor was originally active.
+
+The synthetic backend test intentionally models this strictly: geometry changes
+never imply re-enable unless `disabled = false` is present.
+

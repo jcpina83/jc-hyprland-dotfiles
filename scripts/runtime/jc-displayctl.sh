@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+umask 077
+
 # ==============================================================================
 # jc-hyprland-dotfiles
 # Display runtime controller
 #
-# Phase 1B.5:
-# - resolves live connector names to persistent desc:<description> rules
-# - Safe Applies mode + scale + transform + logical position
-# - snapshots mode + position + scale + transform for rollback
-# - validates whole logical pixels and projected monitor overlap
-# - uses an external systemd user rollback watchdog
-# - stores ephemeral transaction state under XDG_RUNTIME_DIR
+# Phase 1B.6:
+# - Safe Applies enabled/disabled + mode + scale + transform + position
+# - never disables the focused monitor
+# - never allows the last active monitor to be disabled
+# - snapshots whether the monitor was active before mutation
+# - rollback restores active state or returns to disabled=true
+# - external systemd user rollback watchdog remains authoritative
 # - never writes local/monitors.conf
 # ==============================================================================
 
@@ -30,6 +32,7 @@ shift || true
 
 output=""
 mode=""
+requested_enabled=""
 requested_scale=""
 requested_transform=""
 requested_position=""
@@ -44,33 +47,30 @@ usage() {
     cat <<'EOF'
 Usage:
   jc-displayctl preflight  --output <output> --mode <WIDTHxHEIGHT@HZ> \
-      [--scale <scale>] [--transform <0-7>] [--position <XxY>]
+      [--enabled <true|false>] [--scale <scale>] [--transform <0-7>] \
+      [--position <XxY>]
 
   jc-displayctl apply      --output <output> --mode <WIDTHxHEIGHT@HZ> \
-      [--scale <scale>] [--transform <0-7>] [--position <XxY>]
+      [--enabled <true|false>] [--scale <scale>] [--transform <0-7>] \
+      [--position <XxY>]
 
   jc-displayctl safe-apply --output <output> --mode <WIDTHxHEIGHT@HZ> \
-      [--scale <scale>] [--transform <0-7>] [--position <XxY>] \
-      [--timeout <seconds>]
+      [--enabled <true|false>] [--scale <scale>] [--transform <0-7>] \
+      [--position <XxY>] [--timeout <seconds>]
 
   jc-displayctl keep       --token <token>
   jc-displayctl rollback   --token <token>
   jc-displayctl status
 
-If scale, transform or position are omitted, the current runtime value is
-preserved.
+When --enabled is omitted, the current runtime enabled state is preserved.
 
-`apply` is a low-level diagnostic primitive.
-The Control Center uses `safe-apply`.
+Disable uses:
+  hl.monitor({ output = "...", disabled = true })
 
-Safe Apply:
-  1. snapshots current mode + position + scale + transform,
-  2. validates logical pixels and projected topology,
-  3. schedules an external systemd user rollback watchdog,
-  4. applies the requested runtime display state,
-  5. waits for Keep or Rollback.
+Enable uses the complete requested runtime geometry and preserves supported
+persistent rule extras such as VRR.
 
-No command in Phase 1B.5 writes local/monitors.conf.
+Phase 1B.6 never writes local/monitors.conf.
 EOF
 }
 
@@ -119,6 +119,21 @@ lua_number() {
 }
 
 
+parse_bool() {
+    case "$1" in
+        true|1|yes|on)
+            printf 'true'
+            ;;
+        false|0|no|off)
+            printf 'false'
+            ;;
+        *)
+            die "expected boolean true/false, got: $1"
+            ;;
+    esac
+}
+
+
 ensure_state_root() {
     mkdir -p "$state_root"
     chmod 700 "$state_root"
@@ -137,6 +152,12 @@ parse_mode_args() {
             --mode)
                 (($# >= 2)) || die "--mode requires a value"
                 mode="$2"
+                shift 2
+                ;;
+
+            --enabled)
+                (($# >= 2)) || die "--enabled requires a value"
+                requested_enabled="$(parse_bool "$2")"
                 shift 2
                 ;;
 
@@ -314,15 +335,24 @@ current_runtime_state() {
         jq -c \
             --arg output "$output" \
             '.[] | select(.name == $output)
-             | if (.width > 0 and .height > 0 and .refreshRate > 0)
-               then {
-                 mode: "\(.width)x\(.height)@\(.refreshRate)",
-                 position: "\(.x)x\(.y)",
-                 scale: (.scale // 1),
-                 transform: (.transform // 0)
-               }
-               else empty
-               end' \
+             | {
+                 enabled: ((.disabled // false) | not),
+                 mode:
+                     (if ((.width // 0) > 0
+                          and (.height // 0) > 0
+                          and (.refreshRate // 0) > 0)
+                      then "\(.width)x\(.height)@\(.refreshRate)"
+                      else ""
+                      end),
+                 position: "\(.x // 0)x\(.y // 0)",
+                 scale:
+                     (if ((.scale // 1) > 0)
+                      then (.scale // 1)
+                      else 1
+                      end),
+                 transform: (.transform // 0),
+                 focused: (.focused // false)
+               }' \
             <<< "$state"
     )" || die "unable to parse current monitor state"
 
@@ -391,8 +421,7 @@ find_monitor_payload() {
     fi
 
     if ((matches > 1)); then
-        die \
-            "multiple monitor rules match $output; refusing ambiguous apply"
+        die "multiple monitor rules match $output; refusing ambiguous apply"
     fi
 
     printf '%s' "$found"
@@ -415,7 +444,7 @@ min_luminance|max_luminance|max_avg_luminance)
             ;;
 
         transform)
-            # Transform is emitted once from the requested/current runtime state.
+            # Transform is emitted from runtime/draft state.
             ;;
 
         *)
@@ -455,6 +484,42 @@ validate_scale_for_mode() {
 
              exit 0
          }'
+}
+
+
+active_monitor_count() {
+    monitors_json | jq \
+        '[.[] | select((.disabled // false) == false)] | length'
+}
+
+
+validate_disable_guard() {
+    local state
+    local active_count
+    local focused
+
+    state="$(monitors_json)"
+
+    active_count="$(
+        jq -r \
+            '[.[] | select((.disabled // false) == false)] | length' \
+            <<< "$state"
+    )" || die "unable to count active monitors"
+
+    focused="$(
+        jq -r \
+            --arg output "$output" \
+            '.[] | select(.name == $output) | (.focused // false)' \
+            <<< "$state"
+    )" || die "unable to read focused monitor state"
+
+    if ((active_count <= 1)); then
+        die "refusing to disable the last active monitor"
+    fi
+
+    if [[ "$focused" == "true" ]]; then
+        die "refusing to disable focused output $output; focus another display first"
+    fi
 }
 
 
@@ -540,16 +605,25 @@ validate_projected_geometry() {
     if [[ -n "$overlaps" ]]; then
         die \
             "projected geometry for $output overlaps: $overlaps; " \
-            "layout editing is required"
+            "move the display before applying"
     fi
 }
 
 
 validate_target_state() {
-    local requested_mode="$1"
-    local position="$2"
-    local scale="$3"
-    local transform="$4"
+    local enabled="$1"
+    local requested_mode="$2"
+    local position="$3"
+    local scale="$4"
+    local transform="$5"
+
+    if [[ "$enabled" == "false" ]]; then
+        validate_disable_guard
+        return 0
+    fi
+
+    [[ -n "$requested_mode" ]] \
+        || die "cannot enable $output without a reusable monitor mode"
 
     [[ "$position" =~ ^-?[0-9]+x-?[0-9]+$ ]] \
         || die "invalid target position: $position"
@@ -579,61 +653,74 @@ validate_target_state() {
 
 build_lua_rule() {
     local payload="$1"
-    local requested_mode="$2"
-    local position="$3"
-    local scale="$4"
-    local transform="$5"
+    local enabled="$2"
+    local requested_mode="$3"
+    local position="$4"
+    local scale="$5"
+    local transform="$6"
 
     local -a fields
-
     IFS=',' read -r -a fields <<< "$payload"
 
-    ((${#fields[@]} >= 4)) \
-        || die "invalid monitor rule for $output: expected at least 4 fields"
+    ((${#fields[@]} >= 1)) \
+        || die "invalid monitor rule for $output"
 
     local configured_selector
-    local configured_mode
-
     configured_selector="$(trim "${fields[0]}")"
-    configured_mode="$(trim "${fields[1]}")"
 
     selector_matches_monitor "$configured_selector" \
         || die "monitor rule selector no longer matches $output"
 
-    [[ "$configured_mode" != "disable" ]] \
-        || die "monitor $output is persistently disabled"
+    if [[ "$enabled" == "false" ]]; then
+        printf 'hl.monitor({ output = %s, disabled = true })' \
+            "$(lua_quote "$configured_selector")"
+        return 0
+    fi
 
     local lua
     lua="hl.monitor({"
     lua+=" output = $(lua_quote "$configured_selector")"
+    lua+=", disabled = false"
     lua+=", mode = $(lua_quote "$requested_mode")"
     lua+=", position = $(lua_quote "$position")"
     lua+=", scale = $(lua_number "$scale")"
     lua+=", transform = $(lua_number "$transform")"
 
-    local remaining=$(( ${#fields[@]} - 4 ))
+    # Persistent active rule format:
+    # selector, mode, position, scale, key, value, ...
+    #
+    # A persistent "selector, disable" rule has no reusable extras.
+    if ((${#fields[@]} >= 4)); then
+        local remaining=$(( ${#fields[@]} - 4 ))
 
-    if ((remaining % 2 != 0)); then
-        die \
-            "monitor rule contains unsupported non-paired extra fields for " \
-            "$output"
+        if ((remaining % 2 != 0)); then
+            die \
+                "monitor rule contains unsupported non-paired extra fields for " \
+                "$output"
+        fi
+
+        local index=4
+        local key
+        local value
+
+        while ((index < ${#fields[@]})); do
+            key="$(trim "${fields[index]}")"
+            value="$(trim "${fields[index + 1]}")"
+
+            [[ -n "$key" ]] || die "empty monitor option key for $output"
+            [[ -n "$value" ]] || die "empty value for monitor option $key"
+
+            lua+="$(append_extra_field "$key" "$value")"
+
+            ((index += 2))
+        done
+    elif ((${#fields[@]} == 2)); then
+        local configured_mode
+        configured_mode="$(trim "${fields[1]}")"
+
+        [[ "$configured_mode" == "disable" ]] \
+            || die "unsupported short monitor rule for $output"
     fi
-
-    local index=4
-    local key
-    local value
-
-    while ((index < ${#fields[@]})); do
-        key="$(trim "${fields[index]}")"
-        value="$(trim "${fields[index + 1]}")"
-
-        [[ -n "$key" ]] || die "empty monitor option key for $output"
-        [[ -n "$value" ]] || die "empty value for monitor option $key"
-
-        lua+="$(append_extra_field "$key" "$value")"
-
-        ((index += 2))
-    done
 
     lua+=" })"
 
@@ -659,6 +746,84 @@ run_eval_rule() {
     fi
 
     return 0
+}
+
+
+require_hyprland_ipc_environment() {
+    [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] \
+        || die "HYPRLAND_INSTANCE_SIGNATURE is missing; refusing unsafe watchdog setup"
+
+    [[ -n "${XDG_RUNTIME_DIR:-}" ]] \
+        || die "XDG_RUNTIME_DIR is missing; refusing unsafe watchdog setup"
+}
+
+
+write_watchdog_environment() {
+    local directory="$1"
+
+    require_hyprland_ipc_environment
+
+    printf '%s\n' "$HYPRLAND_INSTANCE_SIGNATURE" \
+        > "$directory/hyprland-instance-signature"
+
+    printf '%s\n' "$XDG_RUNTIME_DIR" \
+        > "$directory/xdg-runtime-dir"
+
+    if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+        printf '%s\n' "$WAYLAND_DISPLAY" \
+            > "$directory/wayland-display"
+    fi
+
+    if [[ -n "${PATH:-}" ]]; then
+        printf '%s\n' "$PATH" \
+            > "$directory/path"
+    fi
+}
+
+
+restore_watchdog_environment() {
+    local directory="$1"
+
+    if [[ -r "$directory/hyprland-instance-signature" ]]; then
+        export HYPRLAND_INSTANCE_SIGNATURE
+        HYPRLAND_INSTANCE_SIGNATURE="$(
+            cat "$directory/hyprland-instance-signature"
+        )"
+    fi
+
+    if [[ -r "$directory/xdg-runtime-dir" ]]; then
+        export XDG_RUNTIME_DIR
+        XDG_RUNTIME_DIR="$(cat "$directory/xdg-runtime-dir")"
+    fi
+
+    if [[ -r "$directory/wayland-display" ]]; then
+        export WAYLAND_DISPLAY
+        WAYLAND_DISPLAY="$(cat "$directory/wayland-display")"
+    fi
+
+    if [[ -r "$directory/path" ]]; then
+        export PATH
+        PATH="$(cat "$directory/path")"
+    fi
+}
+
+
+watchdog_systemd_environment_args() {
+    require_hyprland_ipc_environment
+
+    printf '%s\0' \
+        "--setenv=HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE" \
+        "--setenv=XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+
+    if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+        printf '%s\0' \
+            "--setenv=WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+    fi
+
+    if [[ -n "${PATH:-}" ]]; then
+        printf '%s\0' \
+            "--setenv=PATH=$PATH"
+    fi
 }
 
 
@@ -723,15 +888,18 @@ restore_claim_after_failure() {
 effective_target_state() {
     local current="$1"
 
+    local enabled
     local position
     local scale
     local transform
 
+    enabled="${requested_enabled:-$(jq -r '.enabled' <<< "$current")}"
     position="${requested_position:-$(jq -r '.position' <<< "$current")}"
     scale="${requested_scale:-$(jq -r '.scale' <<< "$current")}"
     transform="${requested_transform:-$(jq -r '.transform' <<< "$current")}"
 
-    printf '{"position":%s,"scale":%s,"transform":%s}\n' \
+    printf '{"enabled":%s,"position":%s,"scale":%s,"transform":%s}\n' \
+        "$enabled" \
         "$(json_quote "$position")" \
         "$scale" \
         "$transform"
@@ -742,6 +910,7 @@ run_preflight() {
     local payload
     local current
     local target
+    local enabled
     local position
     local scale
     local transform
@@ -753,15 +922,18 @@ run_preflight() {
     current="$(current_runtime_state)"
     target="$(effective_target_state "$current")"
 
+    enabled="$(jq -r '.enabled' <<< "$target")"
     position="$(jq -r '.position' <<< "$target")"
     scale="$(jq -r '.scale' <<< "$target")"
     transform="$(jq -r '.transform' <<< "$target")"
 
-    validate_target_state "$mode" "$position" "$scale" "$transform"
+    validate_target_state \
+        "$enabled" "$mode" "$position" "$scale" "$transform"
 
     lua_rule="$(
         build_lua_rule \
             "$payload" \
+            "$enabled" \
             "$mode" \
             "$position" \
             "$scale" \
@@ -776,6 +948,7 @@ run_apply() {
     local payload
     local current
     local target
+    local enabled
     local position
     local scale
     local transform
@@ -787,15 +960,18 @@ run_apply() {
     current="$(current_runtime_state)"
     target="$(effective_target_state "$current")"
 
+    enabled="$(jq -r '.enabled' <<< "$target")"
     position="$(jq -r '.position' <<< "$target")"
     scale="$(jq -r '.scale' <<< "$target")"
     transform="$(jq -r '.transform' <<< "$target")"
 
-    validate_target_state "$mode" "$position" "$scale" "$transform"
+    validate_target_state \
+        "$enabled" "$mode" "$position" "$scale" "$transform"
 
     lua_rule="$(
         build_lua_rule \
             "$payload" \
+            "$enabled" \
             "$mode" \
             "$position" \
             "$scale" \
@@ -831,13 +1007,18 @@ run_safe_apply() {
     local payload
     local current
     local target
+
+    local old_enabled
     local old_mode
     local old_position
     local old_scale
     local old_transform
+
+    local target_enabled
     local target_position
     local target_scale
     local target_transform
+
     local target_rule
     local rollback_rule
     local now
@@ -848,22 +1029,26 @@ run_safe_apply() {
     current="$(current_runtime_state)"
     target="$(effective_target_state "$current")"
 
+    old_enabled="$(jq -r '.enabled' <<< "$current")"
     old_mode="$(jq -r '.mode' <<< "$current")"
     old_position="$(jq -r '.position' <<< "$current")"
     old_scale="$(jq -r '.scale' <<< "$current")"
     old_transform="$(jq -r '.transform' <<< "$current")"
 
+    target_enabled="$(jq -r '.enabled' <<< "$target")"
     target_position="$(jq -r '.position' <<< "$target")"
     target_scale="$(jq -r '.scale' <<< "$target")"
     target_transform="$(jq -r '.transform' <<< "$target")"
 
     validate_target_state \
+        "$target_enabled" \
         "$mode" \
         "$target_position" \
         "$target_scale" \
         "$target_transform"
 
-    if [[ "$old_mode" == "$mode" \
+    if [[ "$old_enabled" == "$target_enabled" \
+        && "$old_mode" == "$mode" \
         && "$old_position" == "$target_position" \
         && "$old_scale" == "$target_scale" \
         && "$old_transform" == "$target_transform" ]]
@@ -874,6 +1059,7 @@ run_safe_apply() {
     target_rule="$(
         build_lua_rule \
             "$payload" \
+            "$target_enabled" \
             "$mode" \
             "$target_position" \
             "$target_scale" \
@@ -883,6 +1069,7 @@ run_safe_apply() {
     rollback_rule="$(
         build_lua_rule \
             "$payload" \
+            "$old_enabled" \
             "$old_mode" \
             "$old_position" \
             "$old_scale" \
@@ -903,11 +1090,13 @@ run_safe_apply() {
     printf '%s\n' "$token" > "$pending_dir/token"
     printf '%s\n' "$output" > "$pending_dir/output"
 
+    printf '%s\n' "$old_enabled" > "$pending_dir/rollback-enabled"
     printf '%s\n' "$old_mode" > "$pending_dir/rollback-mode"
     printf '%s\n' "$old_position" > "$pending_dir/rollback-position"
     printf '%s\n' "$old_scale" > "$pending_dir/rollback-scale"
     printf '%s\n' "$old_transform" > "$pending_dir/rollback-transform"
 
+    printf '%s\n' "$target_enabled" > "$pending_dir/target-enabled"
     printf '%s\n' "$mode" > "$pending_dir/target-mode"
     printf '%s\n' "$target_position" > "$pending_dir/target-position"
     printf '%s\n' "$target_scale" > "$pending_dir/target-scale"
@@ -917,13 +1106,24 @@ run_safe_apply() {
     printf '%s\n' "$unit_name" > "$pending_dir/unit"
     printf '%s\n' "$rollback_rule" > "$pending_dir/rollback.lua"
 
-    # The external watchdog is scheduled before the display mutation.
+    # Persist the Hyprland IPC context inside the ephemeral transaction.  The
+    # rollback must remain able to reach Hyprland even when systemd starts the
+    # watchdog service from a detached environment.
+    write_watchdog_environment "$pending_dir"
+
+    local -a watchdog_env_args=()
+
+    while IFS= read -r -d '' argument; do
+        watchdog_env_args+=("$argument")
+    done < <(watchdog_systemd_environment_args)
+
     if ! systemd-run \
         --user \
         --quiet \
         --collect \
         --unit="$unit_name" \
         --on-active="${timeout_seconds}s" \
+        "${watchdog_env_args[@]}" \
         "$self_path" rollback --token "$token"
     then
         rm -rf "$pending_dir"
@@ -936,9 +1136,10 @@ run_safe_apply() {
         exit 1
     fi
 
-    printf '{"status":"pending","token":%s,"output":%s,"timeout":%d,"deadline":%d}\n' \
+    printf '{"status":"pending","token":%s,"output":%s,"enabled":%s,"timeout":%d,"deadline":%d}\n' \
         "$(json_quote "$token")" \
         "$(json_quote "$output")" \
+        "$target_enabled" \
         "$timeout_seconds" \
         "$deadline"
 }
@@ -1012,6 +1213,11 @@ run_rollback() {
         die "pending transaction has no rollback rule"
     fi
 
+    # The transient systemd service may not inherit Hyprland-specific
+    # environment variables. Restore the exact IPC environment captured by
+    # safe-apply before calling hyprctl.
+    restore_watchdog_environment "$claim_dir"
+
     if ! run_eval_rule "$rollback_rule"; then
         restore_claim_after_failure "$claim_dir"
         exit 1
@@ -1037,12 +1243,16 @@ run_status() {
     local deadline=0
     local now
     local remaining=0
+    local enabled=""
 
     [[ -r "$pending_dir/token" ]] \
         && existing_token="$(cat "$pending_dir/token")"
 
     [[ -r "$pending_dir/output" ]] \
         && existing_output="$(cat "$pending_dir/output")"
+
+    [[ -r "$pending_dir/target-enabled" ]] \
+        && enabled="$(cat "$pending_dir/target-enabled")"
 
     if [[ -r "$pending_dir/deadline" ]]; then
         deadline="$(cat "$pending_dir/deadline")"
@@ -1056,9 +1266,14 @@ run_status() {
         remaining=$((deadline - now))
     fi
 
-    printf '{"status":"pending","token":%s,"output":%s,"deadline":%d,"remaining":%d}\n' \
+    if [[ "$enabled" != "true" && "$enabled" != "false" ]]; then
+        enabled="null"
+    fi
+
+    printf '{"status":"pending","token":%s,"output":%s,"enabled":%s,"deadline":%d,"remaining":%d}\n' \
         "$(json_quote "$existing_token")" \
         "$(json_quote "$existing_output")" \
+        "$enabled" \
         "$deadline" \
         "$remaining"
 }

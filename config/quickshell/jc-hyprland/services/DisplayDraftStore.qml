@@ -27,6 +27,11 @@ Scope {
             return Boolean(draft.dirty);
         }).length
 
+    readonly property int activeDraftCount:
+        drafts.filter(function(draft) {
+            return Boolean(draft.enabled);
+        }).length
+
     readonly property string topologyError:
         root.topologyValidationError()
 
@@ -73,7 +78,8 @@ Scope {
                 scale: monitor.scale,
                 transform: monitor.transform,
                 x: monitor.x,
-                y: monitor.y
+                y: monitor.y,
+                enabled: !monitor.disabled
             },
 
             modeRaw: modeRaw,
@@ -89,6 +95,7 @@ Scope {
             transform: monitor.transform,
             x: monitor.x,
             y: monitor.y,
+            enabled: !monitor.disabled,
 
             dirty: false
         };
@@ -168,7 +175,8 @@ Scope {
         if (!draft)
             return false;
 
-        return draft.modeRaw !== draft.observed.modeRaw
+        return Boolean(draft.enabled) !== Boolean(draft.observed.enabled)
+            || draft.modeRaw !== draft.observed.modeRaw
             || Number(draft.scale) !== Number(draft.observed.scale)
             || Number(draft.transform) !== Number(draft.observed.transform)
             || Number(draft.x) !== Number(draft.observed.x)
@@ -193,6 +201,7 @@ Scope {
             transform: current.transform,
             x: current.x,
             y: current.y,
+            enabled: current.enabled,
 
             dirty: current.dirty
         };
@@ -289,7 +298,7 @@ Scope {
             transform: Number(draft.transform),
             dirty: Boolean(draft.dirty),
             focused: observedMonitor ? Boolean(observedMonitor.focused) : false,
-            disabled: observedMonitor ? Boolean(observedMonitor.disabled) : false
+            disabled: !Boolean(draft.enabled)
         };
     }
 
@@ -347,6 +356,16 @@ Scope {
 
     function topologyValidationError() {
         const all = root.projectedMonitors();
+
+        let enabledCount = 0;
+
+        for (let i = 0; i < all.length; ++i) {
+            if (all[i] && !all[i].disabled)
+                enabledCount += 1;
+        }
+
+        if (enabledCount < 1)
+            return "At least one display must remain active.";
 
         for (let i = 0; i < all.length; ++i) {
             const current = all[i];
@@ -562,6 +581,61 @@ Scope {
 
         // A rotation may require a layout change. Keep it as draft state and
         // block Safe Apply until topologyValidationError() is empty.
+        root.replaceDraft(index, updated);
+    }
+
+    function canDisable(output) {
+        const draft = root.draftFor(output);
+
+        if (!draft || !draft.enabled)
+            return false;
+
+        if (root.activeDraftCount <= 1)
+            return false;
+
+        if (root.monitorService
+                && root.monitorService.focusedOutputName === output) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function enableDisableReason(output) {
+        const draft = root.draftFor(output);
+
+        if (!draft)
+            return "Display draft unavailable.";
+
+        if (!draft.enabled)
+            return "";
+
+        if (root.activeDraftCount <= 1)
+            return "At least one display must remain active.";
+
+        if (root.monitorService
+                && root.monitorService.focusedOutputName === output) {
+            return "Focus another display before disabling this one.";
+        }
+
+        return "";
+    }
+
+    function setEnabled(output, enabledValue) {
+        const index = root.draftIndex(output);
+
+        if (index < 0)
+            return;
+
+        const requested = Boolean(enabledValue);
+        const current = root.drafts[index];
+
+        if (!requested && !root.canDisable(output))
+            return;
+
+        const updated = root.copyDraft(current);
+        updated.enabled = requested;
+
         root.replaceDraft(index, updated);
     }
 
