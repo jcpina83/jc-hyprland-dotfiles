@@ -131,17 +131,10 @@ QtObject {
 
     // =========================================================================
     // Geometry scale
-    //
-    // The scale is intentionally compact enough for a desktop control surface
-    // while still supporting the generous spacing used by larger glass panels.
-    // Existing Phase 1 values remain represented exactly through compatibility
-    // aliases below.
     // =========================================================================
 
     // -------------------------------------------------------------------------
     // Spacing
-    //
-    // Prefer these semantic scale names in new components.
     // -------------------------------------------------------------------------
 
     readonly property int space2Xs: 4
@@ -154,9 +147,6 @@ QtObject {
 
     // -------------------------------------------------------------------------
     // Radius
-    //
-    // radiusPill is intentionally very large so the final radius is constrained
-    // naturally by the control height.
     // -------------------------------------------------------------------------
 
     readonly property int radiusXs: 6
@@ -169,9 +159,6 @@ QtObject {
 
     // -------------------------------------------------------------------------
     // Common geometry
-    //
-    // These are not widget implementations. They provide shared measurements
-    // for the reusable component library introduced in Phase 2A.2.
     // -------------------------------------------------------------------------
 
     readonly property int borderWidthThin: 1
@@ -185,6 +172,70 @@ QtObject {
     readonly property int iconSizeMd: 18
     readonly property int iconSizeLg: 22
     readonly property int iconSizeXl: 28
+
+    // =========================================================================
+    // Typography scale
+    //
+    // Primitive sizes provide a predictable scale. Semantic aliases describe
+    // intent so consumers do not need to choose arbitrary pixel values.
+    // =========================================================================
+
+    // -------------------------------------------------------------------------
+    // Font families
+    //
+    // Generic families intentionally avoid binding the shared configuration to
+    // a specific installed font. Theme/profile-specific font selection can be
+    // layered on top of this contract later.
+    // -------------------------------------------------------------------------
+
+    readonly property string fontFamilySans: "sans-serif"
+    readonly property string fontFamilyMono: "monospace"
+
+    // -------------------------------------------------------------------------
+    // Primitive font-size scale
+    // -------------------------------------------------------------------------
+
+    readonly property int fontSize2Xs: 9
+    readonly property int fontSizeXs: 10
+    readonly property int fontSizeSm: 11
+    readonly property int fontSizeMd: 12
+    readonly property int fontSizeLg: 13
+    readonly property int fontSizeXl: 14
+    readonly property int fontSize2Xl: 16
+    readonly property int fontSize3Xl: 20
+    readonly property int fontSize4Xl: 22
+    readonly property int fontSize5Xl: 28
+
+    // -------------------------------------------------------------------------
+    // Semantic typography
+    // -------------------------------------------------------------------------
+
+    readonly property int textSizeMicro: fontSize2Xs
+    readonly property int textSizeCaption: fontSizeXs
+    readonly property int textSizeLabel: fontSizeSm
+    readonly property int textSizeBody: fontSizeMd
+    readonly property int textSizeBodyLarge: fontSizeLg
+    readonly property int textSizeSection: fontSizeXl
+    readonly property int textSizeCardTitle: fontSize2Xl
+    readonly property int textSizePanelTitle: fontSize4Xl
+    readonly property int textSizeMetric: fontSize5Xl
+
+    // -------------------------------------------------------------------------
+    // Font weights
+    // -------------------------------------------------------------------------
+
+    readonly property int fontWeightRegular: Font.Normal
+    readonly property int fontWeightMedium: Font.Medium
+    readonly property int fontWeightSemibold: Font.DemiBold
+    readonly property int fontWeightBold: Font.Bold
+
+    // -------------------------------------------------------------------------
+    // Line-height multipliers
+    // -------------------------------------------------------------------------
+
+    readonly property real lineHeightCompact: 1.15
+    readonly property real lineHeightBody: 1.35
+    readonly property real lineHeightRelaxed: 1.50
 
     // =========================================================================
     // Compatibility aliases
