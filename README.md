@@ -56,6 +56,7 @@
 > Hyprland 0.56.2 is the primary validated environment today. The supported
 > Hyprland configuration path is Lua-only; Arch Linux and openSUSE adapters are
 > present in the repository and remain targets for full clean-install validation.
+> The current roadmap targets **v1.0.0** as the first official stable release.
 
 ## Why this project exists
 
@@ -218,8 +219,9 @@ flowchart LR
 ```
 
 The UI never runs monitor commands directly. `MonitorService` owns observed
-monitor state; future editing will use a draft model and a dedicated apply
-service.
+monitor state, `DisplayDraftStore` owns editable state, `MonitorApplyService`
+owns runtime apply / Safe Apply, and persistent state is orchestrated through
+`DisplayPersistenceService` and `jc-displaycfg`.
 
 ### Display implementation status
 
@@ -234,10 +236,10 @@ Phase 1B.6  Safe monitor Enable / Disable                    ✓
 Phase 1C.1  Atomic persistent monitors.lua integration       ✓
 Phase 1C.2  Remove deprecated Hyprlang compatibility path    ✓
 Phase 1C.3  Save Configuration UI orchestration              ✓
-Phase 1D.1  Quickshell startup / lifecycle                     ✓
-Phase 1D.2  Hyprland SUPER+C keybind                           ✓
-Phase 1D.3  Waybar output-aware integration                    ✓
-Phase 1D.4  Quality gates / documentation                      ✓
+Phase 1D.1  Quickshell startup / lifecycle                   ✓
+Phase 1D.2  Hyprland SUPER+C keybind                         ✓
+Phase 1D.3  Waybar output-aware integration                  ✓
+Phase 1D.4  Quality gates / documentation                    ✓
 ```
 
 Display state deliberately remains separated into four layers:
@@ -614,9 +616,10 @@ local/monitors.lua
       └── jc-displaycfg   preview / backup / atomic persistence / restore
 ```
 
-The former `monitors.conf`, `jc-dotfiles.conf` and pre-Lua configuration tree
-were retired after the Lua persistence path was validated end-to-end. Current
-installations must use the Lua integration exclusively.
+The deprecated `monitors.conf`, `jc-dotfiles.conf` and
+`config/hypr/hyprlang/` path are not part of the supported runtime. Any
+remaining copies during the migration are cleanup artifacts and must not be
+sourced by a current installation.
 
 Official Hyprland configuration reference:
 
@@ -666,6 +669,7 @@ Official Hyprland configuration reference:
 │   │       ├── README.md
 │   │       ├── services
 │   │       │   ├── DisplayDraftStore.qml
+│   │       │   ├── DisplayPersistenceService.qml
 │   │       │   ├── MonitorApplyService.qml
 │   │       │   ├── MonitorModeParser.qml
 │   │       │   └── MonitorService.qml
@@ -839,47 +843,139 @@ make wallpaper-apply
 
 # Roadmap
 
-### Near term
+The project is evolving toward its first official stable release: **v1.0.0**.
 
-- [x] Modular Hyprland foundation
-- [x] Dual Waybar runtime
-- [x] Theme engine
-- [x] SwayNC integration
-- [x] Hyprlock / Hypridle integration
-- [x] Awww wallpaper management
-- [x] Wallpaper rotation timer
-- [x] SDDM theme foundation
-- [x] Quickshell Control Center Phase 1A
-- [x] Quickshell quality-gate integration
-- [x] Quickshell display editing draft model
-- [x] Resolution / refresh selectors
-- [x] Scale / orientation controls
-- [x] Visual monitor topology editor
-- [x] Safe runtime apply / Keep / rollback
-- [x] Safe monitor Enable / Disable
-- [x] Atomic persistent monitor configuration in `local/monitors.lua`
-- [x] Waybar hotplug behavior validated with monitor Enable / Disable
-- [x] Quickshell startup integrated with Hyprland session
-- [x] `SUPER + C` Control Center keybind
-- [x] Output-aware Control Center buttons in MAIN / SECONDARY Waybar
-- [x] Remove deprecated Hyprlang repository/runtime artifacts
-- [x] Connect global `Save Configuration` action to the Control Center UI
-- [ ] Repository screenshots
+The functional display foundation is complete. The next stages focus on building
+a shared visual platform, expanding the Control Center into additional desktop
+modules, consolidating the desktop visual language, and completing release
+validation across the supported distributions.
 
-### Portability
+## Foundation
 
-- [x] Garuda Linux validation
-- [ ] Arch Linux clean-install validation
-- [ ] openSUSE Tumbleweed clean-install validation
+- [x] **Phase 1A — Display foundation**
+- [x] **Phase 1B — Interactive / runtime display control**
+- [x] **Phase 1C — Persistent display configuration**
+- [x] **Phase 1D — Desktop session integration**
 
-### Later
+The display stack now provides the architectural foundation for the rest of the
+Control Center.
 
-- [ ] Additional desktop/laptop profiles
-- [ ] Additional themes
-- [ ] VRR controls
-- [ ] HDR / 10-bit display controls where supported
-- [ ] Extended visual settings modules
-- [ ] Stronger automated rollback and recovery
+## Visual platform
+
+- [ ] **Phase 2A.1 — Design System / Theme API**
+  - semantic color tokens
+  - surfaces and glass levels
+  - typography
+  - spacing
+  - border radii
+  - borders and shadows
+  - interaction states
+  - animation timings
+
+- [ ] **Phase 2A.2 — Reusable QML Component Library**
+  - buttons
+  - cards
+  - icon buttons
+  - toggles
+  - sliders
+  - chips
+  - selectors
+  - navigation items
+  - tooltips
+  - dialogs and popups
+
+- [ ] **Phase 2A.3 — Control Center shell + navigation**
+  - persistent navigation model
+  - modular content area
+  - responsive layout
+  - unified header / footer behavior
+
+- [ ] **Phase 2A.4 — Displays visual redesign**
+  - migrate the existing Displays module to the shared component library
+  - preserve the current observed / draft / runtime / persistent architecture
+  - improve monitor topology, mode selection and Safe Apply presentation
+
+## Control Center modules
+
+- [ ] **Phase 2B — Wallpapers**
+  - MAIN / SECONDARY previews
+  - wallpaper selection
+  - fit / presentation options
+  - transitions
+  - automatic rotation
+
+- [ ] **Phase 2C — Themes**
+  - installed theme discovery
+  - live theme previews
+  - active theme state
+  - theme application
+
+- [ ] **Phase 2D — Quick Settings**
+  - lock
+  - Do Not Disturb
+  - Night Light
+  - session actions
+  - commonly used desktop toggles
+
+- [ ] **Phase 2E — Performance / Hardware**
+  - CPU
+  - memory
+  - GPU
+  - temperatures
+  - storage
+  - system telemetry
+
+- [ ] **Phase 2F — Media / Audio**
+  - volume
+  - audio devices
+  - media playback
+  - MPRIS integration
+
+- [ ] **Phase 2G — Network / Bluetooth**
+  - Wi-Fi status
+  - Ethernet status
+  - Bluetooth status
+  - connectivity controls
+
+- [ ] **Phase 2H — Notifications / Calendar / Power**
+  - notification integration
+  - calendar / date widgets
+  - suspend / logout / reboot / shutdown controls
+
+## Desktop visual consolidation
+
+- [ ] **Phase 2I — Waybar visual consolidation**
+  - share the Control Center design language
+  - unified capsules, spacing and states
+  - consistent theme tokens
+  - visual integration with Control Center widgets
+
+## Quickshell desktop evolution
+
+- [ ] **Phase 3A — Evaluate native Quickshell bar**
+  - evaluate replacing Waybar with a Quickshell-native panel
+  - compare stability, complexity and functionality
+  - migrate only if the native implementation provides clear advantages
+
+## v1.0.0 release readiness
+
+Before the first official stable release:
+
+- [ ] **RC.1 — UX and visual consistency review**
+- [ ] **RC.2 — Runtime stability and performance validation**
+- [ ] **RC.3 — Garuda Linux clean-install validation**
+- [ ] **RC.4 — Arch Linux clean-install validation**
+- [ ] **RC.5 — openSUSE Tumbleweed clean-install validation**
+- [ ] **RC.6 — Install / update / uninstall validation**
+- [ ] **RC.7 — Documentation and screenshot gallery**
+- [ ] **RC.8 — Final quality and release gates**
+
+When all release-readiness gates pass:
+
+```text
+v1.0.0
+FIRST OFFICIAL STABLE RELEASE
+```
 
 ---
 
