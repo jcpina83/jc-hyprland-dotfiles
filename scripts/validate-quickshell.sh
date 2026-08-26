@@ -35,6 +35,9 @@ required_files=(
     "components/JcButton.qml"
     "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
+    "components/JcSurface.qml"
+    "components/JcDivider.qml"
+    "components/JcSectionHeader.qml"
     "services/MonitorService.qml"
     "services/MonitorModeParser.qml"
     "services/DisplayDraftStore.qml"
@@ -77,6 +80,98 @@ if [[ -z "$spread_matches" ]]; then
 else
     fail "spread/rest syntax is not allowed in project QML:"
     printf '%s\n' "$spread_matches" >&2
+fi
+
+
+printf '\n==> Phase 2A.2 foundation component contract\n'
+
+jc_surface="$config_dir/components/JcSurface.qml"
+jc_divider="$config_dir/components/JcDivider.qml"
+jc_section_header="$config_dir/components/JcSectionHeader.qml"
+
+for surface_contract in \
+    'required property var theme' \
+    'property string surfaceRole: "base"' \
+    'property bool selected: false' \
+    'property bool focused: false' \
+    'readonly property color resolvedSurfaceColor:' \
+    'readonly property color resolvedBorderColor:' \
+    'root.theme.surfaceSelected' \
+    'root.theme.borderFocus' \
+    'root.theme.motionSelection' \
+    'root.theme.easingStandard'
+do
+    if grep -Fq -- "$surface_contract" "$jc_surface" 2>/dev/null; then
+        ok "JcSurface contract: $surface_contract"
+    else
+        fail "JcSurface contract missing: $surface_contract"
+    fi
+done
+
+for divider_contract in \
+    'required property var theme' \
+    'property int orientation: Qt.Horizontal' \
+    'property color dividerColor: theme.borderSubtle' \
+    'property int thickness: theme.borderWidthThin'
+do
+    if grep -Fq -- "$divider_contract" "$jc_divider" 2>/dev/null; then
+        ok "JcDivider contract: $divider_contract"
+    else
+        fail "JcDivider contract missing: $divider_contract"
+    fi
+done
+
+for section_header_contract in \
+    'required property var theme' \
+    'property string title: ""' \
+    'property string subtitle: ""' \
+    'root.theme.space2Xs' \
+    'root.theme.textPrimary' \
+    'root.theme.textSecondary' \
+    'root.theme.textSizeSection' \
+    'root.theme.textSizeBody'
+do
+    if grep -Fq -- "$section_header_contract" "$jc_section_header" 2>/dev/null; then
+        ok "JcSectionHeader contract: $section_header_contract"
+    else
+        fail "JcSectionHeader contract missing: $section_header_contract"
+    fi
+done
+
+foundation_files=(
+    "$jc_surface"
+    "$jc_divider"
+    "$jc_section_header"
+)
+
+foundation_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "${foundation_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$foundation_hardcoded_colors" ]]; then
+    ok "foundation components contain no hardcoded colors"
+else
+    fail "foundation components contain hardcoded colors:"
+    printf '%s\n' "$foundation_hardcoded_colors" >&2
+fi
+
+foundation_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "${foundation_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$foundation_legacy_aliases" ]]; then
+    ok "foundation components use canonical Theme API tokens"
+else
+    fail "foundation components use legacy Theme API aliases:"
+    printf '%s\n' "$foundation_legacy_aliases" >&2
 fi
 
 
