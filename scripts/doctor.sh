@@ -20,7 +20,13 @@ quickshell_config="$config_home/quickshell/jc-hyprland"
 quickshell_config_expected="$repo_root/config/quickshell/jc-hyprland"
 
 host_env="$local_dir/host.env"
+monitors_lua="$local_dir/monitors.lua"
 wallpaper_env="$local_dir/wallpaper.env"
+
+hypr_dir="$config_home/hypr"
+hypr_lua_module="$hypr_dir/jc-dotfiles"
+hypr_lua_expected="$repo_root/config/hypr/lua"
+hyprland_lua="$hypr_dir/hyprland.lua"
 
 systemd_user_dir="$config_home/systemd/user"
 
@@ -87,6 +93,7 @@ required_commands=(
     qs
     systemctl
     systemd-run
+    jq
 )
 
 for command_name in "${required_commands[@]}"; do
@@ -106,7 +113,6 @@ optional_commands=(
     shellcheck
     python3
     fish
-    jq
 )
 
 for command_name in "${optional_commands[@]}"; do
@@ -255,6 +261,40 @@ fi
 
 
 # ==============================================================================
+# Hyprland Lua integration
+# ==============================================================================
+
+section "Hyprland Lua integration"
+
+if [[ -r "$monitors_lua" ]]; then
+    ok "$monitors_lua"
+else
+    fail "machine-local Lua monitor configuration missing: $monitors_lua"
+fi
+
+if [[ -L "$hypr_lua_module" ]]; then
+    hypr_lua_actual="$(readlink -f "$hypr_lua_module" 2>/dev/null || true)"
+    hypr_lua_expected_real="$(readlink -f "$hypr_lua_expected" 2>/dev/null || true)"
+
+    if [[ "$hypr_lua_actual" == "$hypr_lua_expected_real" ]]; then
+        ok "Hyprland jc-dotfiles Lua module"
+    else
+        fail "Hyprland Lua module points to unexpected target: $hypr_lua_actual"
+    fi
+elif [[ -e "$hypr_lua_module" ]]; then
+    fail "Hyprland Lua module exists but is not a symlink: $hypr_lua_module"
+else
+    fail "Hyprland Lua module missing: $hypr_lua_module"
+fi
+
+if [[ -r "$hyprland_lua" ]]     && grep -Fqx 'require("jc-dotfiles/init")' "$hyprland_lua"
+then
+    ok "hyprland.lua loads jc-dotfiles/init"
+else
+    fail "hyprland.lua does not load jc-dotfiles/init"
+fi
+
+# ==============================================================================
 # Quickshell
 # ==============================================================================
 
@@ -337,6 +377,7 @@ runtime_links=(
     "start-quickshell.sh:scripts/runtime/start-quickshell.sh"
     "jc-control-center:scripts/runtime/jc-control-center.sh"
     "jc-displayctl:scripts/runtime/jc-displayctl.sh"
+    "jc-displaycfg:scripts/runtime/jc-displaycfg.sh"
     "network-traffic.sh:scripts/runtime/network-traffic.sh"
     "amd-gpu.sh:scripts/runtime/amd-gpu.sh"
     "launch-wofi.sh:scripts/runtime/launch-wofi.sh"

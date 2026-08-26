@@ -14,12 +14,12 @@ umask 077
 # - snapshots whether the monitor was active before mutation
 # - rollback restores active state or returns to disabled=true
 # - external systemd user rollback watchdog remains authoritative
-# - never writes local/monitors.conf
+# - never writes local/monitors.lua
 # ==============================================================================
 
 config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 base="$config_home/jc-hyprland-dotfiles"
-monitors_conf="${JC_MONITORS_CONF:-$base/local/monitors.conf}"
+monitors_lua="${JC_MONITORS_LUA:-$base/local/monitors.lua}"
 
 runtime_root_default="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 state_root="${JC_DISPLAY_STATE_DIR:-$runtime_root_default/jc-hyprland-dotfiles/display-safe}"
@@ -70,7 +70,7 @@ Disable uses:
 Enable uses the complete requested runtime geometry and preserves supported
 persistent rule extras such as VRR.
 
-Phase 1B.6 never writes local/monitors.conf.
+Phase 1B.6 never writes local/monitors.lua.
 EOF
 }
 
@@ -380,51 +380,184 @@ selector_matches_monitor() {
 
 
 find_monitor_payload() {
-    [[ -r "$monitors_conf" ]] \
-        || die "monitor configuration is not readable: $monitors_conf"
+    [[ -r "$monitors_lua" ]] \
+        || die "monitor configuration is not readable: $monitors_lua"
 
-    local line
-    local stripped
-    local payload
-    local -a fields
-    local configured_selector
-    local matches=0
-    local found=""
+    local result
 
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        stripped="${line%%#*}"
+    result="$(
+        awk \
+            -v wanted_output="$output" \
+            -v wanted_desc="$description_selector" \
+            '
+            function trim(value) {
+                sub(/^[[:space:]]+/, "", value)
+                sub(/[[:space:]]+$/, "", value)
+                return value
+            }
 
-        if [[ "$stripped" =~ ^[[:space:]]*monitor[[:space:]]*=[[:space:]]*(.*)$ ]]; then
-            payload="${BASH_REMATCH[1]}"
+            function unquote(value) {
+                value = trim(value)
 
-            IFS=',' read -r -a fields <<< "$payload"
+                if (value ~ /^".*"$/) {
+                    sub(/^"/, "", value)
+                    sub(/"$/, "", value)
+                }
 
-            ((${#fields[@]} >= 1)) || continue
+                return value
+            }
 
-            configured_selector="$(trim "${fields[0]}")"
+            function is_extra(key) {
+                return key == "bitdepth" || key == "vrr" || key == "sdrbrightness" || key == "sdrsaturation" || key == "supports_wide_color" || key == "supports_hdr" || key == "sdr_min_luminance" || key == "sdr_max_luminance" || key == "min_luminance" || key == "max_luminance" || key == "max_avg_luminance" || key == "cm" || key == "sdr_eotf" || key == "mirror" || key == "icc"
+            }
 
-            if selector_matches_monitor "$configured_selector"; then
-                ((matches += 1))
-                found="$payload"
-            fi
-        fi
-    done < "$monitors_conf"
+            function reset_block() {
+                selector = ""
+                mode = ""
+                position = ""
+                scale = ""
+                extras = ""
+            }
 
-    if ((matches == 0)); then
-        if [[ -n "$description_selector" ]]; then
-            die \
-                "no monitor rule found for $output; tried selectors " \
-                "'$output' and '$description_selector' in $monitors_conf"
-        fi
+            function append_extra(key, value) {
+                if (extras == "") {
+                    extras = key SUBSEP value
+                } else {
+                    extras = extras SUBSEP key SUBSEP value
+                }
+            }
 
-        die "no monitor rule found for $output in $monitors_conf"
-    fi
+            function emit_payload() {
+                if (selector != wanted_output && selector != wanted_desc) {
+                    return
+                }
 
-    if ((matches > 1)); then
-        die "multiple monitor rules match $output; refusing ambiguous apply"
-    fi
+                matches += 1
 
-    printf '%s' "$found"
+                if (mode == "" || position == "" || scale == "") {
+                    malformed = 1
+                    return
+                }
+
+                payload = selector "," mode "," position "," scale
+
+                if (extras != "") {
+                    count = split(extras, parts, SUBSEP)
+
+                    for (i = 1; i <= count; i += 2) {
+                        payload = payload "," parts[i] "," parts[i + 1]
+                    }
+                }
+
+                found = payload
+            }
+
+            BEGIN {
+                in_monitor = 0
+                matches = 0
+                malformed = 0
+                reset_block()
+            }
+
+            /^[[:space:]]*hl[.]monitor[[:space:]]*[(][[:space:]]*[{][[:space:]]*$/ {
+                if (in_monitor) {
+                    malformed = 1
+                }
+
+                in_monitor = 1
+                reset_block()
+                next
+            }
+
+            in_monitor && /^[[:space:]]*[}][)][[:space:]]*,?[[:space:]]*$/ {
+                emit_payload()
+                in_monitor = 0
+                next
+            }
+
+            in_monitor {
+                line = $0
+                sub(/^[[:space:]]*/, "", line)
+
+                if (line !~ /^[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=/) {
+                    next
+                }
+
+                key = line
+                sub(/[[:space:]]*=.*/, "", key)
+                key = trim(key)
+
+                value = line
+                sub(/^[^=]*=[[:space:]]*/, "", value)
+                sub(/,[[:space:]]*$/, "", value)
+                value = trim(value)
+
+                if (key == "output") {
+                    selector = unquote(value)
+                } else if (key == "mode") {
+                    mode = unquote(value)
+                } else if (key == "position") {
+                    position = unquote(value)
+                } else if (key == "scale") {
+                    scale = unquote(value)
+                } else if (key == "disabled") {
+                    # Runtime mutation receives enabled separately.
+                } else if (key == "transform") {
+                    append_extra(key, unquote(value))
+                } else if (is_extra(key)) {
+                    append_extra(key, unquote(value))
+                }
+            }
+
+            END {
+                if (in_monitor) {
+                    malformed = 1
+                }
+
+                if (malformed) {
+                    exit 3
+                }
+
+                if (matches == 0) {
+                    exit 4
+                }
+
+                if (matches > 1) {
+                    exit 5
+                }
+
+                print found
+            }
+            ' \
+            "$monitors_lua"
+    )" || {
+        local status=$?
+
+        case "$status" in
+            3)
+                die "malformed hl.monitor block in $monitors_lua"
+                ;;
+            4)
+                if [[ -n "$description_selector" ]]; then
+                    die \
+                        "no hl.monitor rule found for $output; tried selectors " \
+                        "'$output' and '$description_selector' in $monitors_lua"
+                fi
+
+                die "no hl.monitor rule found for $output in $monitors_lua"
+                ;;
+            5)
+                die \
+                    "multiple hl.monitor rules match $output in $monitors_lua; " \
+                    "refusing ambiguous apply"
+                ;;
+            *)
+                die "unable to parse monitor configuration: $monitors_lua"
+                ;;
+        esac
+    }
+
+    printf '%s' "$result"
 }
 
 
@@ -449,7 +582,7 @@ min_luminance|max_luminance|max_avg_luminance)
 
         *)
             die \
-                "unsupported monitor option '$key' in $monitors_conf; " \
+                "unsupported monitor option '$key' in $monitors_lua; " \
                 "refusing to drop or reinterpret it"
             ;;
     esac

@@ -257,7 +257,7 @@ PanelWindow {
                         text: root.applyService
                             ? "Automatic rollback in "
                                 + root.applyService.remainingSeconds
-                                + " second(s). Persistent monitors.conf "
+                                + " second(s). Persistent monitors.lua "
                                 + "has not been modified."
                             : ""
 

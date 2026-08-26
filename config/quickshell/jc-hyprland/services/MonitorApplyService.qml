@@ -445,7 +445,7 @@ Scope {
             root.errorMessage = "";
             root.statusMessage =
                 "Runtime display state kept for " + output
-                + ". Persistent monitors.conf is still unchanged.";
+                + ". Persistent monitors.lua is still unchanged.";
 
             root.monitorService.refresh();
             root.kept(output);

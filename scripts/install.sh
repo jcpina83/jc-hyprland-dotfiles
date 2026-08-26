@@ -40,11 +40,11 @@ quickshell_launcher="$repo_root/scripts/runtime/start-quickshell.sh"
 control_center_wrapper="$repo_root/scripts/runtime/jc-control-center.sh"
 
 host_template="$repo_root/hosts/example/host.env"
-monitors_template="$repo_root/hosts/example/monitors.conf"
+monitors_template="$repo_root/hosts/example/monitors.lua"
 wallpaper_template="$repo_root/hosts/example/wallpaper.env"
 
-hypr_bridge_template="$repo_root/config/hypr/hyprlang/templates/jc-dotfiles.conf.template"
-hypr_bridge="$hypr_dir/jc-dotfiles.conf"
+hypr_lua_source="$repo_root/config/hypr/lua"
+hypr_lua_target="$hypr_dir/jc-dotfiles"
 
 
 # ============================================================================
@@ -62,7 +62,7 @@ Usage:
 
 Options:
   --dry-run          Show what would be done without modifying the system
-  --apply-hyprland   Install and enable the Hyprland integration bridge
+  --apply-hyprland   Enable the jc-dotfiles Lua module in hyprland.lua
   --help             Show this help
 EOF
 }
@@ -172,8 +172,8 @@ ensure_local_file() {
 [[ -x "$wallpaper_rotation_configurator" ]] \
     || die "Wallpaper rotation configurator is not executable: $wallpaper_rotation_configurator"
 
-[[ -f "$hypr_bridge_template" ]] \
-    || die "Missing Hyprland bridge template: $hypr_bridge_template"
+[[ -r "$hypr_lua_source/init.lua" ]] \
+    || die "Missing Hyprland Lua integration: $hypr_lua_source/init.lua"
 
 [[ -r "$quickshell_config_source/shell.qml" ]] \
     || die "Missing Quickshell configuration: $quickshell_config_source"
@@ -239,6 +239,10 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/jc-displayctl.sh" \
     "$bin_dir/jc-displayctl"
+
+ensure_symlink \
+    "$repo_root/scripts/runtime/jc-displaycfg.sh" \
+    "$bin_dir/jc-displaycfg"
 
 ensure_symlink \
     "$repo_root/scripts/runtime/network-traffic.sh" \
@@ -345,7 +349,7 @@ ensure_local_file \
 
 ensure_local_file \
     "$monitors_template" \
-    "$local_dir/monitors.conf"
+    "$local_dir/monitors.lua"
 
 ensure_local_file \
     "$wallpaper_template" \
@@ -375,49 +379,50 @@ run systemctl --user daemon-reload
 run "$wallpaper_rotation_configurator"
 
 # ----------------------------------------------------------------------------
-# Hyprland integration bridge
+# Hyprland Lua integration
 #
-# Install the bridge file, but do not modify hyprland.conf automatically.
-# This keeps installation safe and reversible.
+# ~/.config/hypr/jc-dotfiles -> repository config/hypr/lua
+#
+# The project module is always installed as a symlink.  Activation in the
+# distro-owned hyprland.lua remains opt-in through --apply-hyprland.
 # ----------------------------------------------------------------------------
 
-if [[ ! -e "$hypr_bridge" ]]; then
-    run cp \
-        "$hypr_bridge_template" \
-        "$hypr_bridge"
-else
-    log "Hyprland bridge preserved: $hypr_bridge"
-fi
+ensure_symlink \
+    "$hypr_lua_source" \
+    "$hypr_lua_target"
 
 
 # ----------------------------------------------------------------------------
-# Optional Hyprland activation
+# Optional Hyprland Lua activation
 # ----------------------------------------------------------------------------
 
 if [[ "$apply_hyprland" == true ]]; then
 
-    hyprland_conf="$hypr_dir/hyprland.conf"
+    hyprland_lua="$hypr_dir/hyprland.lua"
 
-    [[ -f "$hyprland_conf" ]] \
-        || die "Hyprland configuration not found: $hyprland_conf"
+    [[ -f "$hyprland_lua" ]] \
+        || die "Hyprland Lua configuration not found: $hyprland_lua"
 
-    source_line='source = ~/.config/hypr/jc-dotfiles.conf'
+    integration_line='require("jc-dotfiles/init")'
 
-    if grep -Fqx "$source_line" "$hyprland_conf"; then
-        log "Hyprland integration already enabled."
+    if grep -Fqx "$integration_line" "$hyprland_lua"; then
+        log "Hyprland Lua integration already enabled."
     else
-        log "Enabling Hyprland integration."
+        log "Enabling Hyprland Lua integration."
 
         if [[ "$dry_run" == true ]]; then
             printf '+ printf %q >> %q\n' \
-                "$source_line" \
-                "$hyprland_conf"
+                "$integration_line" \
+                "$hyprland_lua"
         else
             {
                 printf '\n'
-                printf '# jc-hyprland-dotfiles\n'
-                printf '%s\n' "$source_line"
-            } >> "$hyprland_conf"
+                printf '%s\n' '-- ============================================================================='
+                printf '%s\n' '-- jc-hyprland-dotfiles'
+                printf '%s\n' '-- Keep this integration layer last so project overrides win.'
+                printf '%s\n' '-- ============================================================================='
+                printf '%s\n' "$integration_line"
+            } >> "$hyprland_lua"
         fi
     fi
 fi
@@ -458,6 +463,7 @@ echo "  $bin_dir/start-waybar.sh"
 echo "  $bin_dir/start-quickshell.sh"
 echo "  $bin_dir/jc-control-center"
 echo "  $bin_dir/jc-displayctl"
+echo "  $bin_dir/jc-displaycfg"
 echo "  $bin_dir/network-traffic.sh"
 echo "  $bin_dir/amd-gpu.sh"
 
@@ -468,16 +474,16 @@ echo "  $quickshell_config_target"
 echo
 echo "Local machine config:"
 echo "  $local_dir/host.env"
-echo "  $local_dir/monitors.conf"
+echo "  $local_dir/monitors.lua"
 
 echo
-echo "Hyprland bridge:"
-echo "  $hypr_bridge"
+echo "Hyprland Lua module:"
+echo "  $hypr_lua_target -> $hypr_lua_source"
 
 echo
 
 if [[ "$apply_hyprland" == true ]]; then
     log "Hyprland integration enabled."
 else
-    log "Revisa local/host.env y local/monitors.conf antes de habilitar runtime."
+    log "Revisa local/host.env y local/monitors.lua antes de habilitar runtime."
 fi

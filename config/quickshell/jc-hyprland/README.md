@@ -2,280 +2,173 @@
 
 Custom Quickshell control-center implementation for `jc-hyprland-dotfiles`.
 
-## Current milestone
+## Display architecture
 
-### Phase 1B.6 — Enable / Disable Monitors
+Hyprland 0.55+ uses Lua configuration. The project therefore uses one
+machine-local persistent source for display state:
 
-The display module now supports draft/runtime control for:
+```text
+~/.config/jc-hyprland-dotfiles/local/monitors.lua
+```
 
-- resolution,
-- refresh rate,
-- scale,
-- transform / orientation,
-- visual logical position,
-- enabled / disabled state.
-
-Persistence to `local/monitors.conf` is still intentionally deferred.
-
-## Important Hyprland semantic
-
-Disabling a monitor is **not** DPMS.
-
-Hyprland removes a disabled monitor from the virtual layout and moves its
-windows/workspaces to remaining outputs.
-
-The runtime rule is:
+The distro-owned `~/.config/hypr/hyprland.lua` loads the project overlay last:
 
 ```lua
-hl.monitor({
-    output = "...",
-    disabled = true
-})
+require("jc-dotfiles/init")
 ```
 
-For this reason, disable is protected by the same Safe Apply transaction used
-for geometry changes.
+and `jc-dotfiles/init.lua` loads `local/monitors.lua`.
 
-## Safety guards
+This makes project-owned monitor rules authoritative without rewriting the
+distribution's main Hyprland configuration.
 
-Phase 1B.6 refuses to disable:
+## Runtime vs persistence
 
-1. the last active monitor,
-2. the currently focused monitor.
-
-The focused-monitor rule is intentionally conservative because the Control
-Center follows the focused output. Focus another monitor before disabling the
-current one.
-
-The backend repeats these checks using live `hyprctl -j monitors all` data, so
-the UI is not the only safety boundary.
-
-## Draft model
-
-Each display draft now includes:
+Runtime display mutations remain separate from persistence:
 
 ```text
-enabled
-mode
-refresh
-scale
-transform
-x
-y
-```
-
-Observed, draft, temporary runtime and persistent states remain separate.
-
-```text
-Observed state
-      │
-      ▼
 DisplayDraftStore
-      │
-      ├── enabled
-      ├── mode
-      ├── scale
-      ├── transform
-      └── x/y
-      │
-      ▼
-Safe Apply
-      │
-      ▼
-Temporary runtime
+      |
+      v
+MonitorApplyService
+      |
+      v
+jc-displayctl
+      |
+      +-- Safe Apply / Keep / Rollback
+      +-- runtime only
+      +-- reads persistent extras from local/monitors.lua
+
+
+Confirmed runtime topology
+      |
+      v
+jc-displaycfg
+      |
+      +-- preview
+      +-- backup
+      +-- atomic save
+      +-- hyprctl reload
+      +-- post-reload verification
+      +-- automatic file rollback
+      |
+      v
+local/monitors.lua
 ```
 
-## Disabled monitor discovery
+`Keep` and `Save Configuration` intentionally remain different concepts.
 
-The project continues to use:
+## Phase 1C.1 — Lua persistence backend
+
+`jc-displaycfg` snapshots every configured monitor returned by:
 
 ```bash
 hyprctl -j monitors all
 ```
 
-rather than `hyprctl -j monitors`, because `monitors all` retains inactive /
-disabled outputs.
-
-A disabled output can therefore remain visible as a card in the Control Center
-and be enabled again.
-
-If Hyprland does not expose a reusable mode for a disabled output, enabling
-fails closed rather than guessing a resolution.
-
-## Transaction snapshot
-
-The rollback snapshot now stores:
-
-```text
-enabled
-mode
-position
-scale
-transform
-```
-
-If the monitor was originally active:
-
-```text
-Disable
-  │
-  └── rollback → restore full active state
-```
-
-If the monitor was originally disabled:
-
-```text
-Enable
-  │
-  └── rollback → disabled = true
-```
-
-This makes Enable and Disable symmetric operations.
-
-## UI behavior
-
-An active display card offers:
-
-```text
-Disable
-```
-
-A disabled display card remains listed and offers:
-
-```text
-Enable
-```
-
-Geometry controls are disabled while the draft monitor is disabled.
-
-A disabled draft disappears from the visual topology because it is no longer
-part of Hyprland's logical layout.
-
-## Safe Apply lifecycle
-
-```text
-Enable / Disable draft
-        │
-        ▼
-Safety validation
-        │
-        ├── at least 1 active
-        ├── focused output protected
-        └── geometry valid when enabling
-        │
-        ▼
-Snapshot enabled + geometry
-        │
-        ▼
-systemd --user rollback watchdog
-        │
-        ▼
-temporary runtime mutation
-        │
-        ▼
-15 seconds
-   ┌────┴─────┐
-   ▼          ▼
- Keep      Rollback
-```
-
-The watchdog remains authoritative if Quickshell disappears.
-
-### Hyprland IPC environment
-
-The transient `systemd --user` service does not rely on the user manager having
-the same compositor environment as Quickshell.
-
-Before any display mutation, Safe Apply captures the current session IPC
-context under the ephemeral transaction directory:
-
-```text
-HYPRLAND_INSTANCE_SIGNATURE
-XDG_RUNTIME_DIR
-WAYLAND_DISPLAY (when present)
-PATH
-```
-
-The same values are passed explicitly to `systemd-run --setenv=...` and are
-also restored from the pending transaction by the rollback command before
-`hyprctl` is executed. This provides two independent protections against a
-detached watchdog service losing access to the active Hyprland instance.
-
-## CLI
-
-Disable preflight:
-
-```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    preflight \
-    --output DP-1 \
-    --mode 3440x1440@165.00 \
-    --enabled false
-```
-
-Enable preflight:
-
-```bash
-~/.config/jc-hyprland-dotfiles/bin/jc-displayctl \
-    preflight \
-    --output DP-1 \
-    --mode 3440x1440@165.00 \
-    --enabled true \
-    --scale 1 \
-    --transform 0 \
-    --position 840x0
-```
-
-## Still intentionally blocked
-
-Phase 1B.6 does not add:
-
-- mirror mode,
-- multi-monitor atomic mutations,
-- persistent monitor writes.
-
-Only one dirty display can be Safe Applied at a time.
-
-## Validation
-
-```bash
-make quickshell-validate
-make lint
-make check
-```
-
-## Next milestone
-
-With monitor runtime controls complete, Phase 1C can introduce safe persistence
-to the generated machine-local `monitors.conf`.
-
-## Phase 1B.6 Fix 2 — explicit re-enable
-
-When a monitor already has:
-
-```lua
-disabled = true
-```
-
-supplying only mode, position, scale and transform can be accepted by Hyprland
-without clearing the disabled state.
-
-Every active rule therefore emits the state explicitly:
+and updates only fields owned by the monitor block:
 
 ```lua
 hl.monitor({
-    output = "...",
-    disabled = false,
+    output = "desc:...",
     mode = "...",
     position = "...",
     scale = ...,
+    disabled = ...,
     transform = ...,
+    -- existing extras remain untouched
 })
 ```
 
-This applies to normal Enable operations and to rollback when the transaction
-snapshot says the monitor was originally active.
+The existing selector stays unchanged. In particular a persistent
+`desc:<description>` selector is never replaced by a connector such as DP-1.
 
-The synthetic backend test intentionally models this strictly: geometry changes
-never imply re-enable unless `disabled = false` is present.
+Existing options such as these are preserved:
 
+```text
+vrr
+bitdepth
+cm
+sdr_eotf
+sdrbrightness
+sdrsaturation
+supports_wide_color
+supports_hdr
+icc
+mirror
+...
+```
+
+Workspace rules are outside the monitor mutation boundary and are preserved
+byte-for-byte.
+
+## Disabled monitors
+
+Lua persistence can keep both the disabled flag and the reusable geometry in
+the same block:
+
+```lua
+hl.monitor({
+    output = "desc:...",
+    mode = "3440x1440@165",
+    position = "840x0",
+    scale = 1,
+    disabled = true,
+})
+```
+
+This avoids the information loss of the old Hyprlang `monitor = ..., disable`
+form.
+
+## Save transaction
+
+```text
+save
+ |
+ +-- require clean configerrors
+ +-- capture monitors all
+ +-- build monitors.lua candidate
+ +-- preserve all non-monitor Lua
+ +-- backup current monitors.lua
+ +-- atomic rename
+ +-- hyprctl reload
+ +-- wait for runtime convergence
+ +-- verify runtime against pre-save snapshot
+ |
+ +-- success
+
+failure
+ |
+ +-- restore backup atomically
+ +-- hyprctl reload
+ +-- return error
+```
+
+Backups live in:
+
+```text
+~/.config/jc-hyprland-dotfiles/local/backups/displays/
+```
+
+## CLI
+
+```bash
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg status
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg preview
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg save
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg backups
+~/.config/jc-hyprland-dotfiles/bin/jc-displaycfg restore-last
+```
+
+## Legacy Hyprlang cleanup
+
+The active display path no longer requires:
+
+```text
+local/monitors.conf
+config/hypr/hyprlang/
+config/hypr/jc-dotfiles.conf
+```
+
+These legacy artifacts should only be removed after the Lua persistence path is
+validated on the real host.

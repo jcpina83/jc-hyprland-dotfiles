@@ -119,6 +119,46 @@ else
 fi
 
 
+printf '\n==> Display persistence backend\n'
+
+display_configurator="$repo_root/scripts/runtime/jc-displaycfg.sh"
+
+if [[ -x "$display_configurator" ]]; then
+    ok "jc-displaycfg.sh executable"
+else
+    fail "missing or non-executable display persistence backend"
+fi
+
+for persistence_contract in \
+    'preview)' \
+    'save)' \
+    'backups)' \
+    'restore-last)' \
+    'JC_MONITORS_LUA' \
+    'hyprctl -j monitors all' \
+    'hyprctl reload' \
+    'hyprctl configerrors' \
+    'candidate.XXXXXX' \
+    "mv -f -- \"\$candidate_for_replace\" \"\$monitors_lua\"" \
+    'backup_current_file' \
+    'rewrite_monitor_block' \
+    'mask_monitor_blocks' \
+    'validate_candidate_structure' \
+    'verify_runtime_matches_snapshot' \
+    'verify_runtime_snapshot_once' \
+    'runtime_snapshot_diagnostics' \
+    'max_attempts=40' \
+    'delay_seconds=0.10' \
+    'disabled = true' \
+    'workspace rules or other'
+do
+    if grep -Fq "$persistence_contract" "$display_configurator" 2>/dev/null; then
+        ok "persistence contract: $persistence_contract"
+    else
+        fail "display persistence contract missing: $persistence_contract"
+    fi
+done
+
 printf '\n==> Display enable/disable draft contract\n'
 
 draft_store="$config_dir/services/DisplayDraftStore.qml"

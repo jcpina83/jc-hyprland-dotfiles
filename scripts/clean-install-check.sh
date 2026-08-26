@@ -46,6 +46,9 @@ quickshell_config="$repo_root/config/quickshell/jc-hyprland"
 quickshell_launcher="$repo_root/scripts/runtime/start-quickshell.sh"
 control_center_wrapper="$repo_root/scripts/runtime/jc-control-center.sh"
 display_controller="$repo_root/scripts/runtime/jc-displayctl.sh"
+display_configurator="$repo_root/scripts/runtime/jc-displaycfg.sh"
+hypr_lua_source="$repo_root/config/hypr/lua"
+monitor_template="$repo_root/hosts/example/monitors.lua"
 
 if [[ -r "$quickshell_config/shell.qml" ]]; then
     ok "Quickshell config source"
@@ -69,6 +72,24 @@ if [[ -x "$display_controller" ]]; then
     ok "Display controller source"
 else
     fail "missing or non-executable controller: $display_controller"
+fi
+
+if [[ -x "$display_configurator" ]]; then
+    ok "Display persistence source"
+else
+    fail "missing or non-executable persistence backend: $display_configurator"
+fi
+
+if [[ -r "$hypr_lua_source/init.lua" ]]; then
+    ok "Hyprland Lua module source"
+else
+    fail "missing Hyprland Lua module: $hypr_lua_source/init.lua"
+fi
+
+if [[ -r "$monitor_template" ]]; then
+    ok "Lua monitor template"
+else
+    fail "missing Lua monitor template: $monitor_template"
 fi
 
 
@@ -101,6 +122,9 @@ expected_targets=(
     "$test_home/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-control-center"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displayctl"
+    "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displaycfg"
+    "$test_home/.config/jc-hyprland-dotfiles/local/monitors.lua"
+    "$test_home/.config/hypr/jc-dotfiles"
 )
 
 for target in "${expected_targets[@]}"; do
@@ -125,6 +149,9 @@ unexpected_links=(
     "$test_home/.config/jc-hyprland-dotfiles/bin/start-quickshell.sh"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-control-center"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displayctl"
+    "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displaycfg"
+    "$test_home/.config/jc-hyprland-dotfiles/local/monitors.lua"
+    "$test_home/.config/hypr/jc-dotfiles"
 )
 
 for target in "${unexpected_links[@]}"; do
