@@ -6,6 +6,12 @@ script_dir="$(cd "$(dirname "$script_path")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 
 config_dir="$repo_root/config/quickshell/jc-hyprland"
+control_center_wrapper="$repo_root/scripts/runtime/jc-control-center.sh"
+quickshell_launcher="$repo_root/scripts/runtime/start-quickshell.sh"
+hypr_autostart="$repo_root/config/hypr/lua/autostart.lua"
+hypr_keybindings="$repo_root/config/hypr/lua/keybindings.lua"
+waybar_main="$repo_root/config/waybar/templates/config-main.jsonc"
+waybar_secondary="$repo_root/config/waybar/templates/config-secondary.jsonc"
 errors=0
 
 
@@ -327,6 +333,85 @@ then
     ok "external rollback watchdog preserved"
 else
     fail "Safe Apply watchdog contract missing"
+fi
+
+
+printf '\n==> Phase 1D session integration\n'
+
+for integration_file in \
+    "$control_center_wrapper" \
+    "$quickshell_launcher" \
+    "$hypr_autostart" \
+    "$hypr_keybindings" \
+    "$waybar_main" \
+    "$waybar_secondary"
+do
+    if [[ -r "$integration_file" ]]; then
+        ok "integration source: ${integration_file#"$repo_root"/}"
+    else
+        fail "missing integration source: ${integration_file#"$repo_root"/}"
+    fi
+done
+
+if grep -Fq 'start-quickshell.sh' "$hypr_autostart" 2>/dev/null; then
+    ok "Hyprland Lua owns Quickshell session startup"
+else
+    fail "Hyprland autostart must launch start-quickshell.sh"
+fi
+
+if grep -Fq 'ipc show' "$quickshell_launcher" 2>/dev/null; then
+    ok "Quickshell launcher has idempotent IPC probe"
+else
+    fail "Quickshell launcher must probe the named IPC instance"
+fi
+
+if grep -Fq '"SUPER + C"' "$hypr_keybindings" 2>/dev/null \
+    && grep -Fq 'control_center .. " toggle"' "$hypr_keybindings" 2>/dev/null
+then
+    ok "SUPER+C uses the stable Control Center wrapper"
+else
+    fail "Hyprland Control Center keybind contract missing"
+fi
+
+for ipc_contract in \
+    'property string requestedOutputName:' \
+    'function showDisplaysOn(outputName: string): void' \
+    'function toggleDisplaysOn(outputName: string): void'
+do
+    if grep -Fq "$ipc_contract" "$main_qml" 2>/dev/null; then
+        ok "targeted IPC: $ipc_contract"
+    else
+        fail "targeted Control Center IPC contract missing: $ipc_contract"
+    fi
+done
+
+for wrapper_contract in \
+    'show-on)' \
+    'toggle-on)' \
+    "showDisplaysOn \"\$output\"" \
+    "toggleDisplaysOn \"\$output\""
+do
+    if grep -Fq "$wrapper_contract" "$control_center_wrapper" 2>/dev/null; then
+        ok "wrapper targeting: $wrapper_contract"
+    else
+        fail "Control Center wrapper targeting missing: $wrapper_contract"
+    fi
+done
+
+if grep -Fq '"custom/control-center"' "$waybar_main" \
+    && grep -Fq 'jc-control-center toggle-on @MAIN_OUTPUT@' "$waybar_main"
+then
+    ok "main Waybar targets MAIN_OUTPUT"
+else
+    fail "main Waybar Control Center integration missing"
+fi
+
+if grep -Fq '"custom/control-center"' "$waybar_secondary" \
+    && grep -Fq 'jc-control-center toggle-on @SECONDARY_OUTPUT@' "$waybar_secondary"
+then
+    ok "secondary Waybar targets SECONDARY_OUTPUT"
+else
+    fail "secondary Waybar Control Center integration missing"
 fi
 
 

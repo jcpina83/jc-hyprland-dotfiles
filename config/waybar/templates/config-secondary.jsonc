@@ -25,6 +25,7 @@
     "modules-right": [
         "pulseaudio",
         "network",
+        "custom/control-center",
         "custom/notification",
         "clock"
     ],
@@ -114,6 +115,18 @@
 
         "tooltip-format-ethernet":
             "{ifname}\n{ipaddr}"
+    },
+
+
+    // ========================================================================
+    // Control Center
+    // ========================================================================
+
+    "custom/control-center": {
+        "format": "󰒓",
+        "tooltip": true,
+        "tooltip-format": "Control Center",
+        "on-click": "~/.config/jc-hyprland-dotfiles/bin/jc-control-center toggle-on @SECONDARY_OUTPUT@"
     },
 
 

@@ -32,6 +32,7 @@
         "network",
         "tray",
         "idle_inhibitor",
+        "custom/control-center",
         "custom/notification",
         "custom/shortcuts",
         "custom/power"
@@ -222,6 +223,18 @@
 
 
     // ========================================================================
+    // Control Center
+    // ========================================================================
+
+    "custom/control-center": {
+        "format": "󰒓",
+        "tooltip": true,
+        "tooltip-format": "Control Center",
+        "on-click": "~/.config/jc-hyprland-dotfiles/bin/jc-control-center toggle-on @MAIN_OUTPUT@"
+    },
+
+
+    // ========================================================================
     // SwayNC
     // ========================================================================
 
@@ -263,7 +276,7 @@
     "custom/shortcuts": {
         "format": "󰌌",
         "tooltip": true,
-        "tooltip-format": "Atajos de teclado\n\nSUPER + 1..0\nCambiar de workspace\n\nSUPER + SHIFT + 1..0\nMover ventana activa\n\nSUPER + ← ↑ ↓ →\nCambiar foco\n\nSUPER + ENTER\nTerminal\n\nSUPER + T\nSelector de temas\n\nSUPER + SHIFT + E\nMenú de sesión"
+        "tooltip-format": "Atajos de teclado\n\nSUPER + 1..0\nCambiar de workspace\n\nSUPER + SHIFT + 1..0\nMover ventana activa\n\nSUPER + ← ↑ ↓ →\nCambiar foco\n\nSUPER + ENTER\nTerminal\n\nSUPER + C\nControl Center\n\nSUPER + T\nSelector de temas\n\nSUPER + SHIFT + E\nMenú de sesión"
     }
 
 }

@@ -51,6 +51,17 @@ The project follows semantic versioning where practical.
   - `scripts/runtime/start-quickshell.sh`.
 - Decoupled Control Center wrapper:
   - `scripts/runtime/jc-control-center.sh`.
+- Desktop-session Control Center integration with:
+  - Hyprland Lua autostart,
+  - idempotent named Quickshell startup,
+  - `SUPER + C` toggle binding,
+  - MAIN / SECONDARY output-aware Waybar buttons.
+- Output-aware Control Center IPC:
+  - `showDisplaysOn`,
+  - `toggleDisplaysOn`.
+- Output-aware runtime wrapper actions:
+  - `show-on <output>`,
+  - `toggle-on <output>`.
 - Quickshell static validation:
   - `scripts/validate-quickshell.sh`.
 - Quickshell installer, doctor and Makefile integration.
@@ -126,6 +137,12 @@ The project follows semantic versioning where practical.
   - expected dry-run installation targets,
   - absence of real symlink creation during dry-run.
 - Existing portability checks automatically cover tracked QML files.
+- Added Phase 1D validation contracts covering:
+  - Quickshell session startup ownership,
+  - idempotent IPC startup probing,
+  - Hyprland Control Center keybind,
+  - output-aware wrapper commands,
+  - MAIN / SECONDARY Waybar targeting.
 - Added display safety contracts covering:
   - no raw monitor mutation from QML UI,
   - `desc:` selector preservation,
@@ -157,13 +174,11 @@ The project follows semantic versioning where practical.
 - Updated project documentation to establish Lua as the only supported Hyprland
   configuration path and `local/monitors.lua` as the authoritative persistent
   display source.
-- Updated the display roadmap to reflect completed Phases 1A, 1B.1–1B.6 and
-  1C.1.
+- Updated the display roadmap to reflect completed Phases 1A, 1B.1–1B.6,
+  1C.1–1C.3 and 1D.1–1D.4.
 
 ### Planned
 
-- Connect the global persistent `Save Configuration` action to the Quickshell
-  Control Center.
 - Repository screenshots and visual gallery.
 - Clean-install validation on Arch Linux.
 - Clean-install validation on openSUSE Tumbleweed.

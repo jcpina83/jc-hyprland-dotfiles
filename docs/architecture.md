@@ -778,7 +778,11 @@ Phase 1B.5  visual topology / position editor               ✓
 Phase 1B.6  safe monitor Enable / Disable                   ✓
 Phase 1C.1  atomic persistent monitors.lua backend          ✓
 Phase 1C.2  retire pre-Lua compatibility path               ✓
-Phase 1C.3  Quickshell Save Configuration orchestration     next
+Phase 1C.3  Quickshell Save Configuration orchestration     ✓
+Phase 1D.1  Quickshell startup / lifecycle                     ✓
+Phase 1D.2  Hyprland SUPER+C keybind                           ✓
+Phase 1D.3  Waybar output-aware integration                    ✓
+Phase 1D.4  quality gates / documentation                      ✓
 ```
 
 Portabilidad:

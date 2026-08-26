@@ -10,6 +10,7 @@ Scope {
     id: root
 
     property bool displaysVisible: false
+    property string requestedOutputName: ""
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -26,11 +27,26 @@ Scope {
         return Quickshell.screens[0];
     }
 
-    function showDisplays() {
-        root.displaysVisible = true;
+    function prepareDisplays() {
         monitorApplyService.recoverPending();
         monitorService.refresh();
         displayPersistenceService.refreshPreview();
+    }
+
+    function showDisplays() {
+        root.requestedOutputName = "";
+        root.displaysVisible = true;
+        root.prepareDisplays();
+    }
+
+    function showDisplaysOn(outputName) {
+        const target = root.resolveScreen(outputName);
+
+        root.requestedOutputName =
+            target && target.name === outputName ? outputName : "";
+
+        root.displaysVisible = true;
+        root.prepareDisplays();
     }
 
     function hideDisplays() {
@@ -40,6 +56,7 @@ Scope {
             return;
 
         root.displaysVisible = false;
+        root.requestedOutputName = "";
         displayDraftStore.reset();
     }
 
@@ -86,7 +103,9 @@ Scope {
         id: displayPopup
 
         visible: root.displaysVisible
-        targetScreen: root.resolveScreen(monitorService.focusedOutputName)
+        targetScreen: root.resolveScreen(
+            root.requestedOutputName || monitorService.focusedOutputName
+        )
 
         monitorService: monitorService
         draftStore: displayDraftStore
@@ -118,6 +137,24 @@ Scope {
 
         function showDisplays(): void {
             root.showDisplays();
+        }
+
+        function showDisplaysOn(outputName: string): void {
+            root.showDisplaysOn(outputName);
+        }
+
+        function toggleDisplaysOn(outputName: string): void {
+            const target = root.resolveScreen(outputName);
+
+            if (root.displaysVisible
+                    && target
+                    && displayPopup.targetScreen
+                    && displayPopup.targetScreen.name === target.name) {
+                root.hideDisplays();
+                return;
+            }
+
+            root.showDisplaysOn(outputName);
         }
 
         function hideDisplays(): void {

@@ -201,7 +201,7 @@ Phase 1A is intentionally **read-only**.
 
 ```mermaid
 flowchart LR
-    WB["Waybar / Hyprland bind<br/>future integration"]
+    WB["Waybar / Hyprland bind<br/>desktop integration"]
     WR["jc-control-center"]
     IPC["Quickshell IPC"]
     MAIN["Main.qml"]
@@ -233,7 +233,11 @@ Phase 1B.5  Visual topology / position editor                ✓
 Phase 1B.6  Safe monitor Enable / Disable                    ✓
 Phase 1C.1  Atomic persistent monitors.lua integration       ✓
 Phase 1C.2  Remove deprecated Hyprlang compatibility path    ✓
-Phase 1C.3  Save Configuration UI orchestration              next
+Phase 1C.3  Save Configuration UI orchestration              ✓
+Phase 1D.1  Quickshell startup / lifecycle                     ✓
+Phase 1D.2  Hyprland SUPER+C keybind                           ✓
+Phase 1D.3  Waybar output-aware integration                    ✓
+Phase 1D.4  Quality gates / documentation                      ✓
 ```
 
 Display state deliberately remains separated into four layers:
@@ -855,8 +859,11 @@ make wallpaper-apply
 - [x] Safe monitor Enable / Disable
 - [x] Atomic persistent monitor configuration in `local/monitors.lua`
 - [x] Waybar hotplug behavior validated with monitor Enable / Disable
+- [x] Quickshell startup integrated with Hyprland session
+- [x] `SUPER + C` Control Center keybind
+- [x] Output-aware Control Center buttons in MAIN / SECONDARY Waybar
 - [x] Remove deprecated Hyprlang repository/runtime artifacts
-- [ ] Connect global `Save Configuration` action to the Control Center UI
+- [x] Connect global `Save Configuration` action to the Control Center UI
 - [ ] Repository screenshots
 
 ### Portability

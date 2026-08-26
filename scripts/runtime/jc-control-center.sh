@@ -17,8 +17,10 @@ usage() {
     cat <<'EOF'
 Usage:
   jc-control-center show
+  jc-control-center show-on <output>
   jc-control-center hide
   jc-control-center toggle
+  jc-control-center toggle-on <output>
   jc-control-center refresh
   jc-control-center status
   jc-control-center ipc-show
@@ -33,6 +35,18 @@ case "$action" in
             ipc call controlCenter showDisplays
         ;;
 
+    show-on)
+        output="${2:-}"
+
+        if [[ -z "$output" ]]; then
+            printf 'ERROR: show-on requires an output name.\n' >&2
+            exit 2
+        fi
+
+        exec qs -c "$config_name" \
+            ipc call controlCenter showDisplaysOn "$output"
+        ;;
+
     hide)
         exec qs -c "$config_name" \
             ipc call controlCenter hideDisplays
@@ -41,6 +55,18 @@ case "$action" in
     toggle)
         exec qs -c "$config_name" \
             ipc call controlCenter toggleDisplays
+        ;;
+
+    toggle-on)
+        output="${2:-}"
+
+        if [[ -z "$output" ]]; then
+            printf 'ERROR: toggle-on requires an output name.\n' >&2
+            exit 2
+        fi
+
+        exec qs -c "$config_name" \
+            ipc call controlCenter toggleDisplaysOn "$output"
         ;;
 
     refresh)

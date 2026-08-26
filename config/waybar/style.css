@@ -69,6 +69,7 @@ window#waybar {
 #pulseaudio,
 #tray,
 #idle_inhibitor,
+#custom-control-center,
 #custom-shortcuts,
 #custom-power,
 #custom-updates,
@@ -575,4 +576,22 @@ tooltip label {
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
     animation-direction: alternate;
+}
+
+/* ============================================================================
+ * CONTROL CENTER
+ * ========================================================================== */
+
+#custom-control-center {
+    min-width: 24px;
+
+    color: @primary;
+
+    font-size: 17px;
+}
+
+#custom-control-center:hover {
+    color: @accent;
+
+    background: @glass-hover;
 }

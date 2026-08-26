@@ -14,6 +14,10 @@ local theme_selector =
 local wallpaper_selector =
     home .. "/.config/jc-hyprland-dotfiles/bin/select-wallpaper.sh"
 
+local control_center =
+    home .. "/.config/jc-hyprland-dotfiles/bin/jc-control-center"
+
+
 -- -----------------------------------------------------------------------------
 -- Terminal
 --
@@ -26,6 +30,24 @@ hl.unbind("SUPER + RETURN")
 hl.bind(
     "SUPER + RETURN",
     hl.dsp.exec_cmd(terminal)
+)
+
+
+-- -----------------------------------------------------------------------------
+-- Control Center
+--
+-- SUPER + C
+--     Toggle the jc-hyprland Quickshell Control Center.
+--
+-- The keybinding targets the stable runtime wrapper rather than raw Quickshell
+-- IPC so the compositor configuration remains decoupled from UI internals.
+-- -----------------------------------------------------------------------------
+
+hl.unbind("SUPER + C")
+
+hl.bind(
+    "SUPER + C",
+    hl.dsp.exec_cmd(control_center .. " toggle")
 )
 
 
