@@ -176,6 +176,19 @@ Machine-specific values are intentionally excluded from the repository.
 
 # Quickshell Control Center
 
+## Shared component library
+
+Phase 2A.2 provides the reusable QML vocabulary for the next Control Center
+stages: semantic surfaces, actions, selection controls, inputs, navigation,
+feedback overlays and metric visualization.
+
+Reference: `docs/component-library.md`.
+
+The Displays backend architecture is intentionally unchanged; its visual
+migration belongs to Phase 2A.4.
+
+
+
 Quickshell is being introduced as the visual control plane for desktop settings.
 The implementation deliberately keeps UI, observed state, runtime commands and
 persistent configuration separate.
@@ -659,9 +672,24 @@ Official Hyprland configuration reference:
 │   │   └── jc-hyprland
 │   │       ├── components
 │   │       │   ├── JcButton.qml
-│   │       │   └── JcCard.qml
+│   │       │   ├── JcCard.qml
+│   │       │   ├── JcChip.qml
+│   │       │   ├── JcChoiceGroup.qml
+│   │       │   ├── JcComboBox.qml
+│   │       │   ├── JcDivider.qml
+│   │       │   ├── JcIconButton.qml
+│   │       │   ├── JcMetricRing.qml
+│   │       │   ├── JcNavItem.qml
+│   │       │   ├── JcPopup.qml
+│   │       │   ├── JcSectionHeader.qml
+│   │       │   ├── JcSlider.qml
+│   │       │   ├── JcSurface.qml
+│   │       │   ├── JcToggle.qml
+│   │       │   └── JcTooltip.qml
 │   │       ├── Main.qml
 │   │       ├── modules
+│   │       │   ├── dev
+│   │       │   │   └── ComponentGallery.qml
 │   │       │   └── displays
 │   │       │       ├── DisplayCard.qml
 │   │       │       ├── DisplayLayout.qml
@@ -877,7 +905,7 @@ Control Center.
   - interaction states
   - animation timings
 
-- [ ] **Phase 2A.2 — Reusable QML Component Library**
+- [x] **Phase 2A.2 — Reusable QML Component Library**
   - buttons
   - cards
   - icon buttons
@@ -1015,6 +1043,8 @@ Additional documentation lives under:
 ```text
 docs/
 ├── architecture.md
+├── component-library.md
+├── design-system.md
 ├── multi-monitor.md
 └── screenshots/
 ```

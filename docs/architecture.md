@@ -451,6 +451,44 @@ No debe ejecutar directamente comandos de configuración.
 
 ---
 
+# Biblioteca reutilizable de componentes QML
+
+Phase 2A.2 agrega una capa visual explícita entre `Theme.qml` y los módulos de
+funcionalidad:
+
+```mermaid
+flowchart TB
+    T["Theme.qml<br/>semantic Theme API"]
+    C["Reusable components<br/>surfaces · actions · selection · inputs<br/>navigation · overlays · metrics"]
+    M["Feature modules<br/>Displays · future modules"]
+    R["Services / runtime"]
+
+    T --> C
+    C --> M
+    M --> R
+```
+
+```text
+Theme.qml     vocabulario visual semántico
+components/   presentación + interacción reusable
+modules/      composición de funcionalidad
+services/     estado / draft / orquestación backend
+runtime       integración y mutación externa
+```
+
+Los componentes Phase 2 reciben el Theme API y no deben ejecutar comandos de
+shell, mutar Hyprland ni convertirse en propietarios del estado de negocio.
+
+`JcCard` permanece como compatibilidad Phase 1 para Displays; su migración
+visual pertenece a Phase 2A.4.
+
+Referencia: `docs/component-library.md`.
+
+La galería `modules/dev/ComponentGallery.qml` instancia la biblioteca completa
+a través del mismo target IPC `controlCenter`, sin procesos runtime adicionales.
+
+---
+
 # Estado observado, draft y aplicado
 
 El Control Center mantiene cuatro estados deliberadamente separados:

@@ -15,6 +15,11 @@ The project follows semantic versioning where practical.
   - `themes/odyssey-glass/quickshell.json`,
   - `themes/cyber-noir/quickshell.json`.
 - `scripts/validate-design-system.sh` for Design System contract validation.
+- Phase 2A.2 reusable Quickshell component library with semantic surfaces,
+  actions, selection controls, inputs, navigation, feedback overlays and metric
+  visualization.
+- Development `ComponentGallery.qml` visual harness with Control Center IPC for
+  isolated component validation.
 - Quickshell `jc-hyprland` control-center foundation.
 - Read-only display module with:
   - live monitor discovery,
@@ -131,6 +136,11 @@ The project follows semantic versioning where practical.
 
 ### Quality
 
+- Added Phase 2A.2 component-library closure validation covering canonical
+  Theme API injection, hardcoded-color prevention, legacy-alias prevention,
+  gallery coverage, documentation coverage and the explicit `JcCard`
+  compatibility boundary.
+
 - Added Design System validation to the normal lint pipeline, covering Quickshell Theme API structure, theme JSON schema, CSS semantic aliases and Waybar semantic consumption.
 - Added Phase 1A Quickshell safety validation to prevent monitor-write commands
   from entering the read-only foundation.
@@ -164,6 +174,10 @@ The project follows semantic versioning where practical.
   scale state.
 
 ### Documentation
+
+- Added `docs/component-library.md` as the canonical reusable QML component
+  reference and marked Phase 2A.2 complete across roadmap and architecture
+  documentation.
 
 - Added `docs/design-system.md` as the canonical Design System / Theme API reference.
 - Updated theme architecture and Quickshell documentation for runtime `quickshell.json` loading and marked Phase 2A.1 complete.

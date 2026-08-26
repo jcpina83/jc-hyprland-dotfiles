@@ -93,6 +93,171 @@ else
 fi
 
 
+printf '\n==> Phase 2A.2.10 component library closure\n'
+
+component_library_doc="$repo_root/docs/component-library.md"
+design_system_doc="$repo_root/docs/design-system.md"
+architecture_doc="$repo_root/docs/architecture.md"
+root_readme="$repo_root/README.md"
+quickshell_readme="$config_dir/README.md"
+main_qml="${main_qml:-$config_dir/Main.qml}"
+component_gallery="$config_dir/modules/dev/ComponentGallery.qml"
+
+canonical_components=(
+    "JcButton"
+    "JcIconButton"
+    "JcChip"
+    "JcChoiceGroup"
+    "JcComboBox"
+    "JcDivider"
+    "JcMetricRing"
+    "JcNavItem"
+    "JcPopup"
+    "JcSectionHeader"
+    "JcSlider"
+    "JcSurface"
+    "JcToggle"
+    "JcTooltip"
+)
+
+canonical_component_files=()
+
+for component_name in "${canonical_components[@]}"; do
+    component_file="$config_dir/components/${component_name}.qml"
+    canonical_component_files+=("$component_file")
+
+    if [[ -r "$component_file" ]]; then
+        ok "Phase 2 component: ${component_name}.qml"
+    else
+        fail "missing Phase 2 component: ${component_name}.qml"
+        continue
+    fi
+
+    if grep -Fq -- 'required property var theme' "$component_file"; then
+        ok "$component_name requires Theme API injection"
+    else
+        fail "$component_name must require Theme API injection"
+    fi
+done
+
+library_hardcoded_colors="$(
+    grep -nE \
+        '#[0-9a-fA-F]{6,8}|Qt\.rgba\(' \
+        "${canonical_component_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$library_hardcoded_colors" ]]; then
+    ok "canonical component library contains no hardcoded colors"
+else
+    fail "canonical component library contains hardcoded colors:"
+    printf '%s\n' "$library_hardcoded_colors" >&2
+fi
+
+library_legacy_aliases="$(
+    grep -nE \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "${canonical_component_files[@]}" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$library_legacy_aliases" ]]; then
+    ok "canonical component library uses canonical Theme API tokens"
+else
+    fail "canonical component library uses legacy Theme API aliases:"
+    printf '%s\n' "$library_legacy_aliases" >&2
+fi
+
+legacy_card="$config_dir/components/JcCard.qml"
+
+if [[ -r "$legacy_card" ]] \
+    && grep -Eq 'theme\.(surface|border|radiusMedium)' \
+        "$legacy_card" 2>/dev/null
+then
+    ok "JcCard remains explicit legacy compatibility"
+else
+    fail "JcCard compatibility boundary is no longer explicit"
+fi
+
+for doc_file in \
+    "$component_library_doc" \
+    "$design_system_doc" \
+    "$architecture_doc" \
+    "$quickshell_readme"
+do
+    if [[ -r "$doc_file" ]]; then
+        ok "component-library documentation: ${doc_file#"$repo_root"/}"
+    else
+        fail "missing component-library documentation: ${doc_file#"$repo_root"/}"
+    fi
+done
+
+for component_name in "${canonical_components[@]}" "JcCard"; do
+    if grep -Fq -- "$component_name" "$component_library_doc" 2>/dev/null; then
+        ok "component-library doc covers $component_name"
+    else
+        fail "component-library doc missing $component_name"
+    fi
+
+    if grep -Fq -- "Components.${component_name} {" \
+        "$component_gallery" 2>/dev/null
+    then
+        ok "ComponentGallery instantiates $component_name"
+    else
+        fail "ComponentGallery must instantiate $component_name"
+    fi
+done
+
+for doc_contract in \
+    'Phase 2A.2 is complete.' \
+    "\`JcCard\` is intentionally retained as a Phase 1 compatibility component." \
+    'modules/dev/ComponentGallery.qml' \
+    'qs -c jc-hyprland ipc call controlCenter showGallery' \
+    '2A.3 Control Center shell + navigation' \
+    '2A.4 Displays visual redesign'
+do
+    if grep -Fq -- "$doc_contract" "$component_library_doc" 2>/dev/null; then
+        ok "component-library documentation contract: $doc_contract"
+    else
+        fail "component-library documentation contract missing: $doc_contract"
+    fi
+done
+
+if grep -Fq \
+    -- '- [x] **Phase 2A.2 — Reusable QML Component Library**' \
+    "$root_readme" 2>/dev/null
+then
+    ok "README marks Phase 2A.2 complete"
+else
+    fail "README must mark Phase 2A.2 complete"
+fi
+
+if grep -Fq -- 'docs/component-library.md' \
+    "$design_system_doc" 2>/dev/null \
+    && grep -Fq -- 'docs/component-library.md' \
+        "$architecture_doc" 2>/dev/null
+then
+    ok "Design System and architecture reference component-library docs"
+else
+    fail "Design System / architecture component-library references missing"
+fi
+
+for gallery_ipc_contract in \
+    'function showGallery(): void' \
+    'function hideGallery(): void' \
+    'function toggleGallery(): void' \
+    'function galleryIsVisible(): bool'
+do
+    if grep -Fq -- "$gallery_ipc_contract" "$main_qml" 2>/dev/null; then
+        ok "gallery IPC closure: $gallery_ipc_contract"
+    else
+        fail "gallery IPC closure missing: $gallery_ipc_contract"
+    fi
+done
+
+
 printf '\n==> Phase 2A.2.9 component gallery contract\n'
 
 main_qml="${main_qml:-$config_dir/Main.qml}"

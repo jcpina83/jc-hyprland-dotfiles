@@ -279,9 +279,27 @@ spacingMd
 spacingLg
 ```
 
-These aliases remain intentionally available while Phase 2A.2 migrates and
-expands the reusable component library. New components should prefer the
-canonical semantic names.
+These aliases remain intentionally available for legacy Phase 1 consumers while
+their feature modules are migrated to the Phase 2 component library. Phase 2A.2
+itself is complete; new reusable components must use canonical semantic names.
+
+`JcCard` is the explicit compatibility exception and remains available until the
+Displays visual migration in Phase 2A.4.
+
+---
+
+## Reusable component library
+
+Phase 2A.2 implements the semantic Theme API through a shared QML component
+library. The canonical component catalog, public APIs, state-ownership rules,
+legacy compatibility boundary and visual-gallery workflow are documented in:
+
+```text
+docs/component-library.md
+```
+
+The component layer is presentation-only. Feature modules retain ownership of
+observed state, draft state, runtime application and persistence.
 
 ---
 

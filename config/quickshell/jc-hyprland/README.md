@@ -209,3 +209,33 @@ themes/cyber-noir/quickshell.json
 
 Waybar uses equivalent semantic aliases from each theme's `colors.css`.
 See `docs/design-system.md` for the complete contract and extension rules.
+
+---
+
+## Reusable component library
+
+Phase 2A.2 provides the shared visual component layer under `components/`.
+
+New feature UI should compose these components instead of embedding new palette,
+geometry or interaction primitives directly in modules.
+
+Canonical reference:
+
+```text
+../../../docs/component-library.md
+```
+
+Development visual harness:
+
+```text
+modules/dev/ComponentGallery.qml
+```
+
+Open it with:
+
+```bash
+qs -c jc-hyprland ipc call controlCenter showGallery
+```
+
+`JcCard` remains a legacy compatibility component for the current Displays UI.
+New Phase 2 UI should prefer `JcSurface` and canonical reusable components.
