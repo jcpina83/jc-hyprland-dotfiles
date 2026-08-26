@@ -22,65 +22,49 @@ Item {
     implicitWidth: 820
     implicitHeight: 700
 
-    Rectangle {
+    ColumnLayout {
         anchors.fill: parent
-
-        radius: root.theme ? root.theme.radiusLarge : 18
-        color: root.theme ? root.theme.background : "#1b1b1f"
-        border.width: 1
-        border.color: root.theme ? root.theme.border : "#3b3b43"
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: root.theme ? root.theme.spacingLg : 24
-            spacing: root.theme ? root.theme.spacingMd : 16
+        spacing: root.theme.spaceMd
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
 
-                ColumnLayout {
+                Text {
                     Layout.fillWidth: true
-                    spacing: 2
 
-                    Text {
-                        text: "Displays"
-                        color: root.theme ? root.theme.textPrimary : "#f2f2f4"
-                        font.pixelSize: 22
-                        font.bold: true
-                    }
+                    text: {
+                        if (!root.monitorService)
+                            return "Monitor service unavailable";
 
-                    Text {
-                        text: {
-                            if (!root.monitorService)
-                                return "Monitor service unavailable";
+                        const base =
+                            root.monitorService.activeCount
+                            + " active / "
+                            + root.monitorService.count
+                            + " detected";
 
-                            const base =
-                                root.monitorService.activeCount
-                                + " active / "
-                                + root.monitorService.count
-                                + " detected";
-
-                            if (root.applyService
-                                    && root.applyService.pendingConfirmation) {
-                                return base
-                                    + " · Safe Apply pending on "
-                                    + root.applyService.pendingOutput;
-                            }
-
-                            if (root.draftStore && root.draftStore.hasDirty) {
-                                return base
-                                    + " · "
-                                    + root.draftStore.dirtyCount
-                                    + " draft change(s)";
-                            }
-
-                            return base;
+                        if (root.applyService
+                                && root.applyService.pendingConfirmation) {
+                            return base
+                                + " · Safe Apply pending on "
+                                + root.applyService.pendingOutput;
                         }
 
-                        color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                        font.pixelSize: 12
+                        if (root.draftStore && root.draftStore.hasDirty) {
+                            return base
+                                + " · "
+                                + root.draftStore.dirtyCount
+                                + " draft change(s)";
+                        }
+
+                        return base;
                     }
+
+                    color: root.theme.textSecondary
+                    font.family: root.theme.fontFamilySans
+                    font.pixelSize: root.theme.textSizeBody
+                    font.weight: root.theme.fontWeightMedium
+                    elide: Text.ElideRight
                 }
 
                 Components.JcButton {
@@ -176,10 +160,9 @@ Item {
 
             }
 
-            Rectangle {
+            Components.JcDivider {
                 Layout.fillWidth: true
-                implicitHeight: 1
-                color: root.theme ? root.theme.border : "#3b3b43"
+                theme: root.theme
             }
 
             Rectangle {
@@ -221,8 +204,8 @@ Item {
                             ? root.theme.textPrimary
                             : "#f2f2f4"
 
-                        font.pixelSize: 14
-                        font.bold: true
+                        font.pixelSize: root.theme.textSizeBodyLarge
+                        font.weight: root.theme.fontWeightSemibold
                     }
 
                     Text {
@@ -239,7 +222,7 @@ Item {
                             ? root.theme.warning
                             : "#f9e2af"
 
-                        font.pixelSize: 12
+                        font.pixelSize: root.theme.textSizeBody
                         wrapMode: Text.Wrap
                     }
                 }
@@ -251,8 +234,8 @@ Item {
 
                 Layout.fillWidth: true
                 text: root.monitorService ? root.monitorService.errorMessage : ""
-                color: root.theme ? root.theme.error : "#f38ba8"
-                font.pixelSize: 12
+                color: root.theme ? root.theme.danger : "#f38ba8"
+                font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.Wrap
             }
 
@@ -270,7 +253,7 @@ Item {
                     + "edited. Reset the draft before continuing."
 
                 color: root.theme ? root.theme.warning : "#f9e2af"
-                font.pixelSize: 12
+                font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.Wrap
             }
 
@@ -288,9 +271,9 @@ Item {
                     ? root.draftStore.topologyError
                     : ""
 
-                color: root.theme ? root.theme.error : "#f38ba8"
-                font.pixelSize: 12
-                font.bold: true
+                color: root.theme ? root.theme.danger : "#f38ba8"
+                font.pixelSize: root.theme.textSizeBody
+                font.weight: root.theme.fontWeightSemibold
                 wrapMode: Text.Wrap
             }
 
@@ -308,7 +291,7 @@ Item {
                     + "Reset one draft before applying."
 
                 color: root.theme ? root.theme.warning : "#f9e2af"
-                font.pixelSize: 12
+                font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.Wrap
             }
 
@@ -319,8 +302,8 @@ Item {
                 Layout.fillWidth: true
                 text: root.applyService ? root.applyService.errorMessage : ""
 
-                color: root.theme ? root.theme.error : "#f38ba8"
-                font.pixelSize: 12
+                color: root.theme ? root.theme.danger : "#f38ba8"
+                font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.Wrap
             }
 
@@ -332,7 +315,7 @@ Item {
                 text: root.applyService ? root.applyService.statusMessage : ""
 
                 color: root.theme ? root.theme.success : "#a6e3a1"
-                font.pixelSize: 12
+                font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.Wrap
             }
 
@@ -345,8 +328,8 @@ Item {
                     ? root.persistenceService.errorMessage
                     : ""
 
-                color: root.theme ? root.theme.error : "#f38ba8"
-                font.pixelSize: 12
+                color: root.theme ? root.theme.danger : "#f38ba8"
+                font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.Wrap
             }
 
@@ -362,7 +345,7 @@ Item {
                     id: contentColumn
 
                     width: parent.width
-                    spacing: root.theme ? root.theme.spacingMd : 16
+                    spacing: root.theme.spaceMd
 
                     DisplayLayoutEditor {
                         width: contentColumn.width
@@ -387,7 +370,7 @@ Item {
                         width: parent.width
                         text: "No monitor information was returned by Hyprland."
                         color: root.theme ? root.theme.textSecondary : "#b8b8c0"
-                        font.pixelSize: 13
+                        font.pixelSize: root.theme.textSizeBody
                     }
 
                     Repeater {
@@ -415,7 +398,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: root.theme.spaceSm
 
                 Text {
                     Layout.fillWidth: true
@@ -455,7 +438,7 @@ Item {
                         ? (root.theme ? root.theme.warning : "#f9e2af")
                         : (root.theme ? root.theme.textSecondary : "#b8b8c0")
 
-                    font.pixelSize: 11
+                    font.pixelSize: root.theme.textSizeCaption
                     wrapMode: Text.Wrap
                 }
 
@@ -474,13 +457,6 @@ Item {
                     onClicked: root.saveRequested()
                 }
 
-                Text {
-                    text: "Phase 1C.3 · Persistent Save"
-                    color: root.theme ? root.theme.accent : "#89b4fa"
-                    font.pixelSize: 11
-                    font.bold: true
-                }
             }
         }
-    }
 }

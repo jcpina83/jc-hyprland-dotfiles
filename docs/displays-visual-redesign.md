@@ -12,8 +12,8 @@ new window architecture and not a display-backend rewrite.
 ## Phase status
 
 ```text
-2A.4.1 Displays UI audit + visual migration contract       ← CURRENT
-2A.4.2 DisplayView shell/content cleanup
+2A.4.1 Displays UI audit + visual migration contract       ✓
+2A.4.2 DisplayView shell/content cleanup                   ← CURRENT
 2A.4.3 DisplayCard migration to canonical components
 2A.4.4 Mode / scale / transform controls
 2A.4.5 Layout editor visual integration
@@ -375,3 +375,39 @@ responsive layout is validated on the supported display roles
 production Displays no longer depends on the visual compatibility layer
 quality gates and documentation are green
 ```
+
+
+---
+
+## Phase 2A.4.2 — DisplayView shell/content cleanup
+
+`DisplayView.qml` is a hosted feature view. It no longer recreates the
+application-level Control Center surface or repeats the `Displays` title owned
+by `ControlCenterShell.qml`.
+
+This step deliberately preserves the feature contract:
+
+```text
+refreshRequested()
+resetRequested()
+applyRequested()
+keepRequested()
+rollbackRequested()
+saveRequested()
+
+DisplayLayoutEditor
+DisplayCard repeater
+Safe Apply feedback and actions
+persistence feedback and Save Configuration
+```
+
+The feature root now composes directly into the shell content host. Generic
+separation uses `JcDivider`, and `DisplayView`-owned spacing and typography use
+the canonical Phase 2 Theme tokens.
+
+The old user-visible implementation badge `Phase 1C.3 · Persistent Save` is
+removed. Persistence behavior is unchanged.
+
+Safe Apply feedback surfaces, monitor cards, mode controls, and the layout
+editor remain intentionally unchanged here. Their visual migrations belong to
+later Phase 2A.4 steps.

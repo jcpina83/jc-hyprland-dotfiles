@@ -2317,6 +2317,82 @@ do
 done
 
 
+printf '\n==> Phase 2A.4.2 DisplayView hosted content cleanup\n'
+
+display_view="$config_dir/modules/displays/DisplayView.qml"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+
+for hosted_view_contract in \
+    'Components.JcDivider {' \
+    'spacing: root.theme.spaceMd' \
+    'spacing: root.theme.spaceSm' \
+    'DisplayLayoutEditor {' \
+    'delegate: DisplayCard {' \
+    'Save Configuration'
+do
+    if grep -Fq -- "$hosted_view_contract" "$display_view" 2>/dev/null; then
+        ok "DisplayView hosted content contract: $hosted_view_contract"
+    else
+        fail "DisplayView hosted content contract missing: $hosted_view_contract"
+    fi
+done
+
+for retired_display_view_shell in \
+    'text: "Displays"' \
+    'root.theme.radiusLarge' \
+    'root.theme.background' \
+    'root.theme.spacingLg' \
+    'root.theme.spacingMd' \
+    'Phase 1C.3 · Persistent Save'
+do
+    if grep -Fq -- "$retired_display_view_shell" \
+        "$display_view" 2>/dev/null
+    then
+        fail "DisplayView legacy shell residue: $retired_display_view_shell"
+    else
+        ok "DisplayView excludes legacy shell residue: $retired_display_view_shell"
+    fi
+done
+
+for preserved_display_action in \
+    'signal refreshRequested()' \
+    'signal resetRequested()' \
+    'signal applyRequested()' \
+    'signal keepRequested()' \
+    'signal rollbackRequested()' \
+    'signal saveRequested()'
+do
+    if grep -Fq -- "$preserved_display_action" \
+        "$display_view" 2>/dev/null
+    then
+        ok "DisplayView preserved action: $preserved_display_action"
+    else
+        fail "DisplayView preserved action missing: $preserved_display_action"
+    fi
+done
+
+if grep -Fq \
+    '## Phase 2A.4.2 — DisplayView shell/content cleanup' \
+    "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.2 migration documentation"
+else
+    fail "Phase 2A.4.2 migration documentation missing"
+fi
+
+if grep -Fq \
+    '2A.4.1 Displays UI audit + visual migration contract       ✓' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        '2A.4.2 DisplayView shell/content cleanup                   ← CURRENT' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4 roadmap advanced to DisplayView cleanup"
+else
+    fail "Phase 2A.4 roadmap status is not aligned with DisplayView cleanup"
+fi
+
+
 printf '\n==> Production PanelWindow dimensions\n'
 
 control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
