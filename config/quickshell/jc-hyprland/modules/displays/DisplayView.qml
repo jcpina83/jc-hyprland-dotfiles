@@ -19,9 +19,6 @@ Item {
     signal rollbackRequested()
     signal saveRequested()
 
-    implicitWidth: 820
-    implicitHeight: 700
-
     ColumnLayout {
         anchors.fill: parent
         spacing: root.theme.spaceMd

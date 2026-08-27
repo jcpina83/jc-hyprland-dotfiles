@@ -42,12 +42,44 @@ Components.JcSurface {
             root.usableHeight / root.topologyHeight
         )
 
+    readonly property var selectedOptions:
+        root.buildSelectedOptions()
+
     readonly property var anchorOptions:
         root.buildAnchorOptions()
+
+    // Two canonical ComboBoxes need four large-control units each.
+    // Add content margins/spacing to derive the compact breakpoint from
+    // semantic geometry rather than a physical-pixel magic number.
+    readonly property real compactLayoutThreshold:
+        (root.theme.controlHeightLarge * 8)
+        + (root.theme.spaceMd * 3)
+
+    readonly property bool compactLayout:
+        root.width > 0
+        && root.width < root.compactLayoutThreshold
 
     implicitHeight:
         contentColumn.implicitHeight
         + (root.theme.spaceMd * 2)
+
+    function buildSelectedOptions() {
+        const options = [];
+
+        for (let i = 0; i < root.projectedMonitors.length; ++i) {
+            const monitor = root.projectedMonitors[i];
+
+            if (!monitor || monitor.disabled)
+                continue;
+
+            options.push({
+                value: monitor.output,
+                label: monitor.output
+            });
+        }
+
+        return options;
+    }
 
     function buildAnchorOptions() {
         const options = [];
@@ -82,14 +114,28 @@ Components.JcSurface {
         for (let i = 0; i < root.projectedMonitors.length; ++i) {
             const monitor = root.projectedMonitors[i];
 
-            if (monitor.output === root.selectedOutput) {
+            if (monitor
+                    && !monitor.disabled
+                    && monitor.output === root.selectedOutput) {
                 selectedExists = true;
                 break;
             }
         }
 
-        if (!selectedExists)
-            root.selectedOutput = root.projectedMonitors[0].output;
+        if (!selectedExists) {
+            let nextSelectedOutput = "";
+
+            for (let i = 0; i < root.projectedMonitors.length; ++i) {
+                const monitor = root.projectedMonitors[i];
+
+                if (monitor && !monitor.disabled) {
+                    nextSelectedOutput = monitor.output;
+                    break;
+                }
+            }
+
+            root.selectedOutput = nextSelectedOutput;
+        }
 
         let anchorExists = false;
 
@@ -263,8 +309,8 @@ Components.JcSurface {
                 theme: root.theme
                 title: "Visual layout"
                 subtitle:
-                    "Drag a display. Nearby edges and centers snap "
-                    + "automatically."
+                    "Drag a display or use the keyboard selectors below. "
+                    + "Nearby edges and centers snap automatically."
             }
 
             Text {
@@ -492,47 +538,93 @@ Components.JcSurface {
             }
         }
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
-            spacing: root.theme.spaceSm
 
-            Text {
-                text: root.selectedOutput.length > 0
-                    ? "Move " + root.selectedOutput + " relative to"
-                    : "Select a display"
+            columns: root.compactLayout ? 1 : 2
+            columnSpacing: root.theme.spaceMd
+            rowSpacing: root.theme.spaceSm
 
-                color: root.theme.textSecondary
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: root.theme.space2Xs
 
-                font.family: root.theme.fontFamilySans
-                font.pixelSize: root.theme.textSizeCaption
-                font.weight: root.theme.fontWeightRegular
+                Text {
+                    Layout.fillWidth: true
+
+                    text: "Selected display"
+                    color: root.theme.textSecondary
+
+                    font.family: root.theme.fontFamilySans
+                    font.pixelSize: root.theme.textSizeCaption
+                    font.weight: root.theme.fontWeightRegular
+                }
+
+                Components.JcComboBox {
+                    Layout.fillWidth: true
+
+                    theme: root.theme
+                    options: root.selectedOptions
+                    selectedValue: root.selectedOutput
+                    placeholder: root.selectedOptions.length > 0
+                        ? "Select display"
+                        : "No active display"
+
+                    controlEnabled:
+                        root.editorEnabled
+                        && root.selectedOptions.length > 0
+
+                    onValueSelected: value =>
+                        root.selectOutput(value)
+                }
             }
 
-            Components.JcComboBox {
+            ColumnLayout {
                 Layout.fillWidth: true
+                spacing: root.theme.space2Xs
 
-                theme: root.theme
-                options: root.anchorOptions
-                selectedValue: root.anchorOutput
-                placeholder: root.anchorOptions.length > 0
-                    ? "Select reference display"
-                    : "No reference display"
+                Text {
+                    Layout.fillWidth: true
 
-                controlEnabled:
-                    root.editorEnabled
-                    && root.anchorOptions.length > 0
+                    text: "Relative to"
+                    color: root.theme.textSecondary
 
-                onValueSelected: value => {
-                    root.anchorOutput = value;
+                    font.family: root.theme.fontFamilySans
+                    font.pixelSize: root.theme.textSizeCaption
+                    font.weight: root.theme.fontWeightRegular
+                }
+
+                Components.JcComboBox {
+                    Layout.fillWidth: true
+
+                    theme: root.theme
+                    options: root.anchorOptions
+                    selectedValue: root.anchorOutput
+                    placeholder: root.anchorOptions.length > 0
+                        ? "Select reference display"
+                        : "No reference display"
+
+                    controlEnabled:
+                        root.editorEnabled
+                        && root.anchorOptions.length > 0
+
+                    onValueSelected: value => {
+                        root.anchorOutput = value;
+                    }
                 }
             }
         }
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
-            spacing: root.theme.spaceXs
+
+            columns: root.compactLayout ? 2 : 4
+            columnSpacing: root.theme.spaceXs
+            rowSpacing: root.theme.spaceXs
 
             Components.JcButton {
+                Layout.fillWidth: true
+
                 theme: root.theme
                 text: "← Left"
                 compact: true
@@ -545,6 +637,8 @@ Components.JcSurface {
             }
 
             Components.JcButton {
+                Layout.fillWidth: true
+
                 theme: root.theme
                 text: "Right →"
                 compact: true
@@ -557,6 +651,8 @@ Components.JcSurface {
             }
 
             Components.JcButton {
+                Layout.fillWidth: true
+
                 theme: root.theme
                 text: "↑ Above"
                 compact: true
@@ -569,6 +665,8 @@ Components.JcSurface {
             }
 
             Components.JcButton {
+                Layout.fillWidth: true
+
                 theme: root.theme
                 text: "↓ Below"
                 compact: true
@@ -579,19 +677,18 @@ Components.JcSurface {
 
                 onClicked: root.snapSelected("below")
             }
+        }
 
-            Item {
-                Layout.fillWidth: true
-            }
+        Text {
+            Layout.fillWidth: true
 
-            Text {
-                text: "Negative coordinates are allowed."
-                color: root.theme.textSecondary
+            text: "Negative coordinates are allowed."
+            color: root.theme.textSecondary
 
-                font.family: root.theme.fontFamilySans
-                font.pixelSize: root.theme.textSizeCaption
-                font.weight: root.theme.fontWeightRegular
-            }
+            font.family: root.theme.fontFamilySans
+            font.pixelSize: root.theme.textSizeCaption
+            font.weight: root.theme.fontWeightRegular
+            wrapMode: Text.WordWrap
         }
     }
 }

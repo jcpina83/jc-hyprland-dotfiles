@@ -2979,12 +2979,157 @@ if grep -Fq \
     '2A.4.6 Safe Apply / persistence presentation               ✓' \
     "$displays_visual_doc" 2>/dev/null \
     && grep -Fq \
-        '2A.4.7 Retire Displays visual compatibility layer          ← CURRENT' \
+        '2A.4.7 Retire Displays visual compatibility layer          ✓' \
         "$displays_visual_doc" 2>/dev/null
 then
-    ok "Phase 2A.4 roadmap advanced to compatibility retirement"
+    ok "Phase 2A.4 roadmap records compatibility retirement complete"
 else
-    fail "Phase 2A.4 roadmap status is not aligned with compatibility retirement"
+    fail "Phase 2A.4 roadmap does not record compatibility retirement complete"
+fi
+
+
+printf '\n==> Phase 2A.4.8 responsive and keyboard Displays contract\n'
+
+display_view="$config_dir/modules/displays/DisplayView.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+display_layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+jc_button="$config_dir/components/JcButton.qml"
+jc_combo_box="$config_dir/components/JcComboBox.qml"
+jc_slider="$config_dir/components/JcSlider.qml"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+
+for retired_hosted_dimension in \
+    'implicitWidth: 820' \
+    'implicitHeight: 700'
+do
+    if grep -Fq -- "$retired_hosted_dimension" "$display_view" 2>/dev/null; then
+        fail "DisplayView still owns standalone geometry: $retired_hosted_dimension"
+    else
+        ok "DisplayView excludes standalone geometry: $retired_hosted_dimension"
+    fi
+done
+
+for hosted_overflow_contract in \
+    'Flickable {' \
+    'Layout.fillWidth: true' \
+    'Layout.fillHeight: true' \
+    'contentWidth: width' \
+    'contentHeight: contentColumn.implicitHeight'
+do
+    if grep -Fq -- "$hosted_overflow_contract" "$display_view" 2>/dev/null; then
+        ok "DisplayView hosted overflow contract: $hosted_overflow_contract"
+    else
+        fail "DisplayView hosted overflow contract missing: $hosted_overflow_contract"
+    fi
+done
+
+for topology_keyboard_contract in \
+    'readonly property var selectedOptions:' \
+    'root.buildSelectedOptions()' \
+    'function buildSelectedOptions() {' \
+    'property string selectedOutput: ""' \
+    'options: root.selectedOptions' \
+    'selectedValue: root.selectedOutput' \
+    'root.selectOutput(value)' \
+    'options: root.anchorOptions' \
+    'selectedValue: root.anchorOutput' \
+    'root.snapSelected("left")' \
+    'root.snapSelected("right")' \
+    'root.snapSelected("above")' \
+    'root.snapSelected("below")'
+do
+    if grep -Fq -- "$topology_keyboard_contract" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        ok "DisplayLayoutEditor keyboard topology contract: $topology_keyboard_contract"
+    else
+        fail "DisplayLayoutEditor keyboard topology contract missing: $topology_keyboard_contract"
+    fi
+done
+
+for topology_responsive_contract in \
+    'readonly property real compactLayoutThreshold:' \
+    '(root.theme.controlHeightLarge * 8)' \
+    'readonly property bool compactLayout:' \
+    'columns: root.compactLayout ? 1 : 2' \
+    'columns: root.compactLayout ? 2 : 4' \
+    'columnSpacing: root.theme.spaceMd' \
+    'rowSpacing: root.theme.spaceXs'
+do
+    if grep -Fq -- "$topology_responsive_contract" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        ok "DisplayLayoutEditor responsive contract: $topology_responsive_contract"
+    else
+        fail "DisplayLayoutEditor responsive contract missing: $topology_responsive_contract"
+    fi
+done
+
+if grep -Fq 'if (!monitor || monitor.disabled)' \
+    "$display_layout_editor" 2>/dev/null \
+    && grep -Fq '&& !monitor.disabled' \
+        "$display_layout_editor" 2>/dev/null
+then
+    ok "DisplayLayoutEditor keyboard selection excludes disabled outputs"
+else
+    fail "DisplayLayoutEditor disabled-output keyboard guard missing"
+fi
+
+for canonical_keyboard_contract in \
+    "$jc_button|activeFocusOnTab: root.controlEnabled" \
+    "$jc_button|event.key === Qt.Key_Return" \
+    "$jc_button|event.key === Qt.Key_Space" \
+    "$jc_combo_box|focusPolicy: Qt.StrongFocus" \
+    "$jc_slider|focusPolicy: Qt.StrongFocus"
+do
+    keyboard_file="${canonical_keyboard_contract%%|*}"
+    keyboard_pattern="${canonical_keyboard_contract#*|}"
+
+    if grep -Fq -- "$keyboard_pattern" "$keyboard_file" 2>/dev/null; then
+        ok "$(basename "$keyboard_file") keyboard baseline: $keyboard_pattern"
+    else
+        fail "$(basename "$keyboard_file") keyboard baseline missing: $keyboard_pattern"
+    fi
+done
+
+display_keyboard_components="$(
+    grep -c 'Components.JcComboBox {' "$display_card" 2>/dev/null || true
+)"
+layout_keyboard_components="$(
+    grep -c 'Components.JcComboBox {' "$display_layout_editor" 2>/dev/null || true
+)"
+
+if [[ "$display_keyboard_components" == "3" ]]; then
+    ok "DisplayCard keeps three keyboard-capable enumerated controls"
+else
+    fail "DisplayCard keyboard control count changed unexpectedly: $display_keyboard_components"
+fi
+
+if [[ "$layout_keyboard_components" == "2" ]]; then
+    ok "DisplayLayoutEditor exposes selected and anchor keyboard selectors"
+else
+    fail "DisplayLayoutEditor expected 2 JcComboBox controls, found $layout_keyboard_components"
+fi
+
+if grep -Fq \
+    '## Phase 2A.4.8 — Responsive, keyboard, and visual validation' \
+    "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.8 migration documentation"
+else
+    fail "Phase 2A.4.8 migration documentation missing"
+fi
+
+if grep -Fq \
+    '2A.4.7 Retire Displays visual compatibility layer          ✓' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        '2A.4.8 Responsive + keyboard + visual validation           ← CURRENT' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4 roadmap advanced to responsive keyboard validation"
+else
+    fail "Phase 2A.4 roadmap status is not aligned with responsive keyboard validation"
 fi
 
 

@@ -18,8 +18,8 @@ new window architecture and not a display-backend rewrite.
 2A.4.4 Mode / scale / transform controls                   ✓
 2A.4.5 Layout editor visual integration                    ✓
 2A.4.6 Safe Apply / persistence presentation               ✓
-2A.4.7 Retire Displays visual compatibility layer          ← CURRENT
-2A.4.8 Responsive + keyboard + visual validation
+2A.4.7 Retire Displays visual compatibility layer          ✓
+2A.4.8 Responsive + keyboard + visual validation           ← CURRENT
 2A.4.9 Quality gates + documentation
 ```
 
@@ -163,35 +163,26 @@ a second topology renderer with duplicated geometry and legacy visual tokens.
 
 ---
 
-## Current visual debt
+## Current validation focus
 
-The audit identified Phase 1 visual compatibility still present in production
-Displays UI:
+The Phase 2A.4 visual compatibility debt is retired. Production Displays now
+uses the canonical Phase 2 component vocabulary and Theme API.
+
+The remaining Phase 2A.4 work is behavioral validation:
 
 ```text
-DisplayView
-    raw outer Rectangle
-    duplicate Displays-level header/chrome
-    legacy Theme aliases and fallback literals
-    ad-hoc feedback text/surfaces
-
-DisplayCard
-    JcCard root
-    raw divider / status indicator rectangles
-    ad-hoc typography
-    ChoiceGroup-heavy mode controls
-
-DisplayLayoutEditor
-    legacy JcCard root
-    raw canvas / monitor geometry
-    legacy surface / border aliases
-    hard-coded typography and fallback colors
+hosted responsive sizing
+keyboard-complete topology selection
+predictable Tab / Shift+Tab traversal
+visible focus states
+responsive control grouping
+Safe Apply / persistence visual-state verification
 ```
 
 Raw `Rectangle` remains valid for geometry-specific visuals such as monitor
-topology nodes, canvas shapes, indicators, and custom drawing. It should not be
-used as a replacement for canonical generic cards, dividers, buttons, or
-standard semantic surfaces.
+topology nodes, canvas shapes, indicators, and custom drawing. It is not used
+as a replacement for canonical generic cards, dividers, buttons, or standard
+semantic surfaces.
 
 ---
 
@@ -613,3 +604,51 @@ The retired aliases are `background`, `surface`, `surfaceAlt`, `border`,
 
 This removal does not alter monitor discovery, draft state, topology editing,
 Safe Apply, persistence, Control Center IPC, or shell orchestration.
+
+
+---
+
+## Phase 2A.4.8 — Responsive, keyboard, and visual validation
+
+`DisplayView.qml` is hosted content, so it no longer advertises standalone
+`820×700` implicit dimensions. `ControlCenterShell.qml` remains the authority
+for the production window size, while the existing vertical `Flickable`
+continues to own overflow inside Displays.
+
+`DisplayLayoutEditor.qml` now provides equivalent pointer and keyboard paths for
+choosing the display being positioned:
+
+```text
+Pointer
+    topology node Tap / Drag
+        -> selectOutput(...)
+        -> snapPosition(...) / setPosition(...)
+
+Keyboard
+    Selected display JcComboBox
+        -> selectOutput(...)
+    Relative to JcComboBox
+        -> anchorOutput
+    Left / Right / Above / Below JcButton
+        -> snapRelative(...)
+```
+
+Disabled displays are excluded from the keyboard selection list and from the
+automatic selected-output fallback. The topology canvas remains available for
+direct manipulation and keeps the same draft-only mutation boundary.
+
+The selector group and relative-position actions use responsive `GridLayout`
+composition. The compact breakpoint is derived from canonical control geometry
+instead of hard-coded physical pixels: two minimum ComboBox widths plus
+semantic margins and spacing determine when selector columns collapse.
+
+Keyboard behavior remains delegated to the canonical components:
+
+```text
+JcButton   -> Tab focus + Enter / Return / Space
+JcComboBox -> Qt.StrongFocus + native keyboard selection
+JcSlider   -> Qt.StrongFocus + native arrow-key adjustment
+```
+
+No display runtime mutation, Safe Apply behavior, persistence behavior, monitor
+discovery, or Control Center IPC is changed in this phase.
