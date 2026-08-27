@@ -16,8 +16,8 @@ new window architecture and not a display-backend rewrite.
 2A.4.2 DisplayView shell/content cleanup                   ✓
 2A.4.3 DisplayCard migration to canonical components       ✓
 2A.4.4 Mode / scale / transform controls                   ✓
-2A.4.5 Layout editor visual integration                    ← CURRENT
-2A.4.6 Safe Apply / persistence presentation
+2A.4.5 Layout editor visual integration                    ✓
+2A.4.6 Safe Apply / persistence presentation               ← CURRENT
 2A.4.7 Retire Displays visual compatibility layer
 2A.4.8 Responsive + keyboard + visual validation
 2A.4.9 Quality gates + documentation
@@ -524,3 +524,62 @@ persistence remain outside the layout editor.
 The usage audit also confirmed that `DisplayLayout.qml` had no runtime
 consumer. It is retired in this phase to avoid maintaining two independent
 topology renderers.
+
+
+---
+
+## Phase 2A.4.6 — Safe Apply and persistence presentation
+
+`DisplayView.qml` now presents runtime safety and persistent-state feedback as
+explicit semantic sections instead of a mixture of raw warning rectangles and
+independent status text.
+
+```text
+draft actions
+    Reset / Safe Apply / Refresh
+
+Safe Apply confirmation
+    warning semantic surface
+    pending output
+    countdown
+    Keep / Rollback
+
+feature feedback
+    monitor errors              -> danger surface
+    observed-state conflict     -> warning surface
+    topology conflict           -> danger surface
+    multiple dirty drafts       -> warning surface
+    apply error                 -> danger surface
+    completed apply status      -> success surface
+    active operation status     -> info surface
+
+persistent configuration
+    checking / saving           -> info surface
+    unsaved persistent changes  -> warning surface
+    synchronized state          -> neutral sunken surface
+    last backup
+    explicit Save Configuration
+```
+
+The action boundary remains unchanged:
+
+```text
+resetRequested()
+applyRequested()
+keepRequested()
+rollbackRequested()
+saveRequested()
+```
+
+`Main.qml` continues to route those signals to `DisplayDraftStore`,
+`MonitorApplyService`, and `DisplayPersistenceService`. `DisplayView.qml`
+does not execute display mutation or persistence commands.
+
+Safe Apply semantics remain unchanged: the external rollback watchdog owns the
+timeout, Keep confirms the temporary runtime state, Rollback restores the
+previous runtime state, and `monitors.lua` is not modified by Safe Apply.
+
+Persistence also remains explicit. `DisplayPersistenceService.canSave` remains
+the authority for enabling `Save Configuration`; its checking, saving,
+status, error, persistent-change, and backup state are only rendered by the
+feature view.

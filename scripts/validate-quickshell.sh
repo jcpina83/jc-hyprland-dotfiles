@@ -2739,12 +2739,163 @@ if grep -Fq \
     '2A.4.4 Mode / scale / transform controls                   ✓' \
     "$displays_visual_doc" 2>/dev/null \
     && grep -Fq \
-        '2A.4.5 Layout editor visual integration                    ← CURRENT' \
+        '2A.4.5 Layout editor visual integration                    ✓' \
         "$displays_visual_doc" 2>/dev/null
 then
-    ok "Phase 2A.4 roadmap advanced to layout editor integration"
+    ok "Phase 2A.4 roadmap records layout editor integration complete"
 else
-    fail "Phase 2A.4 roadmap status is not aligned with layout editor integration"
+    fail "Phase 2A.4 roadmap does not record layout editor integration complete"
+fi
+
+
+printf '\n==> Phase 2A.4.6 Safe Apply and persistence presentation\n'
+
+display_view="$config_dir/modules/displays/DisplayView.qml"
+apply_service="$config_dir/services/MonitorApplyService.qml"
+persistence_service="$config_dir/services/DisplayPersistenceService.qml"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+
+for safe_apply_presentation_contract in \
+    'title: "Safe Apply confirmation"' \
+    'root.applyService.pendingOutput' \
+    'root.applyService.remainingSeconds' \
+    'root.theme.warningSurface' \
+    'root.theme.warningBorder' \
+    'text: root.applyService && root.applyService.keeping' \
+    'onClicked: root.keepRequested()' \
+    'onClicked: root.rollbackRequested()'
+do
+    if grep -Fq -- "$safe_apply_presentation_contract" \
+        "$display_view" 2>/dev/null
+    then
+        ok "Safe Apply presentation contract: $safe_apply_presentation_contract"
+    else
+        fail "Safe Apply presentation contract missing: $safe_apply_presentation_contract"
+    fi
+done
+
+for feedback_surface_contract in \
+    'root.theme.successSurface' \
+    'root.theme.successBorder' \
+    'root.theme.warningSurface' \
+    'root.theme.warningBorder' \
+    'root.theme.dangerSurface' \
+    'root.theme.dangerBorder' \
+    'root.theme.infoSurface' \
+    'root.theme.infoBorder'
+do
+    if grep -Fq -- "$feedback_surface_contract" "$display_view" 2>/dev/null
+    then
+        ok "Display feedback semantic token: $feedback_surface_contract"
+    else
+        fail "Display feedback semantic token missing: $feedback_surface_contract"
+    fi
+done
+
+for persistence_presentation_contract in \
+    'title: "Persistent configuration"' \
+    'root.persistenceService.checking' \
+    'root.persistenceService.saving' \
+    'root.persistenceService.hasPersistentChanges' \
+    'root.persistenceService.statusMessage' \
+    'root.persistenceService.lastBackup' \
+    'root.persistenceService.canSave' \
+    'Save Configuration' \
+    'onClicked: root.saveRequested()'
+do
+    if grep -Fq -- "$persistence_presentation_contract" \
+        "$display_view" 2>/dev/null
+    then
+        ok "Persistence presentation contract: $persistence_presentation_contract"
+    else
+        fail "Persistence presentation contract missing: $persistence_presentation_contract"
+    fi
+done
+
+for preserved_display_action in \
+    'signal refreshRequested()' \
+    'signal resetRequested()' \
+    'signal applyRequested()' \
+    'signal keepRequested()' \
+    'signal rollbackRequested()' \
+    'signal saveRequested()'
+do
+    if grep -Fq -- "$preserved_display_action" "$display_view" 2>/dev/null
+    then
+        ok "Display action boundary preserved: $preserved_display_action"
+    else
+        fail "Display action boundary missing: $preserved_display_action"
+    fi
+done
+
+for safe_apply_service_contract in \
+    'property bool pendingConfirmation: false' \
+    'property int remainingSeconds: 0' \
+    'function applyDirty(): void' \
+    'function keepPending(): void' \
+    'function rollbackPending(reason): void'
+do
+    if grep -Fq -- "$safe_apply_service_contract" \
+        "$apply_service" 2>/dev/null
+    then
+        ok "Safe Apply service boundary preserved: $safe_apply_service_contract"
+    else
+        fail "Safe Apply service boundary missing: $safe_apply_service_contract"
+    fi
+done
+
+for persistence_service_contract in \
+    'property bool checking: false' \
+    'property bool saving: false' \
+    'property bool hasPersistentChanges: false' \
+    'property string lastBackup: ""' \
+    'readonly property bool canSave:' \
+    'function saveConfiguration(): void'
+do
+    if grep -Fq -- "$persistence_service_contract" \
+        "$persistence_service" 2>/dev/null
+    then
+        ok "Persistence service boundary preserved: $persistence_service_contract"
+    else
+        fail "Persistence service boundary missing: $persistence_service_contract"
+    fi
+done
+
+for display_view_forbidden_runtime_contract in \
+    'Process {' \
+    'hyprctl' \
+    'systemd-run' \
+    'jc-displaycfg' \
+    'jc-displayctl'
+do
+    if grep -Fq -- "$display_view_forbidden_runtime_contract" \
+        "$display_view" 2>/dev/null
+    then
+        fail "DisplayView must not own runtime mutation: $display_view_forbidden_runtime_contract"
+    else
+        ok "DisplayView excludes runtime mutation: $display_view_forbidden_runtime_contract"
+    fi
+done
+
+if grep -Fq \
+    '## Phase 2A.4.6 — Safe Apply and persistence presentation' \
+    "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.6 migration documentation"
+else
+    fail "Phase 2A.4.6 migration documentation missing"
+fi
+
+if grep -Fq \
+    '2A.4.5 Layout editor visual integration                    ✓' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        '2A.4.6 Safe Apply / persistence presentation               ← CURRENT' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4 roadmap advanced to Safe Apply presentation"
+else
+    fail "Phase 2A.4 roadmap status is not aligned with Safe Apply presentation"
 fi
 
 
