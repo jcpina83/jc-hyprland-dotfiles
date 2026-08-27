@@ -17,8 +17,8 @@ new window architecture and not a display-backend rewrite.
 2A.4.3 DisplayCard migration to canonical components       ✓
 2A.4.4 Mode / scale / transform controls                   ✓
 2A.4.5 Layout editor visual integration                    ✓
-2A.4.6 Safe Apply / persistence presentation               ← CURRENT
-2A.4.7 Retire Displays visual compatibility layer
+2A.4.6 Safe Apply / persistence presentation               ✓
+2A.4.7 Retire Displays visual compatibility layer          ← CURRENT
 2A.4.8 Responsive + keyboard + visual validation
 2A.4.9 Quality gates + documentation
 ```
@@ -316,23 +316,21 @@ chrome instead of duplicating it.
 
 ## Compatibility retirement rule
 
-`JcCard` and the Phase 1 Theme aliases remain temporary compatibility surfaces
-while the Displays migration is in progress.
-
-They are not the target API for new Phase 2A.4 production UI.
-
-Phase 2A.4.7 may retire them only after:
+Phase 2A.4.7 retires the temporary Phase 1 visual compatibility boundary after
+verifying that no production Displays component depends on `JcCard` or the
+legacy Theme aliases.
 
 ```text
-no production Displays component depends on JcCard
-no production Displays component depends on retired Theme aliases
-the Component Gallery and component documentation are updated
-validators no longer require the legacy compatibility boundary
-all runtime and visual gates pass
+production Displays contains no JcCard dependency
+production Displays contains no legacy Theme alias dependency
+Component Gallery uses JcSurface instead of JcCard
+JcCard.qml is retired
+Theme.qml exposes only the canonical Phase 2 API
+validators reject reintroduction of the retired compatibility layer
 ```
 
-Compatibility is removed deliberately, not through a blind repository-wide
-replacement.
+Compatibility is removed deliberately after consumer analysis, not through a
+blind repository-wide replacement.
 
 ---
 
@@ -583,3 +581,35 @@ Persistence also remains explicit. `DisplayPersistenceService.canSave` remains
 the authority for enabling `Save Configuration`; its checking, saving,
 status, error, persistent-change, and backup state are only rendered by the
 feature view.
+
+
+---
+
+## Phase 2A.4.7 — Retire Displays visual compatibility layer
+
+The repository-wide consumer audit confirmed that production Displays had
+already completed its migration to the canonical Phase 2 Theme API. The only
+remaining QML consumer of `JcCard` was its Component Gallery example.
+
+```text
+ComponentGallery
+    JcCard example -> JcSurface (raised)
+
+components
+    JcCard.qml -> retired
+
+Theme.qml
+    Phase 1 compatibility aliases -> retired
+
+Displays
+    no code changes required
+    canonical token dependency enforced by validator
+```
+
+The retired aliases are `background`, `surface`, `surfaceAlt`, `border`,
+`error`, `glass`, `glassLight`, `glassHover`, `glassBorder`, `radiusSmall`,
+`radiusMedium`, `radiusLarge`, `spacingXs`, `spacingSm`, `spacingMd`, and
+`spacingLg`.
+
+This removal does not alter monitor discovery, draft state, topology editing,
+Safe Apply, persistence, Control Center IPC, or shell orchestration.

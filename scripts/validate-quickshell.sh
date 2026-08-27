@@ -45,7 +45,6 @@ required_files=(
     "modules/dev/ComponentGallery.qml"
     "modules/controlcenter/ControlCenterShell.qml"
     "modules/controlcenter/ControlCenterNavigation.qml"
-    "components/JcCard.qml"
     "components/JcChoiceGroup.qml"
     "components/JcSurface.qml"
     "components/JcDivider.qml"
@@ -663,16 +662,6 @@ else
     printf '%s\n' "$library_legacy_aliases" >&2
 fi
 
-legacy_card="$config_dir/components/JcCard.qml"
-
-if [[ -r "$legacy_card" ]] \
-    && grep -Eq 'theme\.(surface|border|radiusMedium)' \
-        "$legacy_card" 2>/dev/null
-then
-    ok "JcCard remains explicit legacy compatibility"
-else
-    fail "JcCard compatibility boundary is no longer explicit"
-fi
 
 for doc_file in \
     "$component_library_doc" \
@@ -687,7 +676,7 @@ do
     fi
 done
 
-for component_name in "${canonical_components[@]}" "JcCard"; do
+for component_name in "${canonical_components[@]}"; do
     if grep -Fq -- "$component_name" "$component_library_doc" 2>/dev/null; then
         ok "component-library doc covers $component_name"
     else
@@ -705,7 +694,7 @@ done
 
 for doc_contract in \
     'Phase 2A.2 is complete.' \
-    "\`JcCard\` is intentionally retained as a Phase 1 compatibility component." \
+    "\`JcCard\` was retired in Phase 2A.4.7 after its final Component Gallery consumer migrated to \`JcSurface\`." \
     'modules/dev/ComponentGallery.qml' \
     'qs -c jc-hyprland ipc call controlCenter showGallery' \
     '2A.3 Control Center shell + navigation' \
@@ -775,8 +764,7 @@ for gallery_contract in \
     'Components.JcTooltip {' \
     'Components.JcPopup {' \
     'Components.JcMetricRing {' \
-    'Components.JcDivider {' \
-    'Components.JcCard {'
+    'Components.JcDivider {'
 do
     if grep -Fq -- "$gallery_contract" "$component_gallery" 2>/dev/null; then
         ok "ComponentGallery contract: $gallery_contract"
@@ -2233,9 +2221,10 @@ do
 done
 
 for compatibility_contract in \
-    "\`JcCard\` and the Phase 1 Theme aliases remain temporary compatibility surfaces" \
-    'no production Displays component depends on JcCard' \
-    'validators no longer require the legacy compatibility boundary'
+    'production Displays contains no JcCard dependency' \
+    'production Displays contains no legacy Theme alias dependency' \
+    'Component Gallery uses JcSurface instead of JcCard' \
+    'validators reject reintroduction of the retired compatibility layer'
 do
     if grep -Fq -- "$compatibility_contract" \
         "$displays_visual_doc" 2>/dev/null
@@ -2418,7 +2407,6 @@ do
 done
 
 for display_card_retired_visual in \
-    'Components.JcCard {' \
     'root.theme.spacingSm' \
     'root.theme.border' \
     'font.bold:' \
@@ -2890,12 +2878,113 @@ if grep -Fq \
     '2A.4.5 Layout editor visual integration                    ✓' \
     "$displays_visual_doc" 2>/dev/null \
     && grep -Fq \
-        '2A.4.6 Safe Apply / persistence presentation               ← CURRENT' \
+        '2A.4.6 Safe Apply / persistence presentation               ✓' \
         "$displays_visual_doc" 2>/dev/null
 then
-    ok "Phase 2A.4 roadmap advanced to Safe Apply presentation"
+    ok "Phase 2A.4 roadmap records Safe Apply presentation complete"
 else
-    fail "Phase 2A.4 roadmap status is not aligned with Safe Apply presentation"
+    fail "Phase 2A.4 roadmap does not record Safe Apply presentation complete"
+fi
+
+
+printf '\n==> Phase 2A.4.7 visual compatibility retirement\n'
+
+theme_qml="$config_dir/theme/Theme.qml"
+legacy_card="$config_dir/components/JcCard.qml"
+component_gallery="$config_dir/modules/dev/ComponentGallery.qml"
+display_dir="$config_dir/modules/displays"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+
+if [[ ! -e "$legacy_card" ]]; then
+    ok "JcCard compatibility component retired"
+else
+    fail "JcCard compatibility component still exists"
+fi
+
+jc_card_runtime_refs="$(
+    grep -RInE \
+        --include='*.qml' \
+        'Components\.JcCard|JcCard[[:space:]]*\{' \
+        "$config_dir" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$jc_card_runtime_refs" ]]; then
+    ok "runtime QML contains no JcCard consumers"
+else
+    fail "runtime QML still contains JcCard consumers:"
+    printf '%s\n' "$jc_card_runtime_refs" >&2
+fi
+
+for retired_theme_alias in \
+    'readonly property color background: canvas' \
+    'readonly property color surface: surfaceBase' \
+    'readonly property color surfaceAlt: surfaceRaised' \
+    'readonly property color border: borderDefault' \
+    'readonly property color error: danger' \
+    'readonly property color glass: surfaceGlass' \
+    'readonly property color glassLight: surfaceGlassRaised' \
+    'readonly property color glassHover: surfaceHover' \
+    'readonly property color glassBorder: borderSubtle' \
+    'readonly property int radiusSmall: radiusSm' \
+    'readonly property int radiusMedium: radiusMd' \
+    'readonly property int radiusLarge: radiusLg' \
+    'readonly property int spacingXs: spaceXs' \
+    'readonly property int spacingSm: spaceSm' \
+    'readonly property int spacingMd: spaceMd' \
+    'readonly property int spacingLg: spaceLg'
+do
+    if grep -Fq -- "$retired_theme_alias" "$theme_qml" 2>/dev/null; then
+        fail "Theme compatibility alias still exists: $retired_theme_alias"
+    else
+        ok "Theme compatibility alias retired: $retired_theme_alias"
+    fi
+done
+
+display_legacy_aliases="$(
+    grep -RInE \
+        --include='*.qml' \
+        'theme\.(background|surface|surfaceAlt|border|error|glass|glassLight|glassHover|glassBorder|radiusSmall|radiusMedium|radiusLarge|spacingXs|spacingSm|spacingMd|spacingLg)([^a-zA-Z0-9_]|$)' \
+        "$display_dir" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$display_legacy_aliases" ]]; then
+    ok "production Displays contains no legacy Theme alias dependency"
+else
+    fail "production Displays still contains legacy Theme aliases:"
+    printf '%s\n' "$display_legacy_aliases" >&2
+fi
+
+if grep -Fq 'Components.JcSurface {' "$component_gallery" 2>/dev/null \
+    && ! grep -Fq 'Components.JcCard {' "$component_gallery" 2>/dev/null
+then
+    ok "Component Gallery uses JcSurface instead of JcCard"
+else
+    fail "Component Gallery still depends on JcCard compatibility"
+fi
+
+if grep -Fq \
+    '## Phase 2A.4.7 — Retire Displays visual compatibility layer' \
+    "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4.7 migration documentation"
+else
+    fail "Phase 2A.4.7 migration documentation missing"
+fi
+
+if grep -Fq \
+    '2A.4.6 Safe Apply / persistence presentation               ✓' \
+    "$displays_visual_doc" 2>/dev/null \
+    && grep -Fq \
+        '2A.4.7 Retire Displays visual compatibility layer          ← CURRENT' \
+        "$displays_visual_doc" 2>/dev/null
+then
+    ok "Phase 2A.4 roadmap advanced to compatibility retirement"
+else
+    fail "Phase 2A.4 roadmap status is not aligned with compatibility retirement"
 fi
 
 

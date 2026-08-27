@@ -170,7 +170,7 @@ modal/modeless behavior and Design System motion.
 
 ## Legacy compatibility
 
-`JcCard` is intentionally retained as a Phase 1 compatibility component.
+`JcCard` was retired in Phase 2A.4.7 after its final Component Gallery consumer migrated to `JcSurface`.
 
 It continues consuming Theme API compatibility aliases so the current Displays
 module remains stable through Phase 2A.2.

@@ -512,12 +512,14 @@ PanelWindow {
                         "Existing JcCard remains loadable until migration"
                 }
 
-                Components.JcCard {
+                Components.JcSurface {
                     Layout.fillWidth: true
                     Layout.preferredHeight:
                         root.theme.controlHeightLarge * 2
 
                     theme: root.theme
+
+                    surfaceRole: "raised"
 
                     Text {
                         anchors.centerIn: parent

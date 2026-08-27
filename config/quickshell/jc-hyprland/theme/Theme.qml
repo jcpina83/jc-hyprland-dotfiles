@@ -488,30 +488,4 @@ Scope {
     readonly property int easingExit: Easing.InCubic
     readonly property int easingEmphasized: Easing.InOutCubic
 
-    // =========================================================================
-    // Compatibility aliases
-    // =========================================================================
-
-    // Colors
-    readonly property color background: canvas
-    readonly property color surface: surfaceBase
-    readonly property color surfaceAlt: surfaceRaised
-    readonly property color border: borderDefault
-    readonly property color error: danger
-
-    // Glass
-    readonly property color glass: surfaceGlass
-    readonly property color glassLight: surfaceGlassRaised
-    readonly property color glassHover: surfaceHover
-    readonly property color glassBorder: borderSubtle
-
-    // Geometry
-    readonly property int radiusSmall: radiusSm
-    readonly property int radiusMedium: radiusMd
-    readonly property int radiusLarge: radiusLg
-
-    readonly property int spacingXs: spaceXs
-    readonly property int spacingSm: spaceSm
-    readonly property int spacingMd: spaceMd
-    readonly property int spacingLg: spaceLg
 }
