@@ -694,7 +694,8 @@ done
 
 for doc_contract in \
     'Phase 2A.2 is complete.' \
-    "\`JcCard\` was retired in Phase 2A.4.7 after its final Component Gallery consumer migrated to \`JcSurface\`." \
+    "\`JcCard\` was retired in Phase 2A.4.7 after its final Component Gallery consumer" \
+    "migrated to \`JcSurface\`." \
     'modules/dev/ComponentGallery.qml' \
     'qs -c jc-hyprland ipc call controlCenter showGallery' \
     '2A.3 Control Center shell + navigation' \
@@ -2065,7 +2066,8 @@ architecture_doc="$repo_root/docs/architecture.md"
 
 for final_readme_contract in \
     '- [x] **Phase 2A.3 — Control Center shell + navigation**' \
-    '- [ ] **Phase 2A.4 — Displays visual redesign** ← **NEXT**' \
+    '- [x] **Phase 2A.4 — Displays visual redesign**' \
+    '- [ ] **Phase 2B — Wallpapers** ← **NEXT**' \
     "generic \`controlCenter\` IPC with stable \`jc-control-center\` wrapper" \
     'keyboard focus, directional navigation and semantic focus rings' \
     'lightweight shell / module / status motion'
@@ -2107,8 +2109,10 @@ do
 done
 
 for final_architecture_contract in \
-    '2A.3  Control Center shell + navigation  ✓ COMPLETE' \
-    '2A.4  Displays visual redesign           ← NEXT'
+    'Phase 2A  Shared visual platform                 ✓ COMPLETE' \
+    '2A.3  Control Center shell + navigation  ✓' \
+    '2A.4  Displays visual redesign           ✓' \
+    'Wallpapers  ← NEXT'
 do
     if grep -Fq -- "$final_architecture_contract" \
         "$architecture_doc" 2>/dev/null
@@ -3124,13 +3128,190 @@ if grep -Fq \
     '2A.4.7 Retire Displays visual compatibility layer          ✓' \
     "$displays_visual_doc" 2>/dev/null \
     && grep -Fq \
-        '2A.4.8 Responsive + keyboard + visual validation           ← CURRENT' \
+        '2A.4.8 Responsive + keyboard + visual validation           ✓' \
         "$displays_visual_doc" 2>/dev/null
 then
-    ok "Phase 2A.4 roadmap advanced to responsive keyboard validation"
+    ok "Phase 2A.4 roadmap records responsive keyboard validation complete"
 else
-    fail "Phase 2A.4 roadmap status is not aligned with responsive keyboard validation"
+    fail "Phase 2A.4 roadmap does not record responsive keyboard validation complete"
 fi
+
+
+printf '\n==> Phase 2A.4.9 Displays visual redesign closure\n'
+
+readme="$repo_root/README.md"
+architecture_doc="$repo_root/docs/architecture.md"
+component_library_doc="$repo_root/docs/component-library.md"
+design_system_doc="$repo_root/docs/design-system.md"
+displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
+display_view="$config_dir/modules/displays/DisplayView.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+display_layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+legacy_card="$config_dir/components/JcCard.qml"
+
+for phase_2a4_readme_contract in \
+    '- [x] **Phase 2A.4 — Displays visual redesign**' \
+    '- [ ] **Phase 2B — Wallpapers** ← **NEXT**' \
+    'added responsive layout and keyboard-complete topology interaction' \
+    'retired the Phase 1 visual compatibility layer'
+do
+    if grep -Fq -- "$phase_2a4_readme_contract" "$readme" 2>/dev/null; then
+        ok "Phase 2A.4 README closure: $phase_2a4_readme_contract"
+    else
+        fail "Phase 2A.4 README closure missing: $phase_2a4_readme_contract"
+    fi
+done
+
+for phase_2a4_architecture_contract in \
+    'Phase 2A  Shared visual platform                 ✓ COMPLETE' \
+    '2A.4  Displays visual redesign           ✓' \
+    'Wallpapers  ← NEXT' \
+    "compatibilidad visual Phase 1 (\`JcCard\` y aliases legacy del Theme API) fue"
+do
+    if grep -Fq -- "$phase_2a4_architecture_contract" \
+        "$architecture_doc" 2>/dev/null
+    then
+        ok "Phase 2A.4 architecture closure: $phase_2a4_architecture_contract"
+    else
+        fail "Phase 2A.4 architecture closure missing: $phase_2a4_architecture_contract"
+    fi
+done
+
+for phase_2a4_component_doc_contract in \
+    '## Compatibility retirement' \
+    'The Phase 1 Theme API compatibility aliases were retired at the same boundary.' \
+    'retired Phase 1 visual compatibility boundary'
+do
+    if grep -Fq -- "$phase_2a4_component_doc_contract" \
+        "$component_library_doc" 2>/dev/null
+    then
+        ok "component-library closure: $phase_2a4_component_doc_contract"
+    else
+        fail "component-library closure missing: $phase_2a4_component_doc_contract"
+    fi
+done
+
+for phase_2a4_design_doc_contract in \
+    "The former \`JcCard\` compatibility exception was retired in Phase 2A.4.7" \
+    'canonical semantic Theme API is now the only'
+do
+    if grep -Fq -- "$phase_2a4_design_doc_contract" \
+        "$design_system_doc" 2>/dev/null
+    then
+        ok "design-system closure: $phase_2a4_design_doc_contract"
+    else
+        fail "design-system closure missing: $phase_2a4_design_doc_contract"
+    fi
+done
+
+for phase_2a4_final_doc_contract in \
+    '2A.4.8 Responsive + keyboard + visual validation           ✓' \
+    '2A.4.9 Quality gates + documentation                       ✓ COMPLETE' \
+    '## Phase 2A.4.9 — Quality gates and documentation' \
+    '2A.4 Displays visual redesign                  ✓ COMPLETE' \
+    '2B   Wallpapers                                ← NEXT'
+do
+    if grep -Fq -- "$phase_2a4_final_doc_contract" \
+        "$displays_visual_doc" 2>/dev/null
+    then
+        ok "Displays closure documentation: $phase_2a4_final_doc_contract"
+    else
+        fail "Displays closure documentation missing: $phase_2a4_final_doc_contract"
+    fi
+done
+
+for stale_phase_2a4_marker in \
+    '- [ ] **Phase 2A.4 — Displays visual redesign** ← **NEXT**' \
+    '2A.4  Displays visual redesign           ← NEXT' \
+    '2A.4.8 Responsive + keyboard + visual validation           ← CURRENT' \
+    "\`JcCard\` remains available until" \
+    "\`JcCard\` permanece como compatibilidad Phase 1"
+do
+    stale_phase_2a4_refs="$(
+        grep -RFn \
+            --include='*.md' \
+            -- "$stale_phase_2a4_marker" \
+            "$repo_root/README.md" \
+            "$repo_root/docs" \
+            2>/dev/null || true
+    )"
+
+    if [[ -z "$stale_phase_2a4_refs" ]]; then
+        ok "stale Phase 2A.4 marker retired: $stale_phase_2a4_marker"
+    else
+        fail "stale Phase 2A.4 marker remains: $stale_phase_2a4_marker"
+        printf '%s\n' "$stale_phase_2a4_refs" >&2
+    fi
+done
+
+if grep -Fq 'JcCard.qml' "$readme" 2>/dev/null; then
+    fail "README repository tree still lists retired JcCard.qml"
+else
+    ok "README repository tree excludes retired JcCard.qml"
+fi
+
+if [[ -e "$legacy_card" ]]; then
+    fail "retired JcCard.qml exists"
+else
+    ok "retired JcCard.qml remains absent"
+fi
+
+display_panel_windows="$(
+    grep -RInE \
+        --include='*.qml' \
+        'PanelWindow[[:space:]]*\{' \
+        "$config_dir/modules/displays" \
+        2>/dev/null || true
+)"
+
+if [[ -z "$display_panel_windows" ]]; then
+    ok "Displays remains hosted and owns no PanelWindow"
+else
+    fail "Displays unexpectedly owns a PanelWindow:"
+    printf '%s\n' "$display_panel_windows" >&2
+fi
+
+display_card_combo_count="$(
+    grep -Fc 'Components.JcComboBox {' "$display_card" 2>/dev/null || true
+)"
+display_card_slider_count="$(
+    grep -Fc 'Components.JcSlider {' "$display_card" 2>/dev/null || true
+)"
+layout_editor_combo_count="$(
+    grep -Fc 'Components.JcComboBox {' "$display_layout_editor" 2>/dev/null || true
+)"
+
+if [[ "$display_card_combo_count" == "3" \
+    && "$display_card_slider_count" == "1" \
+    && "$layout_editor_combo_count" == "2" ]]
+then
+    ok "final Displays control strategy: 3 combo + 1 slider + 2 topology selectors"
+else
+    fail "final Displays control strategy changed unexpectedly: card_combo=$display_card_combo_count card_slider=$display_card_slider_count layout_combo=$layout_editor_combo_count"
+fi
+
+for final_display_runtime_residue in \
+    'Process {' \
+    'hyprctl' \
+    'systemd-run' \
+    'jc-displaycfg' \
+    'jc-displayctl'
+do
+    final_runtime_refs="$(
+        grep -RFn \
+            --include='*.qml' \
+            -- "$final_display_runtime_residue" \
+            "$config_dir/modules/displays" \
+            2>/dev/null || true
+    )"
+
+    if [[ -z "$final_runtime_refs" ]]; then
+        ok "final Displays presentation excludes runtime mutation: $final_display_runtime_residue"
+    else
+        fail "final Displays presentation contains runtime mutation: $final_display_runtime_residue"
+        printf '%s\n' "$final_runtime_refs" >&2
+    fi
+done
 
 
 printf '\n==> Production PanelWindow dimensions\n'

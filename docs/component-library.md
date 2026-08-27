@@ -168,15 +168,14 @@ modal/modeless behavior and Design System motion.
 
 ---
 
-## Legacy compatibility
+## Compatibility retirement
 
-`JcCard` was retired in Phase 2A.4.7 after its final Component Gallery consumer migrated to `JcSurface`.
+`JcCard` was retired in Phase 2A.4.7 after its final Component Gallery consumer
+migrated to `JcSurface`.
 
-It continues consuming Theme API compatibility aliases so the current Displays
-module remains stable through Phase 2A.2.
-
-Do not use `JcCard` as the base for new Phase 2 UI. Prefer `JcSurface` plus
-layout and reusable controls.
+The Phase 1 Theme API compatibility aliases were retired at the same boundary.
+Production Phase 2 QML therefore uses the canonical semantic Theme API directly;
+new components must use `JcSurface` plus the reusable control library.
 
 Migration of the current Displays card surfaces belongs to Phase 2A.4.
 
@@ -229,7 +228,7 @@ Phase 2A.2 closure validation checks:
 - no legacy Theme aliases in canonical components,
 - complete Component Gallery coverage,
 - documentation coverage,
-- explicit `JcCard` compatibility boundary,
+- retired Phase 1 visual compatibility boundary,
 - completed roadmap state.
 
 ---

@@ -19,8 +19,8 @@ new window architecture and not a display-backend rewrite.
 2A.4.5 Layout editor visual integration                    ✓
 2A.4.6 Safe Apply / persistence presentation               ✓
 2A.4.7 Retire Displays visual compatibility layer          ✓
-2A.4.8 Responsive + keyboard + visual validation           ← CURRENT
-2A.4.9 Quality gates + documentation
+2A.4.8 Responsive + keyboard + visual validation           ✓
+2A.4.9 Quality gates + documentation                       ✓ COMPLETE
 ```
 
 ---
@@ -163,12 +163,12 @@ a second topology renderer with duplicated geometry and legacy visual tokens.
 
 ---
 
-## Current validation focus
+## Final validation result
 
-The Phase 2A.4 visual compatibility debt is retired. Production Displays now
-uses the canonical Phase 2 component vocabulary and Theme API.
+The Phase 2A.4 visual compatibility debt is retired. Production Displays uses
+the canonical Phase 2 component vocabulary and Theme API.
 
-The remaining Phase 2A.4 work is behavioral validation:
+The completed validation scope covers:
 
 ```text
 hosted responsive sizing
@@ -652,3 +652,38 @@ JcSlider   -> Qt.StrongFocus + native arrow-key adjustment
 
 No display runtime mutation, Safe Apply behavior, persistence behavior, monitor
 discovery, or Control Center IPC is changed in this phase.
+
+
+---
+
+## Phase 2A.4.9 — Quality gates and documentation
+
+Phase 2A.4 closes with no additional runtime or feature mutation. The final step
+aligns repository documentation and validators with the completed Displays
+migration.
+
+Final quality gates verify:
+
+```text
+ControlCenterShell remains the only production Displays PanelWindow owner
+DisplayView remains hosted content with vertical overflow management
+DisplayCard keeps 3 JcComboBox + 1 JcSlider setting controls
+DisplayLayoutEditor keeps pointer editing plus keyboard selection / snap paths
+JcCard.qml and Phase 1 Theme aliases remain retired
+Safe Apply remains temporary and watchdog-backed
+persistence remains explicit and separate from Safe Apply
+Display presentation contains no direct runtime mutation mechanisms
+README / architecture / component-library / design-system state is current
+repository doctor, lint, static checks and Hyprland config validation are green
+```
+
+The Phase 2A shared visual platform is therefore complete:
+
+```text
+2A.1 Design System / Theme API                 ✓
+2A.2 Reusable QML Component Library            ✓
+2A.3 Control Center shell + navigation         ✓
+2A.4 Displays visual redesign                  ✓ COMPLETE
+
+2B   Wallpapers                                ← NEXT
+```

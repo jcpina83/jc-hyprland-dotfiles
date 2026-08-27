@@ -479,8 +479,9 @@ runtime       integración y mutación externa
 Los componentes Phase 2 reciben el Theme API y no deben ejecutar comandos de
 shell, mutar Hyprland ni convertirse en propietarios del estado de negocio.
 
-`JcCard` permanece como compatibilidad Phase 1 para Displays; su migración
-visual pertenece a Phase 2A.4.
+La compatibilidad visual Phase 1 (`JcCard` y aliases legacy del Theme API) fue
+retirada en Phase 2A.4.7 después de migrar sus últimos consumidores a la API
+canónica de Phase 2.
 
 Referencia: `docs/component-library.md`.
 
@@ -818,11 +819,11 @@ Phase 1   Functional foundation                         ✓
     └── 1D  Desktop session integration                ✓
     │
     ▼
-Phase 2A  Shared visual platform
-    ├── 2A.1  Design System / Theme API
-    ├── 2A.2  Reusable QML Component Library
-    ├── 2A.3  Control Center shell + navigation  ✓ COMPLETE
-    └── 2A.4  Displays visual redesign           ← NEXT
+Phase 2A  Shared visual platform                 ✓ COMPLETE
+    ├── 2A.1  Design System / Theme API          ✓
+    ├── 2A.2  Reusable QML Component Library     ✓
+    ├── 2A.3  Control Center shell + navigation  ✓
+    └── 2A.4  Displays visual redesign           ✓
 
 El contrato de migración visual de Displays vive en:
 
@@ -833,7 +834,7 @@ docs/displays-visual-redesign.md
     ▼
 Phase 2B–2H
     Control Center modules
-    ├── Wallpapers
+    ├── Wallpapers  ← NEXT
     ├── Themes
     ├── Quick Settings
     ├── Performance / Hardware

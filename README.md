@@ -184,8 +184,9 @@ feedback overlays and metric visualization.
 
 Reference: `docs/component-library.md`.
 
-The Displays backend architecture is intentionally unchanged; its visual
-migration belongs to Phase 2A.4.
+The Displays backend architecture remains intentionally unchanged; its visual
+migration was completed in Phase 2A.4 without moving runtime ownership into
+presentation QML.
 
 
 
@@ -672,7 +673,6 @@ Official Hyprland configuration reference:
 │   │   └── jc-hyprland
 │   │       ├── components
 │   │       │   ├── JcButton.qml
-│   │       │   ├── JcCard.qml
 │   │       │   ├── JcChip.qml
 │   │       │   ├── JcChoiceGroup.qml
 │   │       │   ├── JcComboBox.qml
@@ -926,15 +926,17 @@ Control Center.
   - keyboard focus, directional navigation and semantic focus rings
   - lightweight shell / module / status motion
 
-- [ ] **Phase 2A.4 — Displays visual redesign** ← **NEXT**
-  - migrate the existing Displays module to the shared component library
-  - preserve the current observed / draft / runtime / persistent architecture
-  - improve monitor topology, mode selection and Safe Apply presentation
+- [x] **Phase 2A.4 — Displays visual redesign**
+  - migrated Displays to the shared Phase 2 component library and Theme API
+  - preserved the observed / draft / runtime / persistent state architecture
+  - improved topology, mode selection, Safe Apply and persistence presentation
+  - added responsive layout and keyboard-complete topology interaction
+  - retired the Phase 1 visual compatibility layer
   - migration contract: `docs/displays-visual-redesign.md`
 
 ## Control Center modules
 
-- [ ] **Phase 2B — Wallpapers**
+- [ ] **Phase 2B — Wallpapers** ← **NEXT**
   - MAIN / SECONDARY previews
   - wallpaper selection
   - fit / presentation options

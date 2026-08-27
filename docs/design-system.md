@@ -283,8 +283,9 @@ These aliases remain intentionally available for legacy Phase 1 consumers while
 their feature modules are migrated to the Phase 2 component library. Phase 2A.2
 itself is complete; new reusable components must use canonical semantic names.
 
-`JcCard` is the explicit compatibility exception and remains available until the
-Displays visual migration in Phase 2A.4.
+The former `JcCard` compatibility exception was retired in Phase 2A.4.7 together
+with the Phase 1 Theme aliases. The canonical semantic Theme API is now the only
+production visual contract.
 
 ---
 
