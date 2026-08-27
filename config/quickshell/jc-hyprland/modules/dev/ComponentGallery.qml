@@ -507,9 +507,9 @@ PanelWindow {
                     Layout.fillWidth: true
 
                     theme: root.theme
-                    title: "Legacy card compatibility"
+                    title: "Canonical surface"
                     subtitle:
-                        "Existing JcCard remains loadable until migration"
+                        "Phase 2 surface primitive after compatibility retirement"
                 }
 
                 Components.JcSurface {
@@ -525,7 +525,7 @@ PanelWindow {
                         anchors.centerIn: parent
 
                         text:
-                            "JcCard compatibility surface"
+                            "JcSurface · raised"
 
                         color: root.theme.textSecondary
 
