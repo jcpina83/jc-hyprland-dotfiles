@@ -10,6 +10,7 @@ Scope {
 
     property bool applying: false
     property bool awaitingRefresh: false
+    property bool rollbackRecoveryRequired: false
 
     readonly property bool busy:
         root.applying || root.awaitingRefresh
@@ -23,6 +24,7 @@ Scope {
         && root.draftStore.initialized
         && root.draftStore.hasDirty
         && !root.draftStore.observedChangedWhileDirty
+        && !root.rollbackRecoveryRequired
 
     property bool applyingMain: false
     property bool applyingSecondary: false
@@ -33,6 +35,7 @@ Scope {
 
     signal applied(bool mainChanged, bool secondaryChanged)
     signal rolledBack(string message)
+    signal rollbackFailed(string message)
     signal failed(string message)
 
     function configHome() {
@@ -77,7 +80,25 @@ Scope {
         return payload
             && payload.status === "rolled-back"
             && !Boolean(payload.committed)
-            && Boolean(payload.rolledBack);
+            && Boolean(payload.rolledBack)
+            && Boolean(payload.preferencesRestored)
+            && Boolean(payload.runtimeRollbackVerified);
+    }
+
+    function validRollbackFailedResponse(payload) {
+        return payload
+            && payload.status === "rollback-failed"
+            && !Boolean(payload.committed)
+            && !Boolean(payload.rolledBack)
+            && Boolean(payload.preferencesRestored)
+            && !Boolean(payload.runtimeRollbackVerified);
+    }
+
+    function validInvalidRequestResponse(payload) {
+        return payload
+            && payload.status === "invalid-request"
+            && !Boolean(payload.committed)
+            && !Boolean(payload.rolledBack);
     }
 
     function validateApply() {
@@ -99,6 +120,11 @@ Scope {
         if (root.draftStore.observedChangedWhileDirty) {
             return "Wallpaper state changed while editing. "
                 + "Reset the draft before applying.";
+        }
+
+        if (root.rollbackRecoveryRequired) {
+            return "Wallpaper runtime recovery is required before "
+                + "another Apply can be attempted.";
         }
 
         if (!root.draftStore.hasDirty)
@@ -205,6 +231,29 @@ Scope {
             root.lastResult = response;
 
             if (exitCode !== 0) {
+                if (root.validRollbackFailedResponse(response)) {
+                    const backendMessage =
+                        String(response.message || "").trim();
+
+                    root.rollbackRecoveryRequired = true;
+                    root.errorMessage =
+                        "Wallpaper Apply failed and runtime rollback "
+                        + "could not be verified. Preferences were restored."
+                        + (
+                            backendMessage.length > 0
+                                ? " " + backendMessage
+                                : ""
+                        );
+
+                    root.statusMessage =
+                        "Wallpaper recovery required; draft remains pending.";
+
+                    root.clearApplyingTargets();
+                    root.refreshObservedPreservingDraft();
+                    root.rollbackFailed(root.errorMessage);
+                    return;
+                }
+
                 if (root.validRollbackResponse(response)) {
                     const backendMessage =
                         String(response.message || "").trim();
@@ -218,6 +267,7 @@ Scope {
                                 : ""
                         );
 
+                    root.rollbackRecoveryRequired = false;
                     root.statusMessage =
                         "Previous wallpaper state restored; "
                         + "draft remains pending.";
@@ -228,12 +278,22 @@ Scope {
                     return;
                 }
 
+                if (root.validInvalidRequestResponse(response)) {
+                    root.rollbackRecoveryRequired = false;
+                    root.fail(
+                        "Wallpaper Apply request rejected: "
+                        + String(response.message || "invalid request")
+                    );
+                    return;
+                }
+
                 const details = stderrText.length > 0
                     ? stderrText
                     : stdoutText;
 
+                root.rollbackRecoveryRequired = true;
                 root.fail(
-                    "Wallpaper Apply failed"
+                    "Wallpaper Apply failed with unknown recovery state"
                     + (details.length > 0 ? ": " + details : "")
                 );
 
@@ -242,6 +302,7 @@ Scope {
             }
 
             if (!root.validAppliedResponse(response)) {
+                root.rollbackRecoveryRequired = true;
                 root.fail(
                     "Unexpected jc-wallpaperctl Apply response: "
                     + (stdoutText.length > 0 ? stdoutText : "<empty>")
@@ -251,6 +312,7 @@ Scope {
                 return;
             }
 
+            root.rollbackRecoveryRequired = false;
             root.errorMessage = "";
             root.statusMessage =
                 "Wallpaper transaction committed. "

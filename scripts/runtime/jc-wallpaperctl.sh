@@ -166,10 +166,33 @@ print_status_json() {
 canonical_wallpaper_file() {
     local file="$1"
 
-    [[ -f "$file" ]] || die "wallpaper file not found: $file"
-    [[ -r "$file" ]] || die "wallpaper file is not readable: $file"
+    readlink -f -- "$file"
+}
 
-    readlink -f "$file"
+
+apply_error() {
+    local message="$1"
+    local exit_code="${2:-2}"
+
+    if [[ "${output_json:-false}" == true ]]; then
+        jq -n \
+            --arg message "$message" \
+            --argjson exitCode "$exit_code" \
+            '{
+                status: "invalid-request",
+                committed: false,
+                rolledBack: false,
+                preferencesRestored: false,
+                runtimeRollbackVerified: false,
+                runtimeVerified: false,
+                exitCode: $exitCode,
+                message: $message
+            }'
+    else
+        printf 'ERROR: %s\n' "$message" >&2
+    fi
+
+    exit "$exit_code"
 }
 
 
@@ -186,35 +209,70 @@ apply_transaction() {
     local secondary_changed=false
     local runtime_verified=false
 
+    local json_seen=false
+    local argument
+
     shift
+
+    # Discover JSON intent before validating any argument so every early
+    # Apply failure can honor the machine-readable contract.
+    for argument in "$@"; do
+        if [[ "$argument" == "--json" ]]; then
+            output_json=true
+        fi
+    done
 
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
             --main)
-                [[ "$#" -ge 2 ]] || die "--main requires a wallpaper path"
-                [[ "$requested_main" == "__KEEP__" ]] \
-                    || die "--main may only be supplied once"
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || apply_error "--main requires a wallpaper path" 2
 
-                requested_main="$(canonical_wallpaper_file "$2")"
+                [[ "$requested_main" == "__KEEP__" ]] \
+                    || apply_error "--main may only be supplied once" 2
+
+                [[ -f "$2" ]] \
+                    || apply_error "wallpaper file not found: $2" 1
+                [[ -r "$2" ]] \
+                    || apply_error "wallpaper file is not readable: $2" 1
+
+                if ! requested_main="$(canonical_wallpaper_file "$2")"; then
+                    apply_error "unable to canonicalize wallpaper path: $2" 1
+                fi
+
                 shift 2
                 ;;
 
             --secondary)
-                [[ "$#" -ge 2 ]] || die "--secondary requires a wallpaper path"
-                [[ "$requested_secondary" == "__KEEP__" ]] \
-                    || die "--secondary may only be supplied once"
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || apply_error "--secondary requires a wallpaper path" 2
 
-                requested_secondary="$(canonical_wallpaper_file "$2")"
+                [[ "$requested_secondary" == "__KEEP__" ]] \
+                    || apply_error "--secondary may only be supplied once" 2
+
+                [[ -f "$2" ]] \
+                    || apply_error "wallpaper file not found: $2" 1
+                [[ -r "$2" ]] \
+                    || apply_error "wallpaper file is not readable: $2" 1
+
+                if ! requested_secondary="$(canonical_wallpaper_file "$2")"; then
+                    apply_error "unable to canonicalize wallpaper path: $2" 1
+                fi
+
                 shift 2
                 ;;
 
             --json)
+                [[ "$json_seen" == false ]] \
+                    || apply_error "--json may only be supplied once" 2
+
+                json_seen=true
                 output_json=true
                 shift
                 ;;
 
             *)
-                die "unsupported apply argument: $1"
+                apply_error "unsupported apply argument: $1" 2
                 ;;
         esac
     done
@@ -222,7 +280,7 @@ apply_transaction() {
     if [[ "$requested_main" == "__KEEP__" \
         && "$requested_secondary" == "__KEEP__" ]]
     then
-        die "apply requires --main and/or --secondary"
+        apply_error "apply requires --main and/or --secondary" 2
     fi
 
     before="$(print_status_json)"
@@ -243,14 +301,31 @@ apply_transaction() {
         apply_status=$?
 
         if [[ "$output_json" == true ]]; then
+            local failure_status="rolled-back"
+            local rolled_back=true
+            local preferences_restored=true
+            local runtime_rollback_verified=true
+
+            if [[ "$apply_status" -eq 7 ]]; then
+                failure_status="rollback-failed"
+                rolled_back=false
+                runtime_rollback_verified=false
+            fi
+
             jq -n \
-                --arg status "rolled-back" \
+                --arg status "$failure_status" \
                 --arg message "$(tail -n 12 "$manager_log")" \
                 --argjson exitCode "$apply_status" \
+                --argjson rolledBack "$rolled_back" \
+                --argjson preferencesRestored "$preferences_restored" \
+                --argjson runtimeRollbackVerified "$runtime_rollback_verified" \
                 '{
                     status: $status,
                     committed: false,
-                    rolledBack: true,
+                    rolledBack: $rolledBack,
+                    preferencesRestored: $preferencesRestored,
+                    runtimeRollbackVerified: $runtimeRollbackVerified,
+                    runtimeVerified: false,
                     exitCode: $exitCode,
                     message: $message
                 }'
@@ -297,6 +372,8 @@ apply_transaction() {
                 status: "applied",
                 committed: true,
                 rolledBack: false,
+                preferencesRestored: false,
+                runtimeRollbackVerified: false,
                 runtimeVerified: $runtimeVerified,
                 changed: {
                     main: $mainChanged,

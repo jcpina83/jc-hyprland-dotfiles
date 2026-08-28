@@ -32,6 +32,9 @@ Scope {
             if (wallpaperApplyService.awaitingRefresh)
                 return "Reconciling wallpaper state…";
 
+            if (wallpaperApplyService.rollbackRecoveryRequired)
+                return "Wallpaper recovery required";
+
             if (wallpaperApplyService.errorMessage.length > 0)
                 return "Wallpaper Apply error";
 
@@ -73,6 +76,11 @@ Scope {
         if (root.activeModuleId === "wallpapers") {
             if (wallpaperApplyService.busy)
                 return wallpaperApplyService.statusMessage;
+
+            if (wallpaperApplyService.rollbackRecoveryRequired) {
+                return "Preferences were restored, but runtime rollback "
+                    + "could not be verified. Review observed state.";
+            }
 
             if (wallpaperApplyService.errorMessage.length > 0)
                 return wallpaperApplyService.errorMessage;

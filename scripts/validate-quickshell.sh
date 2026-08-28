@@ -80,6 +80,79 @@ for relative in "${required_files[@]}"; do
 done
 
 
+printf '\n==> Phase 2B.4.4 wallpaper failure semantics\n'
+
+wallpaperctl="$repo_root/scripts/runtime/jc-wallpaperctl.sh"
+wallpaper_apply_service="$config_dir/services/WallpaperApplyService.qml"
+wallpaper_main="$config_dir/Main.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for contract in \
+    'apply_error() {' \
+    'status: "invalid-request"' \
+    'preferencesRestored: false' \
+    'runtimeRollbackVerified: false' \
+    'failure_status="rollback-failed"' \
+    'rolled_back=false' \
+    'runtime_rollback_verified=false' \
+    "preferencesRestored: \$preferencesRestored" \
+    "runtimeRollbackVerified: \$runtimeRollbackVerified" \
+    'runtimeVerified: false'
+do
+    if grep -Fq "$contract" "$wallpaperctl"; then
+        ok "wallpaperctl failure semantics: $contract"
+    else
+        fail "wallpaperctl failure semantics missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool rollbackRecoveryRequired: false' \
+    '&& !root.rollbackRecoveryRequired' \
+    'signal rollbackFailed(string message)' \
+    'function validRollbackFailedResponse(payload) {' \
+    'payload.status === "rollback-failed"' \
+    'function validInvalidRequestResponse(payload) {' \
+    'payload.status === "invalid-request"' \
+    'root.rollbackRecoveryRequired = true;' \
+    'root.rollbackFailed(root.errorMessage);'
+do
+    if grep -Fq "$contract" "$wallpaper_apply_service"; then
+        ok "WallpaperApplyService failure semantics: $contract"
+    else
+        fail "WallpaperApplyService failure semantics missing: $contract"
+    fi
+done
+
+for contract in \
+    'return "Wallpaper recovery required";' \
+    'if (wallpaperApplyService.rollbackRecoveryRequired) {' \
+    'Preferences were restored, but runtime rollback ' \
+    'could not be verified. Review observed state.'
+do
+    if grep -Fq "$contract" "$wallpaper_main"; then
+        ok "Main recovery-required contract: $contract"
+    else
+        fail "Main recovery-required contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Wallpaper failure semantics' \
+    'invalid-request' \
+    'rollback-failed' \
+    'preferencesRestored' \
+    'runtimeRollbackVerified' \
+    'Phase 2B.4.4'
+do
+    if grep -Fq "$contract" "$wallpaper_doc"; then
+        ok "wallpaper failure semantics documentation: $contract"
+    else
+        fail "wallpaper failure semantics documentation missing: $contract"
+    fi
+done
+
+
 printf '\n==> Phase 2B.4.3 Wallpaper Apply UI integration\n'
 
 wallpaper_view="$config_dir/modules/wallpapers/WallpaperView.qml"
@@ -307,7 +380,7 @@ for wallpaperctl_apply_contract in \
     "\"\$manager\" transactional-set" \
     'status: "applied"' \
     'runtimeVerified:' \
-    'rolledBack: true'
+    'rolledBack:'
 do
     if grep -Fq "$wallpaperctl_apply_contract" "$wallpaperctl"; then
         ok "jc-wallpaperctl mutation contract: $wallpaperctl_apply_contract"

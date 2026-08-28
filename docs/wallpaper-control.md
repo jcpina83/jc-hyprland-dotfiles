@@ -330,3 +330,59 @@ or preference-file mutation. It only emits `applyRequested()`.
 
 Phase 2B.4.3 completes the first end-to-end wallpaper Apply workflow. Manual
 runtime validation covers MAIN-only, SECONDARY-only, and combined drafts.
+
+
+## Wallpaper failure semantics
+
+Phase 2B.4.4 makes the machine-readable Apply failure contract explicit.
+
+`jc-wallpaperctl apply ... --json` now preserves JSON output for argument and
+path validation failures as well as transactional failures.
+
+The stable statuses are:
+
+```text
+applied
+  committed=true
+  rolledBack=false
+  preferencesRestored=false
+  runtimeRollbackVerified=false
+  runtimeVerified=true
+
+invalid-request
+  committed=false
+  rolledBack=false
+  preferencesRestored=false
+  runtimeRollbackVerified=false
+  runtimeVerified=false
+
+rolled-back
+  committed=false
+  rolledBack=true
+  preferencesRestored=true
+  runtimeRollbackVerified=true
+  runtimeVerified=false
+
+rollback-failed
+  committed=false
+  rolledBack=false
+  preferencesRestored=true
+  runtimeRollbackVerified=false
+  runtimeVerified=false
+```
+
+`rollback-failed` is reserved for the manager's distinct recovery failure:
+the previous preference snapshot was restored, but re-applying/verifying the
+previous runtime state failed. It must never be reported as a successful
+rollback.
+
+`WallpaperApplyService.qml` exposes this state through
+`rollbackRecoveryRequired`. While it is true, another Apply is blocked and
+the Control Center reports that wallpaper recovery is required. The pending
+draft is preserved and observed state is refreshed for inspection.
+
+An `invalid-request` is a pre-mutation rejection and therefore does not mark
+runtime recovery as required.
+
+Phase 2B.4.4 closes the failure-semantics portion of the transactional
+wallpaper Apply workflow.
