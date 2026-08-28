@@ -151,6 +151,16 @@ Item {
                 }
 
                 Components.JcChip {
+                    visible: root.targetSelected
+
+                    theme: root.theme
+                    text: "Target"
+                    compact: true
+                    checked: true
+                    controlEnabled: false
+                }
+
+                Components.JcChip {
                     visible: root.draftDirty
 
                     theme: root.theme

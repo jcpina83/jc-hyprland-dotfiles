@@ -162,3 +162,29 @@ thumbnail components.
 Phase 2B.3.1 intentionally does not provide Apply. Runtime mutation remains
 outside QML and will be introduced through the stable wallpaper controller in
 the next mutation phase.
+
+
+## Wallpaper gallery interaction polish
+
+Phase 2B.3.2 refines the draft-only gallery without changing the wallpaper
+runtime contract.
+
+Interaction semantics:
+
+- MAIN and SECONDARY preview cards expose the active selection target.
+- The gallery marks the effective wallpaper for the active target as
+  `CURRENT`.
+- A draft choice is marked `DRAFT` and takes visual precedence over
+  `CURRENT`.
+- The `GridView` owns keyboard focus and arrow-key navigation.
+- Enter or Space selects the keyboard-current wallpaper into the active
+  QML-only draft.
+- Home and End jump to the first and last visible catalog entries.
+- Mouse activation moves the keyboard-current index to the clicked tile.
+- The current scroll position is preserved when switching MAIN/SECONDARY
+  because changing target does not rebuild the catalog model.
+- Changing All / Theme / Library normalizes the current index only when the
+  previous index is no longer valid.
+
+Phase 2B.3.2 remains draft-only. It does not invoke wallpaper runtime commands,
+write preference files, or introduce Apply behavior.

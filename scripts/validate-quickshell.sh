@@ -79,6 +79,98 @@ for relative in "${required_files[@]}"; do
 done
 
 
+printf '\n==> Phase 2B.3.2 Wallpaper gallery interaction polish\n'
+
+wallpaper_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+wallpaper_tile="$config_dir/modules/wallpapers/WallpaperTile.qml"
+wallpaper_preview_card="$config_dir/modules/wallpapers/WallpaperPreviewCard.qml"
+wallpaper_draft_store="$config_dir/services/WallpaperDraftStore.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for gallery_interaction_contract in \
+    'activeFocusOnTab: true' \
+    'keyNavigationEnabled: true' \
+    'keyNavigationWraps: false' \
+    'highlightFollowsCurrentItem: false' \
+    'function normalizeGridCurrentIndex(): void {' \
+    'function activateCurrentGridItem(): void {' \
+    'event.key === Qt.Key_Home' \
+    'event.key === Qt.Key_End' \
+    'positionViewAtIndex(currentIndex, GridView.Contain);' \
+    'interactive: true' \
+    '+ " · arrows + Enter"'
+do
+    if grep -Fq "$gallery_interaction_contract" "$wallpaper_view"; then
+        ok "Wallpaper gallery interaction: $gallery_interaction_contract"
+    else
+        fail "Wallpaper gallery interaction missing: $gallery_interaction_contract"
+    fi
+done
+
+for gallery_state_contract in \
+    'property bool currentForTarget: false' \
+    'property bool keyboardCurrent: false' \
+    'readonly property string stateLabel:' \
+    '? "DRAFT"' \
+    '? "CURRENT"' \
+    'readonly property color stateColor:' \
+    'signal activated(string path, int itemIndex)' \
+    'focused: root.keyboardCurrent'
+do
+    if grep -Fq "$gallery_state_contract" "$wallpaper_tile"; then
+        ok "WallpaperTile interaction state: $gallery_state_contract"
+    else
+        fail "WallpaperTile interaction state missing: $gallery_state_contract"
+    fi
+done
+
+for target_marker_contract in \
+    'visible: root.targetSelected' \
+    'text: "Target"' \
+    'text: "Draft"'
+do
+    if grep -Fq "$target_marker_contract" "$wallpaper_preview_card"; then
+        ok "WallpaperPreviewCard target state: $target_marker_contract"
+    else
+        fail "WallpaperPreviewCard target state missing: $target_marker_contract"
+    fi
+done
+
+for mutation_guard in \
+    'Process {' \
+    '"awww"' \
+    '"hyprpaper"' \
+    '"systemctl"' \
+    'wallpaper.env' \
+    'local/wallpapers/'
+do
+    if grep -Fq "$mutation_guard" \
+        "$wallpaper_view" \
+        "$wallpaper_tile" \
+        "$wallpaper_preview_card" \
+        "$wallpaper_draft_store"
+    then
+        fail "Wallpaper interaction mutation boundary violated: $mutation_guard"
+    else
+        ok "Wallpaper interaction remains draft-only: $mutation_guard"
+    fi
+done
+
+for interaction_doc_contract in \
+    '## Wallpaper gallery interaction polish' \
+    'CURRENT' \
+    'DRAFT' \
+    'arrow-key navigation' \
+    'Phase 2B.3.2'
+do
+    if grep -Fq "$interaction_doc_contract" "$wallpaper_doc"; then
+        ok "Wallpaper interaction documentation: $interaction_doc_contract"
+    else
+        fail "Wallpaper interaction documentation missing: $interaction_doc_contract"
+    fi
+done
+
+
 printf '\n==> Phase 2B.3.1d Wallpaper preview composition\n'
 
 wallpaper_preview_card="$config_dir/modules/wallpapers/WallpaperPreviewCard.qml"

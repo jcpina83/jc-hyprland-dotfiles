@@ -15,8 +15,23 @@ Item {
     property bool effectiveMain: false
     property bool effectiveSecondary: false
     property bool draftSelected: false
+    property bool currentForTarget: false
+    property bool keyboardCurrent: false
+    property int itemIndex: -1
 
-    signal activated(string path)
+    readonly property string stateLabel:
+        root.draftSelected
+            ? "DRAFT"
+            : root.currentForTarget
+                ? "CURRENT"
+                : ""
+
+    readonly property color stateColor:
+        root.draftSelected
+            ? root.theme.accent
+            : root.theme.success
+
+    signal activated(string path, int itemIndex)
 
     readonly property string displayName:
         root.relativePath.length > 0
@@ -28,13 +43,13 @@ Item {
             ? "file://" + root.wallpaperPath
             : ""
 
-    activeFocusOnTab: true
+    activeFocusOnTab: false
 
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Return
                 || event.key === Qt.Key_Enter
                 || event.key === Qt.Key_Space) {
-            root.activated(root.wallpaperPath);
+            root.activated(root.wallpaperPath, root.itemIndex);
             event.accepted = true;
         }
     }
@@ -49,7 +64,7 @@ Item {
         fillEnabled: false
         cornerRadius: 0
         selected: root.draftSelected
-        focused: root.activeFocus
+        focused: root.keyboardCurrent
 
         Components.JcHudFrame {
             anchors.fill: parent
@@ -58,7 +73,7 @@ Item {
             theme: root.theme
             surfaceRole: "glass"
             selected: root.draftSelected
-            focused: root.activeFocus
+            focused: root.keyboardCurrent
 
             fillEnabled: true
             fillColor: root.draftSelected
@@ -165,14 +180,25 @@ Item {
                     }
                 }
 
+                Text {
+                    visible: root.stateLabel.length > 0
+
+                    text: root.stateLabel
+                    color: root.stateColor
+
+                    font.family: root.theme.fontFamilyMono
+                    font.pixelSize: root.theme.textSizeMicro
+                    font.weight: root.theme.fontWeightSemibold
+                }
+
                 Rectangle {
-                    visible: root.draftSelected
+                    visible: root.stateLabel.length > 0
 
                     Layout.preferredWidth: root.theme.spaceSm
                     Layout.preferredHeight: root.theme.spaceSm
 
                     radius: width / 2
-                    color: root.theme.accent
+                    color: root.stateColor
                 }
             }
         }
@@ -197,6 +223,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
 
         onPressed: root.forceActiveFocus()
-        onClicked: root.activated(root.wallpaperPath)
+        onClicked: root.activated(root.wallpaperPath, root.itemIndex)
     }
 }

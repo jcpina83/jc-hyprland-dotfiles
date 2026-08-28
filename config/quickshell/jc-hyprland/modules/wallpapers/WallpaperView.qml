@@ -47,6 +47,43 @@ Item {
             )
             : ""
 
+    readonly property string selectedTargetLabel:
+        root.draftStore
+            ? root.draftStore.selectedTarget.toUpperCase()
+            : "TARGET"
+
+    function normalizeGridCurrentIndex(): void {
+        if (root.filteredWallpapers.length === 0) {
+            wallpaperGrid.currentIndex = -1;
+            return;
+        }
+
+        if (wallpaperGrid.currentIndex < 0
+                || wallpaperGrid.currentIndex
+                    >= root.filteredWallpapers.length) {
+            wallpaperGrid.currentIndex = 0;
+        }
+    }
+
+    function activateCurrentGridItem(): void {
+        const index = wallpaperGrid.currentIndex;
+
+        if (index < 0 || index >= root.filteredWallpapers.length)
+            return;
+
+        const item = root.filteredWallpapers[index];
+
+        if (!item || !root.draftStore)
+            return;
+
+        root.draftStore.setSelectedWallpaper(
+            String(item.path || "")
+        );
+    }
+
+    onCatalogFilterChanged:
+        Qt.callLater(root.normalizeGridCurrentIndex)
+
     ColumnLayout {
         anchors.fill: parent
         spacing: root.theme.spaceMd
@@ -282,10 +319,9 @@ Item {
                 title: "Library"
                 subtitle:
                     root.filteredWallpapers.length
-                    + " visible · choose "
-                    + (root.draftStore
-                        ? root.draftStore.selectedTarget.toUpperCase()
-                        : "TARGET")
+                    + " visible · target "
+                    + root.selectedTargetLabel
+                    + " · arrows + Enter"
             }
 
             Components.JcChip {
@@ -357,6 +393,11 @@ Item {
 
                 clip: true
 
+                activeFocusOnTab: true
+                keyNavigationEnabled: true
+                keyNavigationWraps: false
+                highlightFollowsCurrentItem: false
+
                 model: root.filteredWallpapers
 
                 readonly property int columnCount:
@@ -402,14 +443,65 @@ Item {
                         root.selectedDraftPath
                         === String(modelData.path || "")
 
-                    onActivated: path => {
+                    currentForTarget:
+                        root.draftStore
+                        && (
+                            root.draftStore.selectedTarget === "main"
+                                ? Boolean(modelData.effectiveMain)
+                                : Boolean(modelData.effectiveSecondary)
+                        )
+
+                    keyboardCurrent:
+                        wallpaperGrid.activeFocus
+                        && index === wallpaperGrid.currentIndex
+
+                    itemIndex: index
+
+                    onActivated: (path, itemIndex) => {
+                        wallpaperGrid.currentIndex = itemIndex;
+                        wallpaperGrid.forceActiveFocus();
+
                         if (root.draftStore)
                             root.draftStore.setSelectedWallpaper(path);
                     }
                 }
 
+                onCountChanged:
+                    Qt.callLater(root.normalizeGridCurrentIndex)
+
+                onCurrentIndexChanged: {
+                    if (currentIndex >= 0)
+                        positionViewAtIndex(currentIndex, GridView.Contain);
+                }
+
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Return
+                            || event.key === Qt.Key_Enter
+                            || event.key === Qt.Key_Space) {
+                        root.activateCurrentGridItem();
+                        event.accepted = true;
+                        return;
+                    }
+
+                    if (event.key === Qt.Key_Home) {
+                        if (count > 0)
+                            currentIndex = 0;
+
+                        event.accepted = true;
+                        return;
+                    }
+
+                    if (event.key === Qt.Key_End) {
+                        if (count > 0)
+                            currentIndex = count - 1;
+
+                        event.accepted = true;
+                    }
+                }
+
                 Controls.ScrollBar.vertical: Controls.ScrollBar {
                     policy: Controls.ScrollBar.AsNeeded
+                    interactive: true
                 }
             }
 
