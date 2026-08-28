@@ -464,3 +464,32 @@ jc-wallpaperctl apply --main-fit contain --secondary-fit cover --json
 ```
 
 Phase 2B.6.2 adds fit draft state and per-output Control Center selectors.
+
+
+## Wallpaper fit draft UI
+
+Phase 2B.6.2 integrates the transactional fit API into the wallpaper draft
+model and Control Center.
+
+`WallpaperDraftStore.qml` tracks wallpaper-path and presentation-mode changes
+independently. `mainDirty` and `secondaryDirty` remain output-level aggregate
+flags, while `mainWallpaperDirty`, `secondaryWallpaperDirty`, `mainFitDirty`,
+and `secondaryFitDirty` identify which Apply arguments are required.
+
+Fit selection remains draft-only. `WallpaperView.qml` and
+`WallpaperFitControl.qml` never invoke `awww`, `hyprpaper`, `systemctl`, or
+`jc-wallpaperctl` directly. `WallpaperApplyService.qml` includes only changed
+arguments in the existing transactional Apply request.
+
+The UI exposes four canonical presentation choices per output:
+
+- `Fit` -> `contain`
+- `Fill` -> `cover`
+- `Stretch` -> `stretch`
+- `Center` -> `center`
+
+Reset restores both wallpaper and fit drafts to the accepted observed baseline.
+An observed wallpaper or fit change while editing raises the existing
+`observedChangedWhileDirty` conflict instead of silently replacing the draft.
+
+Phase 2B.6.2 does not add rotation mutation controls.

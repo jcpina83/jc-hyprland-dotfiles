@@ -304,9 +304,9 @@ Item {
                 effectivePath: root.wallpaperService
                     ? root.wallpaperService.mainEffective
                     : ""
-                fitMode: root.wallpaperService
-                    ? root.wallpaperService.mainFit
-                    : ""
+                fitMode: root.draftStore
+                    ? root.draftStore.draftMainFit
+                    : "cover"
 
                 targetSelected:
                     root.draftStore
@@ -339,9 +339,9 @@ Item {
                 effectivePath: root.wallpaperService
                     ? root.wallpaperService.secondaryEffective
                     : ""
-                fitMode: root.wallpaperService
-                    ? root.wallpaperService.secondaryFit
-                    : ""
+                fitMode: root.draftStore
+                    ? root.draftStore.draftSecondaryFit
+                    : "cover"
 
                 targetSelected:
                     root.draftStore
@@ -354,6 +354,76 @@ Item {
                 onClicked: {
                     if (root.draftStore)
                         root.draftStore.selectTarget("secondary");
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.minimumHeight:
+                root.theme.controlHeightLarge * 1.45
+            Layout.preferredHeight:
+                root.theme.controlHeightLarge * 1.45
+            Layout.maximumHeight:
+                root.theme.controlHeightLarge * 1.45
+
+            spacing: root.theme.spaceMd
+
+            WallpaperFitControl {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                theme: root.theme
+                targetId: "main"
+                outputName: root.wallpaperService
+                    ? root.wallpaperService.mainOutput
+                    : ""
+                selectedFit: root.draftStore
+                    ? root.draftStore.draftMainFit
+                    : "cover"
+                targetSelected:
+                    root.draftStore
+                    && root.draftStore.selectedTarget === "main"
+                draftDirty:
+                    root.draftStore
+                    && root.draftStore.mainFitDirty
+                controlEnabled: !root.interactionLocked
+
+                onFitSelected: fitMode => {
+                    if (!root.draftStore)
+                        return;
+
+                    root.draftStore.selectTarget("main");
+                    root.draftStore.setFit("main", fitMode);
+                }
+            }
+
+            WallpaperFitControl {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                theme: root.theme
+                targetId: "secondary"
+                outputName: root.wallpaperService
+                    ? root.wallpaperService.secondaryOutput
+                    : ""
+                selectedFit: root.draftStore
+                    ? root.draftStore.draftSecondaryFit
+                    : "cover"
+                targetSelected:
+                    root.draftStore
+                    && root.draftStore.selectedTarget === "secondary"
+                draftDirty:
+                    root.draftStore
+                    && root.draftStore.secondaryFitDirty
+                controlEnabled: !root.interactionLocked
+
+                onFitSelected: fitMode => {
+                    if (!root.draftStore)
+                        return;
+
+                    root.draftStore.selectTarget("secondary");
+                    root.draftStore.setFit("secondary", fitMode);
                 }
             }
         }

@@ -4710,6 +4710,76 @@ do
 done
 
 
+printf '\n==> Phase 2B.6.2 wallpaper fit draft UI\n'
+
+wallpaper_fit_draft="$config_dir/services/WallpaperDraftStore.qml"
+wallpaper_fit_apply="$config_dir/services/WallpaperApplyService.qml"
+wallpaper_fit_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+wallpaper_fit_control="$config_dir/modules/wallpapers/WallpaperFitControl.qml"
+
+if [[ -f "$wallpaper_fit_control" ]]; then
+    ok "WallpaperFitControl.qml"
+else
+    fail "WallpaperFitControl.qml missing"
+fi
+
+for contract in \
+    'property string draftMainFit: "cover"' \
+    'property string draftSecondaryFit: "cover"' \
+    'readonly property bool mainWallpaperDirty:' \
+    'readonly property bool secondaryWallpaperDirty:' \
+    'readonly property bool mainFitDirty:' \
+    'readonly property bool secondaryFitDirty:' \
+    'root.mainWallpaperDirty || root.mainFitDirty' \
+    'root.secondaryWallpaperDirty || root.secondaryFitDirty' \
+    'function setFit(target, fit): void {' \
+    'observedMainFit !== root.baselineMainFit'
+do
+    if grep -Fq -- "$contract" "$wallpaper_fit_draft"; then
+        ok "Wallpaper fit draft contract: $contract"
+    else
+        fail "Wallpaper fit draft contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'root.draftStore.mainWallpaperDirty' \
+    'root.draftStore.secondaryWallpaperDirty' \
+    'root.draftStore.mainFitDirty' \
+    'root.draftStore.secondaryFitDirty' \
+    'args.push("--main-fit")' \
+    'args.push("--secondary-fit")'
+do
+    if grep -Fq -- "$contract" "$wallpaper_fit_apply"; then
+        ok "Wallpaper fit Apply contract: $contract"
+    else
+        fail "Wallpaper fit Apply contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'WallpaperFitControl {' \
+    'root.draftStore.draftMainFit' \
+    'root.draftStore.draftSecondaryFit' \
+    'root.draftStore.setFit("main", fitMode);' \
+    'root.draftStore.setFit("secondary", fitMode);'
+do
+    if grep -Fq -- "$contract" "$wallpaper_fit_view"; then
+        ok "Wallpaper fit View contract: $contract"
+    else
+        fail "Wallpaper fit View contract missing: $contract"
+    fi
+done
+
+for forbidden in 'Process {' '"awww"' '"hyprpaper"' '"systemctl"' 'wallpaper.env'; do
+    if grep -Fq -- "$forbidden" "$wallpaper_fit_control"; then
+        fail "WallpaperFitControl mutation boundary violation: $forbidden"
+    else
+        ok "WallpaperFitControl excludes mutation/runtime command: $forbidden"
+    fi
+done
+
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

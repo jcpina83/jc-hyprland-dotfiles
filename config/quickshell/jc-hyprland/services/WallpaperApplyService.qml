@@ -104,6 +104,15 @@ Scope {
             && !Boolean(payload.rolledBack);
     }
 
+    function validFitValue(value) {
+        const fit = String(value || "");
+
+        return fit === "cover"
+            || fit === "contain"
+            || fit === "stretch"
+            || fit === "center";
+    }
+
     function validateApply() {
         if (!root.wallpaperService)
             return "Wallpaper observed-state service is unavailable.";
@@ -133,14 +142,24 @@ Scope {
         if (!root.draftStore.hasDirty)
             return "There are no wallpaper changes to apply.";
 
-        if (root.draftStore.mainDirty
+        if (root.draftStore.mainWallpaperDirty
                 && String(root.draftStore.draftMainPath || "").length === 0) {
             return "MAIN wallpaper draft has no valid path.";
         }
 
-        if (root.draftStore.secondaryDirty
+        if (root.draftStore.secondaryWallpaperDirty
                 && String(root.draftStore.draftSecondaryPath || "").length === 0) {
             return "SECONDARY wallpaper draft has no valid path.";
+        }
+
+        if (root.draftStore.mainFitDirty
+                && !root.validFitValue(root.draftStore.draftMainFit)) {
+            return "MAIN wallpaper fit draft is invalid.";
+        }
+
+        if (root.draftStore.secondaryFitDirty
+                && !root.validFitValue(root.draftStore.draftSecondaryFit)) {
+            return "SECONDARY wallpaper fit draft is invalid.";
         }
 
         return "";
@@ -152,14 +171,24 @@ Scope {
             "apply"
         ];
 
-        if (root.draftStore && root.draftStore.mainDirty) {
+        if (root.draftStore && root.draftStore.mainWallpaperDirty) {
             args.push("--main");
             args.push(String(root.draftStore.draftMainPath || ""));
         }
 
-        if (root.draftStore && root.draftStore.secondaryDirty) {
+        if (root.draftStore && root.draftStore.mainFitDirty) {
+            args.push("--main-fit");
+            args.push(String(root.draftStore.draftMainFit || ""));
+        }
+
+        if (root.draftStore && root.draftStore.secondaryWallpaperDirty) {
             args.push("--secondary");
             args.push(String(root.draftStore.draftSecondaryPath || ""));
+        }
+
+        if (root.draftStore && root.draftStore.secondaryFitDirty) {
+            args.push("--secondary-fit");
+            args.push(String(root.draftStore.draftSecondaryFit || ""));
         }
 
         args.push("--json");
