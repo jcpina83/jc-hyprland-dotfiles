@@ -358,7 +358,7 @@ PanelWindow {
 
                 Components.JcIconButton {
                     theme: root.theme
-                    icon: "×"
+                    iconName: "close"
                     accessibleName: "Close Control Center"
                     controlEnabled: !root.transitionLocked
 

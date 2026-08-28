@@ -313,6 +313,7 @@ Components.JcSurface {
             Components.JcButton {
                 theme: root.theme
                 compact: true
+                iconName: "power"
 
                 text: root.draft && root.draft.enabled
                     ? "Disable"

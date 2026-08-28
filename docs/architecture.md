@@ -937,3 +937,31 @@ perimeter; the content area stays clean, and each interactive control owns
 only its `JcInteractiveFrame`. Nested framed surfaces are reserved for
 independent functional cards. This avoids frame-on-frame overlap and keeps the
 JC Holo hierarchy aligned with the Control Center visual reference.
+
+### H1.4.2 semantic action vocabulary
+
+Production actions use semantic `iconName` values instead of embedding visual
+glyphs in labels or module code. H1.4.2a establishes the action vocabulary:
+
+```text
+apply    -> Apply / Safe Apply
+reset    -> Reset
+refresh  -> Refresh / recovery refresh
+keep     -> Keep confirmed display state
+revert   -> Rollback / revert
+save     -> Persist configuration
+power    -> Enable / Disable display
+close    -> Close shell or popup
+left     -> Topology left
+right    -> Topology right
+above    -> Topology above
+below    -> Topology below
+```
+
+Labels remain present for actions where text improves clarity. The semantic
+name is the stable contract; the glyph rendered by `JcIcon` may evolve later
+without rewriting feature modules.
+
+Navigation icon migration is intentionally separate in H1.4.2b because
+`JcNavItem` still owns a raw-glyph API and requires its own compatibility
+migration.

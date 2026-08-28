@@ -147,6 +147,7 @@ Item {
                 visible: root.draftStore && root.draftStore.hasDirty
 
                 theme: root.theme
+                iconName: "apply"
 
                 text:
                     root.applyService && root.applyService.applying
@@ -175,6 +176,11 @@ Item {
                     )
 
                 theme: root.theme
+                iconName:
+                    root.applyService
+                    && root.applyService.rollbackRecoveryRequired
+                        ? "refresh"
+                        : "reset"
 
                 text:
                     root.applyService
@@ -191,6 +197,7 @@ Item {
 
             Components.JcButton {
                 theme: root.theme
+                iconName: "refresh"
 
                 text:
                     root.wallpaperService

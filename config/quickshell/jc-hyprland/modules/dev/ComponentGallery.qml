@@ -80,6 +80,7 @@ PanelWindow {
                     Components.JcButton {
                         theme: root.theme
                         text: "Close"
+                        iconName: "close"
 
                         onClicked: root.closeRequested()
                     }
@@ -672,6 +673,7 @@ PanelWindow {
                 Components.JcButton {
                     theme: root.theme
                     text: "Close"
+                    iconName: "close"
 
                     onClicked: demoPopup.close()
                 }

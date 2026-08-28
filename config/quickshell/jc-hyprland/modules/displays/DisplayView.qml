@@ -72,6 +72,7 @@ Item {
                         && root.applyService.pendingConfirmation)
 
                 theme: root.theme
+                iconName: "reset"
                 text: "Reset"
 
                 controlEnabled:
@@ -88,6 +89,7 @@ Item {
                         && root.applyService.pendingConfirmation)
 
                 theme: root.theme
+                iconName: "apply"
 
                 text: root.applyService && root.applyService.applying
                     ? "Applying…"
@@ -105,6 +107,7 @@ Item {
 
             Components.JcButton {
                 theme: root.theme
+                iconName: "refresh"
 
                 text: root.monitorService && root.monitorService.loading
                     ? "Refreshing…"
@@ -229,6 +232,7 @@ Item {
 
                     Components.JcButton {
                         theme: root.theme
+                        iconName: "keep"
 
                         text: root.applyService && root.applyService.keeping
                             ? "Keeping…"
@@ -243,6 +247,7 @@ Item {
 
                     Components.JcButton {
                         theme: root.theme
+                        iconName: "revert"
 
                         text: root.applyService
                                 && root.applyService.rollingBack
@@ -724,6 +729,7 @@ Item {
 
                 Components.JcButton {
                     theme: root.theme
+                    iconName: "save"
 
                     text: root.persistenceService
                             && root.persistenceService.saving

@@ -4876,6 +4876,98 @@ else
     ok "Wallpaper Fit group uses flat control composition"
 fi
 
+
+printf '\n==> Phase H1.4.2a semantic action icons\n'
+
+semantic_icon="$config_dir/components/JcIcon.qml"
+semantic_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+semantic_wallpapers="$config_dir/modules/wallpapers/WallpaperView.qml"
+semantic_displays="$config_dir/modules/displays/DisplayView.qml"
+semantic_display_card="$config_dir/modules/displays/DisplayCard.qml"
+semantic_layout="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+
+if grep -Fq -- 'case "power": return "⏻";' "$semantic_icon"; then
+    ok 'semantic icon vocabulary: power'
+else
+    fail 'semantic icon vocabulary missing: power'
+fi
+
+for contract in \
+    'iconName: "apply"' \
+    '? "refresh"' \
+    ': "reset"' \
+    'iconName: "refresh"'
+do
+    if grep -Fq -- "$contract" "$semantic_wallpapers"; then
+        ok "Wallpaper semantic action: $contract"
+    else
+        fail "Wallpaper semantic action missing: $contract"
+    fi
+done
+
+for contract in \
+    'iconName: "reset"' \
+    'iconName: "apply"' \
+    'iconName: "refresh"' \
+    'iconName: "keep"' \
+    'iconName: "revert"' \
+    'iconName: "save"'
+do
+    if grep -Fq -- "$contract" "$semantic_displays"; then
+        ok "Displays semantic action: $contract"
+    else
+        fail "Displays semantic action missing: $contract"
+    fi
+done
+
+if grep -Fq -- 'iconName: "power"' "$semantic_display_card"; then
+    ok 'Display enable/disable uses semantic power icon'
+else
+    fail 'Display enable/disable semantic power icon missing'
+fi
+
+for contract in \
+    'text: "Left"' \
+    'iconName: "left"' \
+    'text: "Right"' \
+    'iconName: "right"' \
+    'text: "Above"' \
+    'iconName: "above"' \
+    'text: "Below"' \
+    'iconName: "below"'
+do
+    if grep -Fq -- "$contract" "$semantic_layout"; then
+        ok "Display topology semantic action: $contract"
+    else
+        fail "Display topology semantic action missing: $contract"
+    fi
+done
+
+for legacy_label in \
+    'text: "← Left"' \
+    'text: "Right →"' \
+    'text: "↑ Above"' \
+    'text: "↓ Below"'
+do
+    if grep -Fq -- "$legacy_label" "$semantic_layout"; then
+        fail "Display topology retains embedded icon glyph: $legacy_label"
+    else
+        ok "Display topology retired embedded glyph: $legacy_label"
+    fi
+done
+
+if grep -Fq -- 'iconName: "close"' "$semantic_shell"; then
+    ok 'Control Center close uses semantic icon'
+else
+    fail 'Control Center close semantic icon missing'
+fi
+
+if grep -Fq -- 'icon: "×"' "$semantic_shell"; then
+    fail 'Control Center close still uses raw glyph'
+else
+    ok 'Control Center close raw glyph retired'
+fi
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

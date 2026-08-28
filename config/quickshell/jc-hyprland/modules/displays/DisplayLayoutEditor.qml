@@ -650,7 +650,8 @@ Components.JcSurface {
                 Layout.fillWidth: true
 
                 theme: root.theme
-                text: "← Left"
+                text: "Left"
+                iconName: "left"
                 compact: true
 
                 controlEnabled:
@@ -664,7 +665,8 @@ Components.JcSurface {
                 Layout.fillWidth: true
 
                 theme: root.theme
-                text: "Right →"
+                text: "Right"
+                iconName: "right"
                 compact: true
 
                 controlEnabled:
@@ -678,7 +680,8 @@ Components.JcSurface {
                 Layout.fillWidth: true
 
                 theme: root.theme
-                text: "↑ Above"
+                text: "Above"
+                iconName: "above"
                 compact: true
 
                 controlEnabled:
@@ -692,7 +695,8 @@ Components.JcSurface {
                 Layout.fillWidth: true
 
                 theme: root.theme
-                text: "↓ Below"
+                text: "Below"
+                iconName: "below"
                 compact: true
 
                 controlEnabled:

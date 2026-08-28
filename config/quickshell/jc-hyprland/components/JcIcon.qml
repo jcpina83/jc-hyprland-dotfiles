@@ -40,6 +40,7 @@ Text {
         case "network": return "⌁";
         case "notifications": return "●";
         case "favorite": return "★";
+        case "power": return "⏻";
         default: return "";
         }
     }
