@@ -3,9 +3,10 @@ set -euo pipefail
 
 # ==============================================================================
 # jc-hyprland-dotfiles
-# Stable wallpaper read API
+# Stable wallpaper control API
 #
-# Phase 2B.2.1 is intentionally read-only.
+# Reads remain side-effect free. Mutation is delegated transactionally
+# through wallpaper-manager.sh; this wrapper never edits preferences.
 # ==============================================================================
 
 base="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles"
@@ -24,6 +25,8 @@ Usage:
   jc-wallpaperctl status --json
   jc-wallpaperctl catalog
   jc-wallpaperctl catalog --json
+  jc-wallpaperctl apply --main <file> [--secondary <file>] [--json]
+  jc-wallpaperctl apply --secondary <file> [--main <file>] [--json]
 EOF
 }
 
@@ -45,9 +48,16 @@ source "$host_env"
 : "${SECONDARY_OUTPUT:?SECONDARY_OUTPUT is required}"
 
 runtime_json() {
+    local configured_json="${1:-}"
+
+    if [[ -z "$configured_json" ]]; then
+        configured_json='{}'
+    fi
     local runtime_engine="unknown"
     local main_wallpaper=""
     local secondary_wallpaper=""
+    local expected_main=""
+    local expected_secondary=""
     local raw=""
     local line
     local rest
@@ -55,6 +65,13 @@ runtime_json() {
     local wallpaper
 
     require_jq
+
+    expected_main="$(
+        jq -r '.outputs.main.effective // ""' <<< "$configured_json"
+    )"
+    expected_secondary="$(
+        jq -r '.outputs.secondary.effective // ""' <<< "$configured_json"
+    )"
 
     if command -v awww >/dev/null 2>&1 \
         && pgrep -x awww-daemon >/dev/null 2>&1 \
@@ -79,8 +96,26 @@ runtime_json() {
             esac
         done <<< "$raw"
 
-    elif pgrep -x hyprpaper >/dev/null 2>&1; then
+    elif pgrep -x hyprpaper >/dev/null 2>&1 \
+        && raw="$(hyprctl hyprpaper listactive 2>/dev/null || true)"
+    then
         runtime_engine="hyprpaper"
+
+        while IFS= read -r line; do
+            if [[ -n "$expected_main" \
+                && "$line" == *"$MAIN_OUTPUT"* \
+                && "$line" == *"$expected_main"* ]]
+            then
+                main_wallpaper="$expected_main"
+            fi
+
+            if [[ -n "$expected_secondary" \
+                && "$line" == *"$SECONDARY_OUTPUT"* \
+                && "$line" == *"$expected_secondary"* ]]
+            then
+                secondary_wallpaper="$expected_secondary"
+            fi
+        done <<< "$raw"
     fi
 
     jq -n \
@@ -113,7 +148,7 @@ print_status_json() {
     require_jq
 
     configured="$("$manager" current --json)"
-    runtime="$(runtime_json)"
+    runtime="$(runtime_json "$configured")"
 
     jq -n \
         --argjson configured "$configured" \
@@ -127,6 +162,169 @@ print_status_json() {
         | .runtime = $runtime
         '
 }
+
+canonical_wallpaper_file() {
+    local file="$1"
+
+    [[ -f "$file" ]] || die "wallpaper file not found: $file"
+    [[ -r "$file" ]] || die "wallpaper file is not readable: $file"
+
+    readlink -f "$file"
+}
+
+
+apply_transaction() {
+    local requested_main="__KEEP__"
+    local requested_secondary="__KEEP__"
+    local output_json=false
+
+    local before
+    local after
+    local manager_log
+    local apply_status
+    local main_changed=false
+    local secondary_changed=false
+    local runtime_verified=false
+
+    shift
+
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            --main)
+                [[ "$#" -ge 2 ]] || die "--main requires a wallpaper path"
+                [[ "$requested_main" == "__KEEP__" ]] \
+                    || die "--main may only be supplied once"
+
+                requested_main="$(canonical_wallpaper_file "$2")"
+                shift 2
+                ;;
+
+            --secondary)
+                [[ "$#" -ge 2 ]] || die "--secondary requires a wallpaper path"
+                [[ "$requested_secondary" == "__KEEP__" ]] \
+                    || die "--secondary may only be supplied once"
+
+                requested_secondary="$(canonical_wallpaper_file "$2")"
+                shift 2
+                ;;
+
+            --json)
+                output_json=true
+                shift
+                ;;
+
+            *)
+                die "unsupported apply argument: $1"
+                ;;
+        esac
+    done
+
+    if [[ "$requested_main" == "__KEEP__" \
+        && "$requested_secondary" == "__KEEP__" ]]
+    then
+        die "apply requires --main and/or --secondary"
+    fi
+
+    before="$(print_status_json)"
+    manager_log="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/jc-wallpaper-apply.XXXXXX")"
+
+    cleanup_apply_log() {
+        rm -f -- "$manager_log"
+    }
+
+    trap cleanup_apply_log RETURN
+
+    if "$manager" transactional-set \
+        "$requested_main" "$requested_secondary" \
+        >"$manager_log" 2>&1
+    then
+        apply_status=0
+    else
+        apply_status=$?
+
+        if [[ "$output_json" == true ]]; then
+            jq -n \
+                --arg status "rolled-back" \
+                --arg message "$(tail -n 12 "$manager_log")" \
+                --argjson exitCode "$apply_status" \
+                '{
+                    status: $status,
+                    committed: false,
+                    rolledBack: true,
+                    exitCode: $exitCode,
+                    message: $message
+                }'
+        else
+            cat "$manager_log" >&2
+        fi
+
+        trap - RETURN
+        rm -f -- "$manager_log"
+        return "$apply_status"
+    fi
+
+    after="$(print_status_json)"
+
+    if [[ "$requested_main" != "__KEEP__" ]]; then
+        main_changed=true
+    fi
+
+    if [[ "$requested_secondary" != "__KEEP__" ]]; then
+        secondary_changed=true
+    fi
+
+    if jq -e '
+        .runtime.outputs.main.known
+        and .runtime.outputs.secondary.known
+        and (.runtime.outputs.main.wallpaper == .outputs.main.effective)
+        and (
+            .runtime.outputs.secondary.wallpaper
+            == .outputs.secondary.effective
+        )
+    ' <<< "$after" >/dev/null
+    then
+        runtime_verified=true
+    fi
+
+    if [[ "$output_json" == true ]]; then
+        jq -n \
+            --argjson before "$before" \
+            --argjson after "$after" \
+            --argjson mainChanged "$main_changed" \
+            --argjson secondaryChanged "$secondary_changed" \
+            --argjson runtimeVerified "$runtime_verified" \
+            '{
+                status: "applied",
+                committed: true,
+                rolledBack: false,
+                runtimeVerified: $runtimeVerified,
+                changed: {
+                    main: $mainChanged,
+                    secondary: $secondaryChanged
+                },
+                before: {
+                    main: $before.outputs.main.effective,
+                    secondary: $before.outputs.secondary.effective
+                },
+                after: {
+                    main: $after.outputs.main.effective,
+                    secondary: $after.outputs.secondary.effective,
+                    runtimeMain: $after.runtime.outputs.main.wallpaper,
+                    runtimeSecondary: $after.runtime.outputs.secondary.wallpaper,
+                    engine: $after.runtime.engine
+                }
+            }'
+    else
+        cat "$manager_log"
+
+        printf '\nTransaction summary:\n'
+        printf '  runtime verified: %s\n' "$runtime_verified"
+    fi
+
+    trap - RETURN
+    rm -f -- "$manager_log"
+}
+
 
 print_status() {
     "$manager" current
@@ -161,6 +359,10 @@ case "$command_name" in
             usage >&2
             exit 2
         fi
+        ;;
+
+    apply)
+        apply_transaction "$@"
         ;;
 
     catalog)

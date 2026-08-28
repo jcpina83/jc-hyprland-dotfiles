@@ -112,6 +112,76 @@ daemon_running() {
     pgrep -x "$1" >/dev/null 2>&1
 }
 
+
+runtime_line_matches() {
+    local raw="$1"
+    local output="$2"
+    local wallpaper="$3"
+    local line
+
+    while IFS= read -r line; do
+        if [[ "$line" == *"$output"* && "$line" == *"$wallpaper"* ]]; then
+            return 0
+        fi
+    done <<< "$raw"
+
+    return 1
+}
+
+
+verify_awww_runtime() {
+    local raw=""
+
+    for _ in {1..30}; do
+        raw="$(awww query 2>/dev/null || true)"
+
+        if runtime_line_matches "$raw" "$MAIN_OUTPUT" "$main_wallpaper" \
+            && runtime_line_matches \
+                "$raw" "$SECONDARY_OUTPUT" "$secondary_wallpaper"
+        then
+            printf 'Runtime verification: awww outputs match requested wallpapers.\n'
+            return 0
+        fi
+
+        sleep 0.10
+    done
+
+    printf 'ERROR: awww runtime verification failed.\n' >&2
+    printf 'Expected MAIN: %s -> %s\n' \
+        "$MAIN_OUTPUT" "$main_wallpaper" >&2
+    printf 'Expected SECONDARY: %s -> %s\n' \
+        "$SECONDARY_OUTPUT" "$secondary_wallpaper" >&2
+    printf 'Observed awww query:\n%s\n' "$raw" >&2
+    return 6
+}
+
+
+verify_hyprpaper_runtime() {
+    local raw=""
+
+    for _ in {1..30}; do
+        raw="$(hyprctl hyprpaper listactive 2>/dev/null || true)"
+
+        if runtime_line_matches "$raw" "$MAIN_OUTPUT" "$main_wallpaper" \
+            && runtime_line_matches \
+                "$raw" "$SECONDARY_OUTPUT" "$secondary_wallpaper"
+        then
+            printf 'Runtime verification: hyprpaper outputs match requested wallpapers.\n'
+            return 0
+        fi
+
+        sleep 0.10
+    done
+
+    printf 'ERROR: hyprpaper runtime verification failed.\n' >&2
+    printf 'Expected MAIN: %s -> %s\n' \
+        "$MAIN_OUTPUT" "$main_wallpaper" >&2
+    printf 'Expected SECONDARY: %s -> %s\n' \
+        "$SECONDARY_OUTPUT" "$secondary_wallpaper" >&2
+    printf 'Observed hyprpaper listactive:\n%s\n' "$raw" >&2
+    return 6
+}
+
 command -v hyprctl >/dev/null 2>&1 \
     || die "hyprctl is not available"
 
@@ -291,6 +361,8 @@ apply_awww() {
         --transition-fps "$transition_fps" \
         "$secondary_wallpaper"
 
+    verify_awww_runtime
+
     printf '\nActive wallpapers:\n'
     awww query
 }
@@ -347,6 +419,8 @@ apply_hyprpaper() {
 
     hyprctl hyprpaper wallpaper \
         "$SECONDARY_OUTPUT, $secondary_wallpaper, $secondary_fit" >/dev/null
+
+    verify_hyprpaper_runtime
 
     printf '\nActive wallpapers:\n'
     hyprctl hyprpaper listactive

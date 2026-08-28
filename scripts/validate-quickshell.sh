@@ -79,6 +79,77 @@ for relative in "${required_files[@]}"; do
 done
 
 
+printf '\n==> Phase 2B.4.1 transactional wallpaper mutation API\n'
+
+wallpaperctl="$repo_root/scripts/runtime/jc-wallpaperctl.sh"
+wallpaper_manager="$repo_root/scripts/runtime/wallpaper-manager.sh"
+apply_wallpaper="$repo_root/scripts/runtime/apply-wallpaper.sh"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for wallpaperctl_apply_contract in \
+    'jc-wallpaperctl apply --main <file>' \
+    'apply_transaction() {' \
+    'canonical_wallpaper_file() {' \
+    "\"\$manager\" transactional-set" \
+    'status: "applied"' \
+    'runtimeVerified:' \
+    'rolledBack: true'
+do
+    if grep -Fq "$wallpaperctl_apply_contract" "$wallpaperctl"; then
+        ok "jc-wallpaperctl mutation contract: $wallpaperctl_apply_contract"
+    else
+        fail "jc-wallpaperctl mutation contract missing: $wallpaperctl_apply_contract"
+    fi
+done
+
+for wallpaper_manager_transaction_contract in \
+    'acquire_mutation_lock() {' \
+    'flock -x 9' \
+    'restore_preferences_snapshot() {' \
+    'transactional_set_pair() {' \
+    'Wallpaper transaction failed; restoring previous preferences.' \
+    'Wallpaper rollback completed successfully.' \
+    'set|random|next|reset|transactional-set)' \
+    'transactional-set)'
+do
+    if grep -Fq "$wallpaper_manager_transaction_contract" "$wallpaper_manager"; then
+        ok "wallpaper-manager transaction: $wallpaper_manager_transaction_contract"
+    else
+        fail "wallpaper-manager transaction missing: $wallpaper_manager_transaction_contract"
+    fi
+done
+
+for runtime_verify_contract in \
+    'runtime_line_matches() {' \
+    'verify_awww_runtime() {' \
+    'verify_hyprpaper_runtime() {' \
+    'verify_awww_runtime' \
+    'verify_hyprpaper_runtime' \
+    'return 6'
+do
+    if grep -Fq "$runtime_verify_contract" "$apply_wallpaper"; then
+        ok "wallpaper runtime verification: $runtime_verify_contract"
+    else
+        fail "wallpaper runtime verification missing: $runtime_verify_contract"
+    fi
+done
+
+for mutation_doc_contract in \
+    '## Transactional wallpaper mutation API' \
+    'jc-wallpaperctl apply' \
+    'transactional-set' \
+    'rollback' \
+    'flock' \
+    'Phase 2B.4.1'
+do
+    if grep -Fq "$mutation_doc_contract" "$wallpaper_doc"; then
+        ok "wallpaper mutation documentation: $mutation_doc_contract"
+    else
+        fail "wallpaper mutation documentation missing: $mutation_doc_contract"
+    fi
+done
+
+
 printf '\n==> Phase 2B.3.2 Wallpaper gallery interaction polish\n'
 
 wallpaper_view="$config_dir/modules/wallpapers/WallpaperView.qml"

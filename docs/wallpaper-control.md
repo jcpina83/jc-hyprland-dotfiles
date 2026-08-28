@@ -188,3 +188,58 @@ Interaction semantics:
 
 Phase 2B.3.2 remains draft-only. It does not invoke wallpaper runtime commands,
 write preference files, or introduce Apply behavior.
+
+
+## Transactional wallpaper mutation API
+
+Phase 2B.4.1 introduces the first stable mutation boundary:
+
+```text
+Wallpaper UI / future WallpaperApplyService
+                |
+                v
+        jc-wallpaperctl apply
+                |
+                v
+wallpaper-manager.sh transactional-set
+                |
+        +-------+-------+
+        |               |
+ preferences write   runtime apply
+        |               |
+        +-------+-------+
+                |
+         runtime verify
+```
+
+Public syntax:
+
+```bash
+jc-wallpaperctl apply --main /path/to/main.jpg
+jc-wallpaperctl apply --secondary /path/to/secondary.jpg
+jc-wallpaperctl apply \
+  --main /path/to/main.jpg \
+  --secondary /path/to/secondary.jpg \
+  --json
+```
+
+A MAIN+SECONDARY request is one logical transaction. The manager validates
+both requested paths before writing, writes the per-theme preferences once,
+applies both outputs once, and treats runtime verification as part of the
+apply operation.
+
+`apply-wallpaper.sh` verifies both output/path pairs after `awww img` or
+`hyprctl hyprpaper wallpaper`. If apply or verification fails,
+`transactional-set` restores the exact previous preference snapshot and
+re-applies the previous runtime state. If the rollback runtime itself fails,
+the preferences remain restored and the command returns a distinct failure.
+
+All mutating manager commands acquire the same per-theme `flock`, so timer
+rotation and a future Control Center Apply cannot write/apply concurrently.
+
+The stable wrapper never edits `local/wallpapers/<theme>.env` directly.
+Existing legacy manager commands remain available for compatibility; the
+Control Center mutation path must use `jc-wallpaperctl apply`.
+
+Phase 2B.4.1 does not add an Apply button to QML. QML integration begins only
+after this CLI transaction is validated.

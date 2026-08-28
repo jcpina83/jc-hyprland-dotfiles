@@ -25,6 +25,7 @@ Usage:
   wallpaper-manager.sh set main <file>
   wallpaper-manager.sh set secondary <file>
   wallpaper-manager.sh set both <file>
+  wallpaper-manager.sh transactional-set <main|__KEEP__> <secondary|__KEEP__>
   wallpaper-manager.sh random main
   wallpaper-manager.sh random secondary
   wallpaper-manager.sh random both
@@ -142,6 +143,127 @@ EOF
 apply_preferences() {
     [[ -x "$apply_script" ]] || die "wallpaper runtime not found: $apply_script"
     "$apply_script"
+}
+
+
+acquire_mutation_lock() {
+    local lock_file="$preferences_dir/.${THEME_ID}.mutation.lock"
+
+    command -v flock >/dev/null 2>&1 \
+        || die "flock is required for wallpaper mutation safety"
+
+    exec 9>"$lock_file"
+    flock -x 9
+}
+
+
+restore_preferences_snapshot() {
+    local snapshot="$1"
+    local existed="$2"
+    local restore_tmp
+
+    if [[ "$existed" == true ]]; then
+        restore_tmp="$(
+            mktemp "$preferences_dir/.${THEME_ID}.restore.XXXXXX"
+        )"
+
+        cat -- "$snapshot" > "$restore_tmp"
+        chmod 0600 "$restore_tmp"
+        mv -f -- "$restore_tmp" "$preferences_file"
+    else
+        rm -f -- "$preferences_file"
+    fi
+}
+
+
+transactional_set_pair() {
+    local requested_main="$1"
+    local requested_secondary="$2"
+
+    local snapshot
+    local preferences_existed=false
+    local apply_status=0
+    local rollback_status=0
+
+    if [[ "$requested_main" == "__KEEP__" \
+        && "$requested_secondary" == "__KEEP__" ]]
+    then
+        die "transactional-set requires at least one wallpaper change"
+    fi
+
+    if [[ "$requested_main" != "__KEEP__" ]]; then
+        MAIN_WALLPAPER_OVERRIDE="$(
+            validate_wallpaper_file "$requested_main"
+        )"
+    fi
+
+    if [[ "$requested_secondary" != "__KEEP__" ]]; then
+        SECONDARY_WALLPAPER_OVERRIDE="$(
+            validate_wallpaper_file "$requested_secondary"
+        )"
+    fi
+
+    snapshot="$(mktemp "$preferences_dir/.${THEME_ID}.txn.XXXXXX")"
+
+    cleanup_transaction_snapshot() {
+        rm -f -- "$snapshot"
+    }
+
+    trap cleanup_transaction_snapshot RETURN
+
+    if [[ -f "$preferences_file" ]]; then
+        cat -- "$preferences_file" > "$snapshot"
+        chmod 0600 "$snapshot"
+        preferences_existed=true
+    fi
+
+    write_preferences
+
+    if apply_preferences; then
+        printf 'Wallpaper transaction committed:\n'
+        printf '  theme:     %s\n' "$THEME_ID"
+
+        if [[ "$requested_main" != "__KEEP__" ]]; then
+            printf '  main:      %s\n' "$MAIN_WALLPAPER_OVERRIDE"
+        else
+            printf '  main:      (unchanged)\n'
+        fi
+
+        if [[ "$requested_secondary" != "__KEEP__" ]]; then
+            printf '  secondary: %s\n' "$SECONDARY_WALLPAPER_OVERRIDE"
+        else
+            printf '  secondary: (unchanged)\n'
+        fi
+
+        trap - RETURN
+        rm -f -- "$snapshot"
+        return 0
+    else
+        apply_status=$?
+    fi
+
+    printf 'Wallpaper transaction failed; restoring previous preferences.\n' >&2
+    restore_preferences_snapshot "$snapshot" "$preferences_existed"
+
+    if apply_preferences; then
+        printf 'Wallpaper rollback completed successfully.\n' >&2
+    else
+        rollback_status=$?
+
+        printf 'ERROR: wallpaper preferences were restored, but runtime ' >&2
+        printf 'rollback failed with exit code %s.\n' "$rollback_status" >&2
+
+        trap - RETURN
+        rm -f -- "$snapshot"
+        return 7
+    fi
+
+    trap - RETURN
+    rm -f -- "$snapshot"
+
+    printf 'ERROR: wallpaper transaction rolled back after apply failure ' >&2
+    printf '(exit code %s).\n' "$apply_status" >&2
+    return "$apply_status"
 }
 
 resolve_theme_default() {
@@ -514,6 +636,12 @@ choose_next_wallpaper() {
 command_name="${1:-}"
 
 case "$command_name" in
+    set|random|next|reset|transactional-set)
+        acquire_mutation_lock
+        ;;
+esac
+
+case "$command_name" in
     current)
         if [[ "$#" -eq 1 ]]; then
             print_current
@@ -534,6 +662,15 @@ case "$command_name" in
             usage >&2
             exit 2
         fi
+        ;;
+
+    transactional-set)
+        [[ "$#" -eq 3 ]] || {
+            usage >&2
+            exit 2
+        }
+
+        transactional_set_pair "$2" "$3"
         ;;
 
     set)
