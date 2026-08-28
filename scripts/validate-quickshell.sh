@@ -4662,6 +4662,54 @@ else
 fi
 
 
+printf '\n==> Phase 2B.6.1 transactional wallpaper fit API\n'
+
+wallpaper_fit_manager="$repo_root/scripts/runtime/wallpaper-manager.sh"
+wallpaper_fit_ctl="$repo_root/scripts/runtime/jc-wallpaperctl.sh"
+wallpaper_fit_runtime="$repo_root/scripts/runtime/apply-wallpaper.sh"
+
+for contract in \
+    'validate_wallpaper_fit() {' \
+    "local requested_main_fit=\"\${3:-__KEEP__}\"" \
+    "local requested_secondary_fit=\"\${4:-__KEEP__}\"" \
+    "transactional_set_pair \"\$2\" \"\$3\" \"\$4\" \"\$5\""
+do
+    if grep -Fq -- "$contract" "$wallpaper_fit_manager"; then
+        ok "Wallpaper fit manager contract: $contract"
+    else
+        fail "Wallpaper fit manager contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '--main-fit <cover|contain|stretch|center>' \
+    '--secondary-fit <cover|contain|stretch|center>' \
+    'canonical_wallpaper_fit() {' \
+    '--main-fit)' \
+    '--secondary-fit)' \
+    'runtimeReadbackAvailable: false'
+do
+    if grep -Fq -- "$contract" "$wallpaper_fit_ctl"; then
+        ok "jc-wallpaperctl fit contract: $contract"
+    else
+        fail "jc-wallpaperctl fit contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'cover|crop)' \
+    'contain|fit)' \
+    'stretch)' \
+    'center|no)'
+do
+    if grep -Fq -- "$contract" "$wallpaper_fit_runtime"; then
+        ok "Wallpaper runtime fit mapping: $contract"
+    else
+        fail "Wallpaper runtime fit mapping missing: $contract"
+    fi
+done
+
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

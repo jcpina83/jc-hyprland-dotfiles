@@ -439,3 +439,28 @@ and the draft remains pending for inspection.
 `WallpaperApplyService.resetDraft()`. The view does not own recovery logic.
 
 Phase 2B.5 completes Reset / Apply lifecycle refinement.
+
+
+## Transactional wallpaper fit API
+
+Phase 2B.6.1 extends `jc-wallpaperctl apply` with per-output fit
+configuration while preserving the existing transaction/rollback boundary.
+
+Canonical values are `cover`, `contain`, `stretch`, and `center`.
+
+For `awww`: `cover -> crop`, `contain -> fit`, `stretch -> stretch`,
+and `center -> no`.
+
+`runtimeVerified` continues to verify the observed wallpaper paths.
+The current runtime read boundary does not report resize mode, therefore
+`fits.runtimeReadbackAvailable=false`; fit is command-verified and
+visually validated rather than falsely reported as runtime-readback verified.
+
+Examples:
+
+```bash
+jc-wallpaperctl apply --main-fit contain --json
+jc-wallpaperctl apply --main-fit contain --secondary-fit cover --json
+```
+
+Phase 2B.6.2 adds fit draft state and per-output Control Center selectors.

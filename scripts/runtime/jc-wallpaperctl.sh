@@ -25,8 +25,10 @@ Usage:
   jc-wallpaperctl status --json
   jc-wallpaperctl catalog
   jc-wallpaperctl catalog --json
-  jc-wallpaperctl apply --main <file> [--secondary <file>] [--json]
-  jc-wallpaperctl apply --secondary <file> [--main <file>] [--json]
+  jc-wallpaperctl apply --main <file> [--secondary <file>] [--main-fit <mode>] [--secondary-fit <mode>] [--json]
+  jc-wallpaperctl apply --secondary <file> [--main <file>] [--main-fit <mode>] [--secondary-fit <mode>] [--json]
+  jc-wallpaperctl apply --main-fit <cover|contain|stretch|center> [--secondary-fit <mode>] [--json]
+  jc-wallpaperctl apply --secondary-fit <cover|contain|stretch|center> [--main-fit <mode>] [--json]
 EOF
 }
 
@@ -170,6 +172,20 @@ canonical_wallpaper_file() {
 }
 
 
+canonical_wallpaper_fit() {
+    local fit="$1"
+
+    case "$fit" in
+        cover|contain|stretch|center)
+            printf '%s\n' "$fit"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+
 apply_error() {
     local message="$1"
     local exit_code="${2:-2}"
@@ -199,6 +215,8 @@ apply_error() {
 apply_transaction() {
     local requested_main="__KEEP__"
     local requested_secondary="__KEEP__"
+    local requested_main_fit="__KEEP__"
+    local requested_secondary_fit="__KEEP__"
     local output_json=false
 
     local before
@@ -207,6 +225,8 @@ apply_transaction() {
     local apply_status
     local main_changed=false
     local secondary_changed=false
+    local main_fit_changed=false
+    local secondary_fit_changed=false
     local runtime_verified=false
 
     local json_seen=false
@@ -262,6 +282,34 @@ apply_transaction() {
                 shift 2
                 ;;
 
+            --main-fit)
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || apply_error "--main-fit requires a fit mode" 2
+
+                [[ "$requested_main_fit" == "__KEEP__" ]] \
+                    || apply_error "--main-fit may only be supplied once" 2
+
+                if ! requested_main_fit="$(canonical_wallpaper_fit "$2")"; then
+                    apply_error "unsupported wallpaper fit mode for --main-fit: $2" 2
+                fi
+
+                shift 2
+                ;;
+
+            --secondary-fit)
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || apply_error "--secondary-fit requires a fit mode" 2
+
+                [[ "$requested_secondary_fit" == "__KEEP__" ]] \
+                    || apply_error "--secondary-fit may only be supplied once" 2
+
+                if ! requested_secondary_fit="$(canonical_wallpaper_fit "$2")"; then
+                    apply_error "unsupported wallpaper fit mode for --secondary-fit: $2" 2
+                fi
+
+                shift 2
+                ;;
+
             --json)
                 [[ "$json_seen" == false ]] \
                     || apply_error "--json may only be supplied once" 2
@@ -278,9 +326,13 @@ apply_transaction() {
     done
 
     if [[ "$requested_main" == "__KEEP__" \
-        && "$requested_secondary" == "__KEEP__" ]]
+        && "$requested_secondary" == "__KEEP__" \
+        && "$requested_main_fit" == "__KEEP__" \
+        && "$requested_secondary_fit" == "__KEEP__" ]]
     then
-        apply_error "apply requires --main and/or --secondary" 2
+        apply_error \
+            "apply requires --main, --secondary, --main-fit and/or --secondary-fit" \
+            2
     fi
 
     before="$(print_status_json)"
@@ -294,6 +346,7 @@ apply_transaction() {
 
     if "$manager" transactional-set \
         "$requested_main" "$requested_secondary" \
+        "$requested_main_fit" "$requested_secondary_fit" \
         >"$manager_log" 2>&1
     then
         apply_status=0
@@ -348,6 +401,14 @@ apply_transaction() {
         secondary_changed=true
     fi
 
+    if [[ "$requested_main_fit" != "__KEEP__" ]]; then
+        main_fit_changed=true
+    fi
+
+    if [[ "$requested_secondary_fit" != "__KEEP__" ]]; then
+        secondary_fit_changed=true
+    fi
+
     if jq -e '
         .runtime.outputs.main.known
         and .runtime.outputs.secondary.known
@@ -367,6 +428,8 @@ apply_transaction() {
             --argjson after "$after" \
             --argjson mainChanged "$main_changed" \
             --argjson secondaryChanged "$secondary_changed" \
+            --argjson mainFitChanged "$main_fit_changed" \
+            --argjson secondaryFitChanged "$secondary_fit_changed" \
             --argjson runtimeVerified "$runtime_verified" \
             '{
                 status: "applied",
@@ -378,6 +441,21 @@ apply_transaction() {
                 changed: {
                     main: $mainChanged,
                     secondary: $secondaryChanged
+                },
+                fits: {
+                    changed: {
+                        main: $mainFitChanged,
+                        secondary: $secondaryFitChanged
+                    },
+                    before: {
+                        main: $before.outputs.main.fit,
+                        secondary: $before.outputs.secondary.fit
+                    },
+                    after: {
+                        main: $after.outputs.main.fit,
+                        secondary: $after.outputs.secondary.fit
+                    },
+                    runtimeReadbackAvailable: false
                 },
                 before: {
                     main: $before.outputs.main.effective,

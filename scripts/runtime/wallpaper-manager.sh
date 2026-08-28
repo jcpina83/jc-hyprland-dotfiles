@@ -25,7 +25,7 @@ Usage:
   wallpaper-manager.sh set main <file>
   wallpaper-manager.sh set secondary <file>
   wallpaper-manager.sh set both <file>
-  wallpaper-manager.sh transactional-set <main|__KEEP__> <secondary|__KEEP__>
+  wallpaper-manager.sh transactional-set <main|__KEEP__> <secondary|__KEEP__> [<main-fit|__KEEP__> <secondary-fit|__KEEP__>]
   wallpaper-manager.sh random main
   wallpaper-manager.sh random secondary
   wallpaper-manager.sh random both
@@ -176,9 +176,25 @@ restore_preferences_snapshot() {
 }
 
 
+validate_wallpaper_fit() {
+    local fit="$1"
+
+    case "$fit" in
+        cover|contain|stretch|center)
+            printf '%s\n' "$fit"
+            ;;
+        *)
+            die "unsupported wallpaper fit mode: $fit"
+            ;;
+    esac
+}
+
+
 transactional_set_pair() {
     local requested_main="$1"
     local requested_secondary="$2"
+    local requested_main_fit="${3:-__KEEP__}"
+    local requested_secondary_fit="${4:-__KEEP__}"
 
     local snapshot
     local preferences_existed=false
@@ -186,9 +202,11 @@ transactional_set_pair() {
     local rollback_status=0
 
     if [[ "$requested_main" == "__KEEP__" \
-        && "$requested_secondary" == "__KEEP__" ]]
+        && "$requested_secondary" == "__KEEP__" \
+        && "$requested_main_fit" == "__KEEP__" \
+        && "$requested_secondary_fit" == "__KEEP__" ]]
     then
-        die "transactional-set requires at least one wallpaper change"
+        die "transactional-set requires at least one wallpaper or fit change"
     fi
 
     if [[ "$requested_main" != "__KEEP__" ]]; then
@@ -200,6 +218,18 @@ transactional_set_pair() {
     if [[ "$requested_secondary" != "__KEEP__" ]]; then
         SECONDARY_WALLPAPER_OVERRIDE="$(
             validate_wallpaper_file "$requested_secondary"
+        )"
+    fi
+
+    if [[ "$requested_main_fit" != "__KEEP__" ]]; then
+        MAIN_WALLPAPER_FIT_OVERRIDE="$(
+            validate_wallpaper_fit "$requested_main_fit"
+        )"
+    fi
+
+    if [[ "$requested_secondary_fit" != "__KEEP__" ]]; then
+        SECONDARY_WALLPAPER_FIT_OVERRIDE="$(
+            validate_wallpaper_fit "$requested_secondary_fit"
         )"
     fi
 
@@ -665,12 +695,14 @@ case "$command_name" in
         ;;
 
     transactional-set)
-        [[ "$#" -eq 3 ]] || {
+        if [[ "$#" -eq 3 ]]; then
+            transactional_set_pair "$2" "$3" "__KEEP__" "__KEEP__"
+        elif [[ "$#" -eq 5 ]]; then
+            transactional_set_pair "$2" "$3" "$4" "$5"
+        else
             usage >&2
             exit 2
-        }
-
-        transactional_set_pair "$2" "$3"
+        fi
         ;;
 
     set)
