@@ -94,49 +94,49 @@ Item {
         {
             id: "displays",
             label: "Displays",
-            icon: "▣",
+            iconName: "display",
             enabled: true
         },
         {
             id: "wallpapers",
             label: "Wallpapers",
-            icon: "▧",
+            iconName: "wallpaper",
             enabled: true
         },
         {
             id: "themes",
             label: "Themes",
-            icon: "◐",
+            iconName: "theme",
             enabled: false
         },
         {
             id: "quick-settings",
             label: "Quick Settings",
-            icon: "⚙",
+            iconName: "settings",
             enabled: false
         },
         {
             id: "performance",
             label: "Performance",
-            icon: "◇",
+            iconName: "performance",
             enabled: false
         },
         {
             id: "media",
             label: "Media",
-            icon: "♪",
+            iconName: "media",
             enabled: false
         },
         {
             id: "network",
             label: "Network",
-            icon: "⌁",
+            iconName: "network",
             enabled: false
         },
         {
             id: "notifications",
             label: "Notifications",
-            icon: "●",
+            iconName: "notifications",
             enabled: false
         }
     ]
@@ -216,7 +216,8 @@ Item {
 
                         theme: root.theme
 
-                        icon: String(modelData.icon)
+                        iconName:
+                            String(modelData.iconName || "")
                         text: String(modelData.label)
 
                         selected:

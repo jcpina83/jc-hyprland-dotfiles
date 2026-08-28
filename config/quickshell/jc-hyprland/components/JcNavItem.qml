@@ -6,6 +6,7 @@ Item {
     required property var theme
 
     property string icon: ""
+    property string iconName: ""
     property string text: ""
     property bool selected: false
     property bool controlEnabled: true
@@ -23,7 +24,8 @@ Item {
         root.controlEnabled && pointerArea.pressed
 
     readonly property bool hasIcon:
-        root.icon.length > 0
+        root.iconName.length > 0
+        || root.icon.length > 0
 
     readonly property int transitionDuration: {
         if (root.pressed)
@@ -219,28 +221,19 @@ Item {
 
         spacing: root.theme.spaceSm
 
-        Text {
+        JcIcon {
             id: iconLabel
 
             visible: root.hasIcon
 
             anchors.verticalCenter: parent.verticalCenter
 
-            text: root.icon
-            color: root.resolvedIconColor
-
-            font.family: root.theme.fontFamilySans
-            font.pixelSize: root.theme.iconSizeMd
-            font.weight: root.selected
-                ? root.theme.fontWeightSemibold
-                : root.theme.fontWeightMedium
-
-            Behavior on color {
-                ColorAnimation {
-                    duration: root.transitionDuration
-                    easing.type: root.theme.easingStandard
-                }
-            }
+            theme: root.theme
+            name: root.iconName
+            glyph: root.icon
+            iconColor: root.resolvedIconColor
+            iconSize: root.theme.iconSizeMd
+            emphasized: root.selected
         }
 
         Text {

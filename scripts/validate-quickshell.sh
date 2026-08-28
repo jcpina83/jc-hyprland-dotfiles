@@ -1108,6 +1108,8 @@ for nav_contract in \
     'Components.JcSectionHeader {' \
     'Components.JcDivider {' \
     'delegate: Components.JcNavItem {' \
+    'iconName:' \
+    'String(modelData.iconName || "")' \
     'selected:' \
     'controlEnabled:' \
     'root.moduleRequested('
@@ -1783,6 +1785,7 @@ jc_nav_item="$config_dir/components/JcNavItem.qml"
 for nav_contract in \
     'required property var theme' \
     'property string icon: ""' \
+    'property string iconName: ""' \
     'property string text: ""' \
     'property bool selected: false' \
     'property bool controlEnabled: true' \
@@ -1807,6 +1810,9 @@ for nav_contract in \
     'root.theme.motionPress' \
     'root.theme.motionSelection' \
     'root.theme.motionControl' \
+    'JcIcon {' \
+    'name: root.iconName' \
+    'glyph: root.icon' \
     'onPressed: root.forceActiveFocus()' \
     'onClicked: root.clicked()'
 do
@@ -4967,6 +4973,82 @@ if grep -Fq -- 'icon: "×"' "$semantic_shell"; then
 else
     ok 'Control Center close raw glyph retired'
 fi
+
+
+printf '\n==> Phase H1.4.2b navigation semantic icons\n'
+
+semantic_nav_item="$config_dir/components/JcNavItem.qml"
+semantic_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+semantic_gallery="$config_dir/modules/dev/ComponentGallery.qml"
+
+for contract in \
+    'property string iconName: ""' \
+    'root.iconName.length > 0' \
+    'JcIcon {' \
+    'name: root.iconName' \
+    'glyph: root.icon'
+do
+    if grep -Fq -- "$contract" "$semantic_nav_item"; then
+        ok "JcNavItem semantic icon contract: $contract"
+    else
+        fail "JcNavItem semantic icon contract missing: $contract"
+    fi
+done
+
+for semantic_name in \
+    display \
+    wallpaper \
+    theme \
+    settings \
+    performance \
+    media \
+    network \
+    notifications
+do
+    if grep -Fq -- "iconName: \"$semantic_name\"" "$semantic_navigation"; then
+        ok "Control Center navigation semantic icon: $semantic_name"
+    else
+        fail "Control Center navigation semantic icon missing: $semantic_name"
+    fi
+done
+
+for contract in \
+    'iconName:' \
+    'String(modelData.iconName || "")'
+do
+    if grep -Fq -- "$contract" "$semantic_navigation"; then
+        ok "Control Center navigation delegate: $contract"
+    else
+        fail "Control Center navigation delegate missing: $contract"
+    fi
+done
+
+navigation_raw_glyphs="$(
+    grep -nE \
+        'icon:[[:space:]]*"(▣|▧|◐|⚙|◇|♪|⌁|●)"|modelData\.icon([^N]|$)' \
+        "$semantic_navigation" \
+        2>/dev/null ||
+        true
+)"
+
+if [[ -z "$navigation_raw_glyphs" ]]; then
+    ok "production navigation contains no raw icon glyph bindings"
+else
+    fail "production navigation still contains raw icon glyph bindings:"
+    printf '%s\n' "$navigation_raw_glyphs" >&2
+fi
+
+for contract in \
+    'iconName: "display"' \
+    'iconName: "theme"' \
+    'iconName: "settings"'
+do
+    if grep -Fq -- "$contract" "$semantic_gallery"; then
+        ok "ComponentGallery navigation semantic icon: $contract"
+    else
+        fail "ComponentGallery navigation semantic icon missing: $contract"
+    fi
+done
 
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 

@@ -965,3 +965,27 @@ without rewriting feature modules.
 Navigation icon migration is intentionally separate in H1.4.2b because
 `JcNavItem` still owns a raw-glyph API and requires its own compatibility
 migration.
+
+### H1.4.2b navigation semantic icons
+
+`JcNavItem` participates in the same semantic icon boundary as buttons and
+chips. It accepts `iconName` as the preferred API while retaining `icon` as a
+raw-glyph compatibility fallback.
+
+The Control Center navigation model stores semantic names rather than visual
+glyphs:
+
+```text
+Displays       -> display
+Wallpapers     -> wallpaper
+Themes         -> theme
+Quick Settings -> settings
+Performance    -> performance
+Media          -> media
+Network        -> network
+Notifications  -> notifications
+```
+
+Navigation geometry, selection treatment, keyboard semantics, and enabled /
+disabled behavior remain owned by `JcNavItem`; H1.4.2b changes only icon
+identity and rendering ownership.

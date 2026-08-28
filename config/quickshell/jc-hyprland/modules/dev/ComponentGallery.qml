@@ -459,7 +459,7 @@ PanelWindow {
                             root.theme.controlHeightLarge * 4
 
                         theme: root.theme
-                        icon: "◫"
+                        iconName: "display"
                         text: "Displays"
                         selected: true
                     }
@@ -469,7 +469,7 @@ PanelWindow {
                             root.theme.controlHeightLarge * 4
 
                         theme: root.theme
-                        icon: "◈"
+                        iconName: "theme"
                         text: "Themes"
                     }
 
@@ -478,7 +478,7 @@ PanelWindow {
                             root.theme.controlHeightLarge * 4
 
                         theme: root.theme
-                        icon: "⚙"
+                        iconName: "settings"
                         text: "Disabled"
                         controlEnabled: false
                     }
