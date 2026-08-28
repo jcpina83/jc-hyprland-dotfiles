@@ -55,6 +55,10 @@ required_files=(
     "services/MonitorApplyService.qml"
     "services/DisplayPersistenceService.qml"
     "services/WallpaperService.qml"
+    "services/WallpaperDraftStore.qml"
+    "modules/wallpapers/WallpaperView.qml"
+    "modules/wallpapers/WallpaperPreviewCard.qml"
+    "modules/wallpapers/WallpaperTile.qml"
     "modules/displays/DisplayView.qml"
     "modules/displays/DisplayLayoutEditor.qml"
     "modules/displays/DisplayCard.qml"
@@ -71,6 +75,177 @@ for relative in "${required_files[@]}"; do
         ok "$relative"
     else
         fail "missing or unreadable: $relative"
+    fi
+done
+
+
+printf '\n==> Phase 2B.3.1d Wallpaper preview composition\n'
+
+wallpaper_preview_card="$config_dir/modules/wallpapers/WallpaperPreviewCard.qml"
+
+for preview_contract in \
+    'Item {' \
+    'required property var theme' \
+    'Components.JcSurface {' \
+    'id: previewSurface' \
+    'theme: root.theme' \
+    'selected: root.targetSelected' \
+    'focused: root.activeFocus'
+do
+    if grep -Fq "$preview_contract" "$wallpaper_preview_card"; then
+        ok "WallpaperPreviewCard composition: $preview_contract"
+    else
+        fail "WallpaperPreviewCard composition missing: $preview_contract"
+    fi
+done
+
+first_type="$(
+    awk '
+        /^[[:space:]]*(Item|Components\.JcSurface)[[:space:]]*\{/ {
+            print $1
+            exit
+        }
+    ' "$wallpaper_preview_card"
+)"
+
+if [[ "$first_type" == "Item" ]]; then
+    ok "WallpaperPreviewCard root uses composition instead of JcSurface inheritance"
+else
+    fail "WallpaperPreviewCard root must be Item"
+fi
+
+
+printf '\n==> Phase 2B.3.1 Wallpaper module foundation\n'
+
+wallpaper_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+wallpaper_preview_card="$config_dir/modules/wallpapers/WallpaperPreviewCard.qml"
+wallpaper_tile="$config_dir/modules/wallpapers/WallpaperTile.qml"
+wallpaper_draft_store="$config_dir/services/WallpaperDraftStore.qml"
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+main_qml="$config_dir/Main.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for wallpaper_draft_contract in \
+    'Scope {' \
+    'property var wallpaperService' \
+    'property string selectedTarget: "main"' \
+    'readonly property int dirtyCount:' \
+    'readonly property bool hasDirty:' \
+    'property bool observedChangedWhileDirty: false' \
+    'function setWallpaper(target, path): void {' \
+    'function setSelectedWallpaper(path): void {' \
+    'function syncFromObserved(force): void {' \
+    'function reset(): void {' \
+    'Connections {' \
+    'function onRefreshed()'
+do
+    if grep -Fq "$wallpaper_draft_contract" \
+        "$wallpaper_draft_store" 2>/dev/null
+    then
+        ok "WallpaperDraftStore contract: $wallpaper_draft_contract"
+    else
+        fail "WallpaperDraftStore contract missing: $wallpaper_draft_contract"
+    fi
+done
+
+for wallpaper_view_contract in \
+    'Item {' \
+    'property var wallpaperService' \
+    'property var draftStore' \
+    'required property var theme' \
+    'signal refreshRequested()' \
+    'readonly property var filteredWallpapers:' \
+    'WallpaperPreviewCard {' \
+    'GridView {' \
+    'model: root.filteredWallpapers' \
+    'cacheBuffer: cellHeight * 2' \
+    'delegate: WallpaperTile {' \
+    'Components.JcHudFrame {' \
+    'id: wallpaperGalleryHudFrame' \
+    'root.draftStore.setSelectedWallpaper(path);'
+do
+    if grep -Fq "$wallpaper_view_contract" "$wallpaper_view" 2>/dev/null; then
+        ok "WallpaperView contract: $wallpaper_view_contract"
+    else
+        fail "WallpaperView contract missing: $wallpaper_view_contract"
+    fi
+done
+
+for wallpaper_ui_forbidden in \
+    'Process {' \
+    '"awww"' \
+    '"hyprpaper"' \
+    '"systemctl"' \
+    'wallpaper.env' \
+    'local/wallpapers/'
+do
+    if grep -Fq "$wallpaper_ui_forbidden" \
+        "$wallpaper_view" \
+        "$wallpaper_preview_card" \
+        "$wallpaper_tile" \
+        "$wallpaper_draft_store" 2>/dev/null
+    then
+        fail "Wallpaper QML mutation boundary violated: $wallpaper_ui_forbidden"
+    else
+        ok "Wallpaper QML excludes mutation/runtime command: $wallpaper_ui_forbidden"
+    fi
+done
+
+for wallpaper_main_contract in \
+    'import qs.modules.wallpapers as Wallpapers' \
+    '|| moduleId === "wallpapers";' \
+    'function prepareWallpapers() {' \
+    'Services.WallpaperDraftStore {' \
+    'id: wallpaperDraftStore' \
+    'id: shellWallpapersComponent' \
+    'Wallpapers.WallpaperView {' \
+    'draftStore: wallpaperDraftStore' \
+    'readonly property var themeHandle: theme' \
+    'theme: root.themeHandle' \
+    '? "Wallpapers"' \
+    '? shellWallpapersComponent'
+do
+    if grep -Fq "$wallpaper_main_contract" "$main_qml" 2>/dev/null; then
+        ok "Main Wallpapers contract: $wallpaper_main_contract"
+    else
+        fail "Main Wallpapers contract missing: $wallpaper_main_contract"
+    fi
+done
+
+if ! python3 - "$control_center_navigation" <<'PY_VALIDATE_WALLPAPER_NAV'
+from pathlib import Path
+import re
+import sys
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+match = re.search(
+    r'id:\s*"wallpapers".*?enabled:\s*(true|false)',
+    text,
+    re.S,
+)
+
+if match and match.group(1) == "true":
+    print("  OK    Wallpapers navigation entry is enabled")
+    raise SystemExit(0)
+
+print("  FAIL  Wallpapers navigation entry must be enabled")
+raise SystemExit(1)
+PY_VALIDATE_WALLPAPER_NAV
+then
+    ((errors += 1))
+fi
+
+for wallpaper_doc_contract in \
+    '## Wallpaper UI foundation' \
+    'WallpaperDraftStore.qml' \
+    'GridView' \
+    'draft-only' \
+    'Phase 2B.3.1'
+do
+    if grep -Fq "$wallpaper_doc_contract" "$wallpaper_doc" 2>/dev/null; then
+        ok "Wallpaper UI documentation: $wallpaper_doc_contract"
+    else
+        fail "Wallpaper UI documentation missing: $wallpaper_doc_contract"
     fi
 done
 
@@ -434,7 +609,6 @@ else
 fi
 
 for future_module in \
-    wallpapers \
     themes \
     quick-settings \
     performance \
@@ -498,7 +672,7 @@ done
 for main_nav_contract in \
     'property string activeModuleId: "displays"' \
     'function moduleIsAvailable(moduleId) {' \
-    'return moduleId === "displays";' \
+    '|| moduleId === "wallpapers";' \
     'function showModule(moduleId) {' \
     'root.activeModuleId = moduleId;' \
     'activeModuleId: root.activeModuleId' \

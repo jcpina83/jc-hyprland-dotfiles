@@ -5,6 +5,7 @@ import Quickshell.Io
 import qs.services as Services
 import qs.theme as Theme
 import qs.modules.displays as Displays
+import qs.modules.wallpapers as Wallpapers
 import qs.modules.dev as Dev
 import qs.modules.controlcenter as ControlCenter
 
@@ -23,6 +24,25 @@ Scope {
         || displayPersistenceService.saving
 
     readonly property string controlCenterStatusText: {
+        if (root.activeModuleId === "wallpapers") {
+            if (wallpaperDraftStore.observedChangedWhileDirty)
+                return "Wallpaper state changed";
+
+            if (wallpaperDraftStore.hasDirty)
+                return wallpaperDraftStore.dirtyCount
+                    + " wallpaper draft(s) pending";
+
+            if (wallpaperService.loading)
+                return "Refreshing wallpapers…";
+
+            if (wallpaperService.errorMessage.length > 0)
+                return "Wallpaper service error";
+
+            if (wallpaperService.ready)
+                return wallpaperService.wallpaperCount
+                    + " wallpapers available";
+        }
+
         if (displayPersistenceService.saving)
             return "Saving display configuration…";
 
@@ -40,6 +60,22 @@ Scope {
     }
 
     readonly property string controlCenterStatusDetail: {
+        if (root.activeModuleId === "wallpapers") {
+            if (wallpaperDraftStore.observedChangedWhileDirty)
+                return "Reset the draft before selecting another wallpaper.";
+
+            if (wallpaperDraftStore.hasDirty)
+                return "Selection is draft-only; runtime has not changed.";
+
+            if (wallpaperService.errorMessage.length > 0)
+                return wallpaperService.errorMessage;
+
+            if (wallpaperService.ready)
+                return "Select MAIN or SECONDARY, then choose a wallpaper.";
+
+            return "Waiting for wallpaper observed state.";
+        }
+
         if (displayPersistenceService.saving)
             return "Finish saving before closing or changing modules.";
 
@@ -58,6 +94,7 @@ Scope {
     // Explicit binding handle for dynamically-instantiated feature views.
     readonly property var monitorServiceHandle: monitorService
     readonly property var wallpaperServiceHandle: wallpaperService
+    readonly property var themeHandle: theme
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -80,10 +117,14 @@ Scope {
         displayPersistenceService.refreshPreview();
     }
 
+    function prepareWallpapers() {
+        if (!wallpaperDraftStore.hasDirty)
+            wallpaperService.refresh();
+    }
+
     function moduleIsAvailable(moduleId) {
-        // Phase 2A.3 ships the generic shell with Displays as the only
-        // operational module. Future modules are enabled in Phase 2B–2H.
-        return moduleId === "displays";
+        return moduleId === "displays"
+            || moduleId === "wallpapers";
     }
 
     function showModule(moduleId) {
@@ -104,6 +145,9 @@ Scope {
 
         if (moduleId === "displays" && (!wasVisible || moduleChanged))
             root.prepareDisplays();
+
+        if (moduleId === "wallpapers" && (!wasVisible || moduleChanged))
+            root.prepareWallpapers();
     }
 
     function showControlCenter() {
@@ -130,6 +174,7 @@ Scope {
         root.controlCenterOutputName = "";
         root.activeModuleId = "displays";
         displayDraftStore.reset();
+        wallpaperDraftStore.reset();
     }
 
     function toggleControlCenter() {
@@ -154,6 +199,13 @@ Scope {
     }
 
     function refreshControlCenter() {
+        if (root.activeModuleId === "wallpapers") {
+            if (!wallpaperDraftStore.hasDirty)
+                wallpaperService.refresh();
+
+            return;
+        }
+
         if (root.activeModuleId !== "displays")
             return;
 
@@ -213,6 +265,12 @@ Scope {
         id: wallpaperService
     }
 
+    Services.WallpaperDraftStore {
+        id: wallpaperDraftStore
+
+        wallpaperService: wallpaperService
+    }
+
     Services.DisplayDraftStore {
         id: displayDraftStore
 
@@ -238,6 +296,18 @@ Scope {
         applyService: monitorApplyService
 
         onSaved: monitorService.refresh()
+    }
+
+    Component {
+        id: shellWallpapersComponent
+
+        Wallpapers.WallpaperView {
+            wallpaperService: root.wallpaperServiceHandle
+            draftStore: wallpaperDraftStore
+            theme: root.themeHandle
+
+            onRefreshRequested: wallpaperService.refresh()
+        }
     }
 
     Component {
@@ -281,7 +351,9 @@ Scope {
         activeModuleTitle:
             root.activeModuleId === "displays"
                 ? "Displays"
-                : root.activeModuleId
+                : root.activeModuleId === "wallpapers"
+                    ? "Wallpapers"
+                    : root.activeModuleId
         transitionLocked: root.controlCenterTransitionLocked
         statusText: root.controlCenterStatusText
         statusDetail: root.controlCenterStatusDetail
@@ -289,7 +361,9 @@ Scope {
         contentComponent:
             root.activeModuleId === "displays"
                 ? shellDisplaysComponent
-                : null
+                : root.activeModuleId === "wallpapers"
+                    ? shellWallpapersComponent
+                    : null
 
         onCloseRequested: root.hideControlCenter()
 

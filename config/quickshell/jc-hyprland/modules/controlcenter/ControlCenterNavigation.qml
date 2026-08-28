@@ -101,7 +101,7 @@ Item {
             id: "wallpapers",
             label: "Wallpapers",
             icon: "▧",
-            enabled: false
+            enabled: true
         },
         {
             id: "themes",
@@ -256,7 +256,7 @@ Item {
             Text {
                 Layout.fillWidth: true
 
-                text: "More modules arrive in Phase 2B–2H"
+                text: "More modules arrive in Phase 2C–2H"
                 color: root.theme.textMuted
 
                 wrapMode: Text.WordWrap

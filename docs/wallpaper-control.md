@@ -123,3 +123,42 @@ The service exposes:
 The catalog is loaded on service initialization and explicit `refresh()`.
 There is intentionally no periodic catalog polling. A future `WallpaperView`
 may request refresh when the Wallpapers module becomes active.
+
+
+## Wallpaper UI foundation
+
+Phase 2B.3.1 introduces the first hosted Wallpapers module:
+
+```text
+ControlCenterShell
+        |
+        v
+WallpaperView.qml
+        |
+        +--> WallpaperService.qml      observed state + catalog
+        `--> WallpaperDraftStore.qml   QML-only draft selection
+```
+
+`WallpaperDraftStore.qml` is draft-only. Selecting a wallpaper changes only
+the in-memory MAIN or SECONDARY draft and never changes the desktop runtime or
+persistent preference files.
+
+The initial visual module contains:
+
+- MAIN and SECONDARY preview cards
+- explicit target selection
+- All / Theme / Library catalog filters
+- a virtualized `GridView`
+- lightweight asynchronous thumbnails
+- current/effective wallpaper markers
+- draft selection markers
+- refresh and reset-draft actions
+- observed-state-change protection while a draft exists
+
+The catalog `GridView` uses delegate virtualization and a bounded
+`cacheBuffer`; the 459-item catalog is not instantiated as 459 simultaneous
+thumbnail components.
+
+Phase 2B.3.1 intentionally does not provide Apply. Runtime mutation remains
+outside QML and will be introduced through the stable wallpaper controller in
+the next mutation phase.
