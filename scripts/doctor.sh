@@ -380,6 +380,7 @@ runtime_links=(
     "jc-control-center:scripts/runtime/jc-control-center.sh"
     "jc-displayctl:scripts/runtime/jc-displayctl.sh"
     "jc-displaycfg:scripts/runtime/jc-displaycfg.sh"
+    "jc-wallpaperctl:scripts/runtime/jc-wallpaperctl.sh"
     "network-traffic.sh:scripts/runtime/network-traffic.sh"
     "amd-gpu.sh:scripts/runtime/amd-gpu.sh"
     "launch-wofi.sh:scripts/runtime/launch-wofi.sh"
@@ -624,6 +625,7 @@ public_cli_commands=(
     "jc-control-center"
     "jc-displayctl"
     "jc-displaycfg"
+    "jc-wallpaperctl"
     "jc-theme"
 )
 

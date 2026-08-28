@@ -57,6 +57,7 @@ Scope {
 
     // Explicit binding handle for dynamically-instantiated feature views.
     readonly property var monitorServiceHandle: monitorService
+    readonly property var wallpaperServiceHandle: wallpaperService
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -206,6 +207,10 @@ Scope {
 
     Services.MonitorService {
         id: monitorService
+    }
+
+    Services.WallpaperService {
+        id: wallpaperService
     }
 
     Services.DisplayDraftStore {

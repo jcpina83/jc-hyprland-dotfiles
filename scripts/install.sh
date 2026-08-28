@@ -250,6 +250,10 @@ ensure_symlink \
     "$bin_dir/jc-displaycfg"
 
 ensure_symlink \
+    "$repo_root/scripts/runtime/jc-wallpaperctl.sh" \
+    "$bin_dir/jc-wallpaperctl"
+
+ensure_symlink \
     "$repo_root/scripts/runtime/network-traffic.sh" \
     "$bin_dir/network-traffic.sh"
 
@@ -345,6 +349,10 @@ ensure_symlink \
 ensure_symlink \
     "$bin_dir/jc-displaycfg" \
     "$public_bin_dir/jc-displaycfg"
+
+ensure_symlink \
+    "$bin_dir/jc-wallpaperctl" \
+    "$public_bin_dir/jc-wallpaperctl"
 
 ensure_symlink \
     "$bin_dir/jc-theme" \
@@ -500,6 +508,7 @@ echo "Public CLI:"
 echo "  $public_bin_dir/jc-control-center"
 echo "  $public_bin_dir/jc-displayctl"
 echo "  $public_bin_dir/jc-displaycfg"
+echo "  $public_bin_dir/jc-wallpaperctl"
 echo "  $public_bin_dir/jc-theme"
 
 echo

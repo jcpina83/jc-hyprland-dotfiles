@@ -54,6 +54,7 @@ required_files=(
     "services/DisplayDraftStore.qml"
     "services/MonitorApplyService.qml"
     "services/DisplayPersistenceService.qml"
+    "services/WallpaperService.qml"
     "modules/displays/DisplayView.qml"
     "modules/displays/DisplayLayoutEditor.qml"
     "modules/displays/DisplayCard.qml"
@@ -70,6 +71,83 @@ for relative in "${required_files[@]}"; do
         ok "$relative"
     else
         fail "missing or unreadable: $relative"
+    fi
+done
+
+
+printf '\n==> Phase 2B.2.2 Wallpaper observed-state service\n'
+
+wallpaper_service="$config_dir/services/WallpaperService.qml"
+main_qml="$config_dir/Main.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for wallpaper_service_contract in \
+    'Scope {' \
+    'property var wallpapers: []' \
+    'readonly property int wallpaperCount:' \
+    'property bool loading: false' \
+    'property bool ready: false' \
+    'property string errorMessage: ""' \
+    'readonly property bool runtimeMatchesConfigured:' \
+    'function wallpaperctlPath() {' \
+    'function refresh(): void {' \
+    '"status",' \
+    '"catalog",' \
+    '"--json"' \
+    'root.wallpapers = catalog.items.slice(0);' \
+    'Component.onCompleted: root.refresh()'
+do
+    if grep -Fq "$wallpaper_service_contract" \
+        "$wallpaper_service" 2>/dev/null
+    then
+        ok "WallpaperService contract: $wallpaper_service_contract"
+    else
+        fail "WallpaperService contract missing: $wallpaper_service_contract"
+    fi
+done
+
+for forbidden_wallpaper_qml_contract in \
+    '"awww"' \
+    '"hyprpaper"' \
+    '"systemctl"' \
+    'wallpaper.env' \
+    'local/wallpapers/'
+do
+    if grep -Fq "$forbidden_wallpaper_qml_contract" \
+        "$wallpaper_service" 2>/dev/null
+    then
+        fail \
+            "WallpaperService must not own runtime mutation/config: " \
+            "$forbidden_wallpaper_qml_contract"
+    else
+        ok \
+            "WallpaperService excludes runtime mutation/config: " \
+            "$forbidden_wallpaper_qml_contract"
+    fi
+done
+
+for wallpaper_main_contract in \
+    'readonly property var wallpaperServiceHandle: wallpaperService' \
+    'Services.WallpaperService {' \
+    'id: wallpaperService'
+do
+    if grep -Fq "$wallpaper_main_contract" "$main_qml" 2>/dev/null; then
+        ok "Main WallpaperService contract: $wallpaper_main_contract"
+    else
+        fail "Main WallpaperService contract missing: $wallpaper_main_contract"
+    fi
+done
+
+for wallpaper_doc_contract in \
+    'WallpaperService.qml' \
+    'jc-wallpaperctl status --json' \
+    'jc-wallpaperctl catalog --json' \
+    'The service is read-only'
+do
+    if grep -Fq "$wallpaper_doc_contract" "$wallpaper_doc" 2>/dev/null; then
+        ok "Wallpaper service documentation: $wallpaper_doc_contract"
+    else
+        fail "Wallpaper service documentation missing: $wallpaper_doc_contract"
     fi
 done
 

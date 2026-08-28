@@ -19,6 +19,9 @@ usage() {
     cat <<'EOF'
 Usage:
   wallpaper-manager.sh current
+  wallpaper-manager.sh current --json
+  wallpaper-manager.sh catalog
+  wallpaper-manager.sh catalog --json
   wallpaper-manager.sh set main <file>
   wallpaper-manager.sh set secondary <file>
   wallpaper-manager.sh set both <file>
@@ -190,6 +193,172 @@ print_current() {
     printf '  %s\n' "$WALLPAPER_LIBRARY_DIR"
 }
 
+require_jq() {
+    command -v jq >/dev/null 2>&1 \
+        || die "jq is required for JSON output"
+}
+
+
+print_current_json() {
+    local main_default
+    local secondary_default
+    local main_effective
+    local secondary_effective
+    local main_fit
+    local secondary_fit
+    local rotation_enabled
+
+    require_jq
+
+    main_default="$(resolve_theme_default "$MAIN_WALLPAPER")"
+    secondary_default="$(resolve_theme_default "$SECONDARY_WALLPAPER")"
+
+    main_effective="${MAIN_WALLPAPER_OVERRIDE:-$main_default}"
+    secondary_effective="${SECONDARY_WALLPAPER_OVERRIDE:-$secondary_default}"
+
+    main_fit="${MAIN_WALLPAPER_FIT_OVERRIDE:-${MAIN_WALLPAPER_FIT:-cover}}"
+    secondary_fit="${SECONDARY_WALLPAPER_FIT_OVERRIDE:-${SECONDARY_WALLPAPER_FIT:-cover}}"
+
+    case "${WALLPAPER_ROTATION_ENABLED:-false}" in
+        true)
+            rotation_enabled=true
+            ;;
+        *)
+            rotation_enabled=false
+            ;;
+    esac
+
+    jq -n \
+        --arg themeId "$THEME_ID" \
+        --arg themeRoot "$theme_root" \
+        --arg preferencesFile "$preferences_file" \
+        --arg libraryRoot "$WALLPAPER_LIBRARY_DIR" \
+        --arg engine "${WALLPAPER_ENGINE:-auto}" \
+        --arg transitionPreset "${WALLPAPER_TRANSITION_PRESET:-theme}" \
+        --arg mainDefault "$main_default" \
+        --arg mainOverride "$MAIN_WALLPAPER_OVERRIDE" \
+        --arg mainEffective "$main_effective" \
+        --arg mainFit "$main_fit" \
+        --arg secondaryDefault "$secondary_default" \
+        --arg secondaryOverride "$SECONDARY_WALLPAPER_OVERRIDE" \
+        --arg secondaryEffective "$secondary_effective" \
+        --arg secondaryFit "$secondary_fit" \
+        --argjson rotationEnabled "$rotation_enabled" \
+        --arg rotationMode "${WALLPAPER_ROTATION_MODE:-next}" \
+        --arg rotationTarget "${WALLPAPER_ROTATION_TARGET:-both}" \
+        --arg rotationInterval "${WALLPAPER_ROTATION_INTERVAL:-30m}" \
+        '{
+            theme: {
+                id: $themeId,
+                root: $themeRoot,
+                preferencesFile: $preferencesFile
+            },
+            library: {
+                root: $libraryRoot
+            },
+            engine: {
+                configured: $engine
+            },
+            transition: {
+                preset: $transitionPreset
+            },
+            rotation: {
+                enabled: $rotationEnabled,
+                mode: $rotationMode,
+                target: $rotationTarget,
+                interval: $rotationInterval
+            },
+            outputs: {
+                main: {
+                    default: $mainDefault,
+                    override: $mainOverride,
+                    effective: $mainEffective,
+                    fit: $mainFit
+                },
+                secondary: {
+                    default: $secondaryDefault,
+                    override: $secondaryOverride,
+                    effective: $secondaryEffective,
+                    fit: $secondaryFit
+                }
+            }
+        }'
+}
+
+
+print_catalog() {
+    collect_wallpaper_candidates
+    printf '%s\n' "${wallpaper_candidates[@]}"
+}
+
+
+print_catalog_json() {
+    local theme_wallpapers
+    local library_root
+    local main_default
+    local secondary_default
+    local main_effective
+    local secondary_effective
+
+    require_jq
+    collect_wallpaper_candidates
+
+    theme_wallpapers="$(readlink -f "$theme_root/wallpapers" 2>/dev/null || true)"
+    library_root="$(readlink -f "$WALLPAPER_LIBRARY_DIR" 2>/dev/null || true)"
+
+    main_default="$(readlink -f "$(resolve_theme_default "$MAIN_WALLPAPER")")"
+    secondary_default="$(readlink -f "$(resolve_theme_default "$SECONDARY_WALLPAPER")")"
+    main_effective="$(effective_wallpaper_for_target main)"
+    secondary_effective="$(effective_wallpaper_for_target secondary)"
+
+    printf '%s\n' "${wallpaper_candidates[@]}" |
+        jq -Rsc \
+            --arg themeId "$THEME_ID" \
+            --arg themeRoot "$theme_wallpapers" \
+            --arg libraryRoot "$library_root" \
+            --arg mainDefault "$main_default" \
+            --arg secondaryDefault "$secondary_default" \
+            --arg mainEffective "$main_effective" \
+            --arg secondaryEffective "$secondary_effective" \
+            '
+            split("\n")
+            | map(select(length > 0))
+            | map(
+                . as $path
+                | {
+                    path: $path,
+                    name: ($path | split("/") | last),
+                    source: (
+                        if ($themeRoot != "" and ($path | startswith($themeRoot + "/")))
+                        then "theme"
+                        else "library"
+                        end
+                    ),
+                    relative: (
+                        if ($themeRoot != "" and ($path | startswith($themeRoot + "/")))
+                        then ($path | ltrimstr($themeRoot + "/"))
+                        elif ($libraryRoot != "" and ($path | startswith($libraryRoot + "/")))
+                        then ($path | ltrimstr($libraryRoot + "/"))
+                        else ($path | split("/") | last)
+                        end
+                    ),
+                    defaultMain: ($path == $mainDefault),
+                    defaultSecondary: ($path == $secondaryDefault),
+                    effectiveMain: ($path == $mainEffective),
+                    effectiveSecondary: ($path == $secondaryEffective)
+                }
+            )
+            | {
+                themeId: $themeId,
+                themeRoot: $themeRoot,
+                libraryRoot: $libraryRoot,
+                count: length,
+                items: .
+            }
+            '
+}
+
+
 validate_wallpaper_file() {
     local file="$1"
 
@@ -346,12 +515,25 @@ command_name="${1:-}"
 
 case "$command_name" in
     current)
-        [[ "$#" -eq 1 ]] || {
+        if [[ "$#" -eq 1 ]]; then
+            print_current
+        elif [[ "$#" -eq 2 && "$2" == "--json" ]]; then
+            print_current_json
+        else
             usage >&2
             exit 2
-        }
+        fi
+        ;;
 
-        print_current
+    catalog)
+        if [[ "$#" -eq 1 ]]; then
+            print_catalog
+        elif [[ "$#" -eq 2 && "$2" == "--json" ]]; then
+            print_catalog_json
+        else
+            usage >&2
+            exit 2
+        fi
         ;;
 
     set)
