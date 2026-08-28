@@ -386,3 +386,56 @@ runtime recovery as required.
 
 Phase 2B.4.4 closes the failure-semantics portion of the transactional
 wallpaper Apply workflow.
+
+
+## Reset / Apply lifecycle refinement
+
+Phase 2B.5 refines QML state lifecycle without expanding the wallpaper
+mutation backend.
+
+Normal Reset is coordinated by `WallpaperApplyService.resetDraft()` and then
+delegates to `WallpaperDraftStore.reset()`. Reset accepts the latest observed
+effective wallpapers as the new draft baseline, including when
+`observedChangedWhileDirty` is true.
+
+Transient Apply feedback is cleared by `clearTransientFeedback()` when the
+user starts a new wallpaper selection or completes a normal Reset. A previous
+success, `invalid-request`, or fully rolled-back Apply therefore does not
+dominate a new editing session.
+
+A recovery-required Reset is intentionally different:
+
+```text
+rollbackRecoveryRequired
+        |
+        v
+Refresh & Reset
+        |
+        v
+WallpaperService.refresh()
+        |
+        +-- runtimeMatchesConfigured=true
+        |       |
+        |       v
+        |   clear recovery flag
+        |   reset draft to observed baseline
+        |
+        +-- runtimeMatchesConfigured=false
+                |
+                v
+            keep recovery flag
+            keep draft pending
+            Reset is not performed
+```
+
+The button is labeled `Refresh & Reset` while recovery is required. It never
+claims that a failed runtime rollback was repaired merely because the draft
+was discarded.
+
+If the recovery refresh itself fails, `rollbackRecoveryRequired` stays true
+and the draft remains pending for inspection.
+
+`WallpaperView.qml` emits `resetRequested()`; `Main.qml` routes it to
+`WallpaperApplyService.resetDraft()`. The view does not own recovery logic.
+
+Phase 2B.5 completes Reset / Apply lifecycle refinement.

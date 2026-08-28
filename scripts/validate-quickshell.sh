@@ -80,6 +80,92 @@ for relative in "${required_files[@]}"; do
 done
 
 
+printf '\n==> Phase 2B.5 Reset / Apply lifecycle refinement\n'
+
+wallpaper_apply_service="$config_dir/services/WallpaperApplyService.qml"
+wallpaper_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+wallpaper_main="$config_dir/Main.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for contract in \
+    'property bool recoveryResetPending: false' \
+    '|| root.recoveryResetPending' \
+    'function clearTransientFeedback(): void {' \
+    'if (root.busy || root.rollbackRecoveryRequired)' \
+    'function resetDraft(): void {' \
+    'root.draftStore.reset();' \
+    'root.recoveryResetPending = true;' \
+    'Refreshing observed wallpaper state before Reset…' \
+    'if (root.wallpaperService.runtimeMatchesConfigured) {' \
+    'Reset was not performed.' \
+    'Wallpaper recovery refresh failed:' \
+    'function onChanged() {' \
+    'function onResetCompleted() {'
+do
+    if grep -Fq "$contract" "$wallpaper_apply_service"; then
+        ok "Wallpaper Apply lifecycle: $contract"
+    else
+        fail "Wallpaper Apply lifecycle missing: $contract"
+    fi
+done
+
+for contract in \
+    'signal resetRequested()' \
+    '? "Refresh & Reset"' \
+    ': "Reset"' \
+    '&& root.applyService.rollbackRecoveryRequired' \
+    'onClicked: root.resetRequested()'
+do
+    if grep -Fq "$contract" "$wallpaper_view"; then
+        ok "Wallpaper Reset UI lifecycle: $contract"
+    else
+        fail "Wallpaper Reset UI lifecycle missing: $contract"
+    fi
+done
+
+if grep -Fq \
+    '&& !root.draftStore.observedChangedWhileDirty' \
+    "$wallpaper_view"
+then
+    fail "Reset remains disabled during observed-state conflict"
+else
+    ok "Reset accepts observed-state conflict as new baseline"
+fi
+
+if grep -Fq \
+    'onClicked: root.draftStore.reset()' \
+    "$wallpaper_view"
+then
+    fail "WallpaperView still resets DraftStore directly"
+else
+    ok "WallpaperView delegates Reset lifecycle"
+fi
+
+if grep -Fq \
+    'onResetRequested: wallpaperApplyService.resetDraft()' \
+    "$wallpaper_main"
+then
+    ok "Main owns Wallpaper Reset orchestration"
+else
+    fail "Main Wallpaper Reset orchestration missing"
+fi
+
+for contract in \
+    '## Reset / Apply lifecycle refinement' \
+    'Refresh & Reset' \
+    'runtimeMatchesConfigured' \
+    'observedChangedWhileDirty' \
+    'clearTransientFeedback()' \
+    'Phase 2B.5'
+do
+    if grep -Fq "$contract" "$wallpaper_doc"; then
+        ok "Wallpaper Reset lifecycle documentation: $contract"
+    else
+        fail "Wallpaper Reset lifecycle documentation missing: $contract"
+    fi
+done
+
+
 printf '\n==> Phase 2B.4.4 wallpaper failure semantics\n'
 
 wallpaperctl="$repo_root/scripts/runtime/jc-wallpaperctl.sh"

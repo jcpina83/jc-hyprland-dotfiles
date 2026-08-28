@@ -341,6 +341,7 @@ Scope {
 
             onRefreshRequested: wallpaperService.refresh()
             onApplyRequested: wallpaperApplyService.applyDirty()
+            onResetRequested: wallpaperApplyService.resetDraft()
         }
     }
 

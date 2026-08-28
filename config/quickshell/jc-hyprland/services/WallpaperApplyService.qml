@@ -10,10 +10,13 @@ Scope {
 
     property bool applying: false
     property bool awaitingRefresh: false
+    property bool recoveryResetPending: false
     property bool rollbackRecoveryRequired: false
 
     readonly property bool busy:
-        root.applying || root.awaitingRefresh
+        root.applying
+        || root.awaitingRefresh
+        || root.recoveryResetPending
 
     readonly property bool canApply:
         !root.busy
@@ -167,6 +170,39 @@ Scope {
     function clearApplyingTargets(): void {
         root.applyingMain = false;
         root.applyingSecondary = false;
+    }
+
+    function clearTransientFeedback(): void {
+        if (root.busy || root.rollbackRecoveryRequired)
+            return;
+
+        root.errorMessage = "";
+        root.statusMessage = "";
+        root.lastResult = null;
+    }
+
+    function resetDraft(): void {
+        if (root.busy || !root.draftStore)
+            return;
+
+        if (!root.rollbackRecoveryRequired) {
+            root.draftStore.reset();
+            root.clearTransientFeedback();
+            return;
+        }
+
+        if (!root.wallpaperService || root.wallpaperService.loading) {
+            root.errorMessage =
+                "Wallpaper recovery state cannot be refreshed right now.";
+            root.statusMessage = "Recovery still required.";
+            return;
+        }
+
+        root.recoveryResetPending = true;
+        root.statusMessage =
+            "Refreshing observed wallpaper state before Reset…";
+
+        root.wallpaperService.refresh();
     }
 
     function fail(message): void {
@@ -329,6 +365,26 @@ Scope {
         target: root.wallpaperService
 
         function onRefreshed() {
+            if (root.recoveryResetPending) {
+                root.recoveryResetPending = false;
+
+                if (root.wallpaperService.runtimeMatchesConfigured) {
+                    root.rollbackRecoveryRequired = false;
+                    root.draftStore.reset();
+                    root.clearTransientFeedback();
+                    return;
+                }
+
+                root.rollbackRecoveryRequired = true;
+                root.errorMessage =
+                    "Wallpaper runtime still differs from configured state "
+                    + "after refresh. Reset was not performed.";
+                root.statusMessage =
+                    "Wallpaper recovery still required.";
+                root.failed(root.errorMessage);
+                return;
+            }
+
             if (!root.awaitingRefresh)
                 return;
 
@@ -346,6 +402,20 @@ Scope {
         }
 
         function onFailed(message) {
+            if (root.recoveryResetPending) {
+                root.recoveryResetPending = false;
+                root.rollbackRecoveryRequired = true;
+
+                root.errorMessage =
+                    "Wallpaper recovery refresh failed: "
+                    + String(message || "unknown error");
+                root.statusMessage =
+                    "Wallpaper recovery still required.";
+
+                root.failed(root.errorMessage);
+                return;
+            }
+
             if (!root.awaitingRefresh)
                 return;
 
@@ -360,6 +430,18 @@ Scope {
                 "Applied state could not be reconciled yet.";
 
             root.failed(root.errorMessage);
+        }
+    }
+
+    Connections {
+        target: root.draftStore
+
+        function onChanged() {
+            root.clearTransientFeedback();
+        }
+
+        function onResetCompleted() {
+            root.clearTransientFeedback();
         }
     }
 }

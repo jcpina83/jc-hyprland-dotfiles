@@ -33,6 +33,7 @@ Item {
 
     signal refreshRequested()
     signal applyRequested()
+    signal resetRequested()
 
     readonly property var filteredWallpapers: {
         if (!root.wallpaperService
@@ -163,17 +164,29 @@ Item {
             }
 
             Components.JcButton {
-                visible: root.draftStore && root.draftStore.hasDirty
+                visible:
+                    root.draftStore
+                    && (
+                        root.draftStore.hasDirty
+                        || (
+                            root.applyService
+                            && root.applyService.rollbackRecoveryRequired
+                        )
+                    )
 
                 theme: root.theme
-                text: "Reset"
+
+                text:
+                    root.applyService
+                    && root.applyService.rollbackRecoveryRequired
+                        ? "Refresh & Reset"
+                        : "Reset"
 
                 controlEnabled:
                     !root.interactionLocked
                     && root.draftStore
-                    && !root.draftStore.observedChangedWhileDirty
 
-                onClicked: root.draftStore.reset()
+                onClicked: root.resetRequested()
             }
 
             Components.JcButton {
