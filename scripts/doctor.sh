@@ -615,6 +615,50 @@ fi
 # Session lock
 # ==============================================================================
 
+printf '\n==> Public CLI links\n'
+
+public_bin_dir="$HOME/.local/bin"
+runtime_bin_dir="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles/bin"
+
+public_cli_commands=(
+    "jc-control-center"
+    "jc-displayctl"
+    "jc-displaycfg"
+    "jc-theme"
+)
+
+for command_name in "${public_cli_commands[@]}"; do
+    public_target="$public_bin_dir/$command_name"
+    runtime_target="$runtime_bin_dir/$command_name"
+
+    if [[ ! -L "$public_target" ]]; then
+        fail "public CLI link missing: $public_target"
+        continue
+    fi
+
+    if [[ "$(readlink "$public_target")" != "$runtime_target" ]]; then
+        fail "public CLI link target mismatch: $public_target"
+        continue
+    fi
+
+    if [[ ! -x "$public_target" ]]; then
+        fail "public CLI is not executable: $public_target"
+        continue
+    fi
+
+    ok "public CLI: $command_name"
+done
+
+case ":${PATH:-}:" in
+    *":$public_bin_dir:"*)
+        ok "$public_bin_dir is available in PATH"
+        ;;
+    *)
+        warn "$public_bin_dir is not available in PATH"
+        ;;
+esac
+
+
 printf '\n==> Session lock\n'
 
 hypridle_conf="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf"

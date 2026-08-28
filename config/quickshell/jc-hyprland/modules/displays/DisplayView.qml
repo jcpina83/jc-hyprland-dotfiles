@@ -142,8 +142,34 @@ Item {
             surfaceRole: "base"
             cornerRadius: root.theme.radiusMd
 
-            color: root.theme.warningSurface
+            color: root.theme.transparentSurface
+
             border.color: root.theme.warningBorder
+
+            Components.JcHudFrame {
+                id: safeApplyHudFrame
+
+                anchors.fill: parent
+                anchors.margins: root.theme.space2Xs
+
+                theme: root.theme
+
+                fillEnabled: true
+                fillColor: root.theme.warningSurface
+                bordered: false
+                contentPadding: 0
+
+                primaryAccentColor: root.theme.warning
+                secondaryAccentColor: root.theme.warning
+
+                cutSize: root.theme.spaceSm
+                accentLength: root.theme.controlHeightLarge
+
+                glowEnabled: false
+                showInnerFrame: false
+                showCornerAccents: true
+                showSecondaryAccent: true
+            }
 
             ColumnLayout {
                 id: confirmationContent
@@ -546,25 +572,14 @@ Item {
             implicitHeight:
                 persistenceContent.implicitHeight
                 + (root.theme.spaceMd * 2)
+            bordered: false
+            fillEnabled: false
 
             theme: root.theme
             surfaceRole: "base"
             cornerRadius: root.theme.radiusMd
 
-            color: {
-                if (root.persistenceService
-                        && (root.persistenceService.checking
-                            || root.persistenceService.saving)) {
-                    return root.theme.infoSurface;
-                }
-
-                if (root.persistenceService
-                        && root.persistenceService.hasPersistentChanges) {
-                    return root.theme.warningSurface;
-                }
-
-                return root.theme.surfaceSunken;
-            }
+            color: root.theme.transparentSurface
 
             border.color: {
                 if (root.persistenceService
@@ -579,6 +594,78 @@ Item {
                 }
 
                 return root.theme.borderSubtle;
+            }
+
+            Components.JcHudFrame {
+                id: persistenceHudFrame
+
+                anchors.fill: parent
+                anchors.margins: root.theme.space2Xs
+
+                theme: root.theme
+
+                fillEnabled: true
+
+                fillColor: {
+                    if (root.persistenceService
+                            && (root.persistenceService.checking
+                                || root.persistenceService.saving)) {
+                        return root.theme.infoSurface;
+                    }
+
+                    if (root.persistenceService
+                            && root.persistenceService.hasPersistentChanges) {
+                        return root.theme.warningSurface;
+                    }
+
+                    return root.theme.hudSurface;
+                }
+                bordered: true
+                contentPadding: 0
+
+                frameColor: {
+                    if (root.persistenceService
+                            && (root.persistenceService.checking
+                                || root.persistenceService.saving)) {
+                        return root.theme.infoBorder;
+                    }
+
+                    if (root.persistenceService
+                            && root.persistenceService.hasPersistentChanges) {
+                        return root.theme.warningBorder;
+                    }
+
+                    return root.theme.borderSubtle;
+                }
+
+                primaryAccentColor: {
+                    if (root.persistenceService
+                            && (root.persistenceService.checking
+                                || root.persistenceService.saving)) {
+                        return root.theme.info;
+                    }
+
+                    if (root.persistenceService
+                            && root.persistenceService.hasPersistentChanges) {
+                        return root.theme.warning;
+                    }
+
+                    return root.theme.primary;
+                }
+
+                secondaryAccentColor:
+                    root.theme.hudSecondaryAccent
+
+                cutSize: root.theme.spaceSm
+                accentLength: root.theme.controlHeightLarge
+
+                glowEnabled: false
+                showInnerFrame: false
+                showCornerAccents: true
+
+                showSecondaryAccent:
+                    root.persistenceService
+                    && root.persistenceService.hasPersistentChanges
             }
 
             RowLayout {

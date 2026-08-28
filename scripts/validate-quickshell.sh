@@ -449,11 +449,12 @@ for shell_contract in \
     'root.targetScreen.height' \
     'implicitWidth:' \
     'implicitHeight:' \
-    'screen: root.targetScreen' \
-    'top: true' \
-    'right: true' \
-    'top: root.screenMargin' \
-    'right: root.screenMargin' \
+    'visible: root.mounted' \
+    'screen:' \
+    'root.presentationScreen' \
+    'property bool requestedVisible: false' \
+    'property bool mounted: false' \
+    'property var presentationScreen: null' \
     'sequence: "Escape"' \
     'Components.JcSurface {' \
     'surfaceRole: "glass-raised"' \
@@ -510,7 +511,7 @@ for main_shell_contract in \
     'function refreshControlCenter() {' \
     'ControlCenter.ControlCenterShell {' \
     'id: controlCenterShell' \
-    'visible: root.controlCenterVisible' \
+    'requestedVisible: root.controlCenterVisible' \
     'onCloseRequested: root.hideControlCenter()'
 do
     if grep -Fq -- "$main_shell_contract" "$main_qml" 2>/dev/null; then
@@ -1924,7 +1925,7 @@ done
 for shell_focus_contract in \
     'function requestInitialFocus() {' \
     'navigation.focusActiveItem();' \
-    'onVisibleChanged: {' \
+    'onRequestedVisibleChanged: {' \
     'Component.onCompleted: {' \
     'id: navigation'
 do
@@ -2011,13 +2012,13 @@ control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
 control_center_shell_doc="$repo_root/docs/control-center-shell.md"
 
 for shell_motion_contract in \
-    'function playShellEnterMotion() {' \
+    'function beginOpenPresentation() {' \
     'function playStatusMotion() {' \
     'id: shellEnterAnimation' \
     'id: contentEnterAnimation' \
     'id: statusChangeAnimation' \
     'target: shellSurface' \
-    'target: shellTranslate' \
+    'id: shellExitAnimation' \
     'target: contentLoader' \
     'target: contentTranslate' \
     'duration: root.theme.motionPanel' \
@@ -2392,7 +2393,6 @@ displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
 
 for display_card_visual_contract in \
     'Components.JcSurface {' \
-    'surfaceRole: "raised"' \
     'cornerRadius: root.theme.radiusMd' \
     'Components.JcDivider {' \
     'spacing: root.theme.spaceSm' \
@@ -2617,12 +2617,11 @@ displays_visual_doc="$repo_root/docs/displays-visual-redesign.md"
 
 for layout_editor_visual_contract in \
     'Components.JcSurface {' \
-    'surfaceRole: "raised"' \
     'cornerRadius: root.theme.radiusMd' \
     'contentColumn.implicitHeight' \
     'id: contentColumn' \
     'Components.JcSectionHeader {' \
-    'color: root.theme.surfaceSunken' \
+    'color: root.theme.hudSurface' \
     'root.theme.surfaceSelected' \
     'root.theme.surfaceInteractive' \
     'root.theme.danger' \
@@ -3312,6 +3311,548 @@ do
         printf '%s\n' "$final_runtime_refs" >&2
     fi
 done
+
+
+printf '\n==> H1.3.3 JC Holo Control Center HUD integration\n'
+
+jc_hud_frame="$config_dir/components/JcHudFrame.qml"
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+display_layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+display_view="$config_dir/modules/displays/DisplayView.qml"
+
+if [[ -f "$jc_hud_frame" ]]; then
+    ok "JcHudFrame presentation primitive"
+else
+    fail "JcHudFrame presentation primitive missing"
+fi
+
+for hud_contract in \
+    'property bool fillEnabled: true' \
+    'property color primaryAccentColor:' \
+    'property color secondaryAccentColor:' \
+    'if (root.fillEnabled)' \
+    'root.primaryAccentColor' \
+    'root.secondaryAccentColor'
+do
+    if grep -Fq -- "$hud_contract" "$jc_hud_frame" 2>/dev/null; then
+        ok "JcHudFrame H1.3.3 contract: $hud_contract"
+    else
+        fail "JcHudFrame H1.3.3 contract missing: $hud_contract"
+    fi
+done
+
+for forbidden_hud_runtime in \
+    'Process {' \
+    'hyprctl' \
+    'systemctl' \
+    'systemd-run' \
+    'jc-displayctl' \
+    'jc-displaycfg'
+do
+    if grep -Fq -- "$forbidden_hud_runtime" "$jc_hud_frame" 2>/dev/null; then
+        fail "JcHudFrame must remain presentation-only: $forbidden_hud_runtime"
+    else
+        ok "JcHudFrame excludes runtime mutation: $forbidden_hud_runtime"
+    fi
+done
+
+for shell_hud_contract in \
+    'id: shellSurface' \
+    'surfaceRole: "glass-raised"' \
+    'id: shellHudFrame' \
+    'fillEnabled: false' \
+    'cutSize: root.theme.spaceLg'
+do
+    if grep -Fq -- "$shell_hud_contract" "$control_center_shell" 2>/dev/null; then
+        ok "ControlCenter shell HUD contract: $shell_hud_contract"
+    else
+        fail "ControlCenter shell HUD contract missing: $shell_hud_contract"
+    fi
+done
+
+for navigation_hud_contract in \
+    'id: navigationSurface' \
+    'surfaceRole: "glass"' \
+    'id: navigationHudFrame' \
+    'showSecondaryAccent: false'
+do
+    if grep -Fq -- "$navigation_hud_contract" \
+        "$control_center_navigation" 2>/dev/null
+    then
+        ok "ControlCenter navigation HUD contract: $navigation_hud_contract"
+    else
+        fail "ControlCenter navigation HUD contract missing: $navigation_hud_contract"
+    fi
+done
+
+for display_card_hud_contract in \
+    'Components.JcSurface {' \
+    'surfaceRole: "glass"' \
+    'id: displayCardHudFrame' \
+    'root.monitor.focused' \
+    'root.draft.dirty'
+do
+    if grep -Fq -- "$display_card_hud_contract" "$display_card" 2>/dev/null; then
+        ok "DisplayCard HUD contract: $display_card_hud_contract"
+    else
+        fail "DisplayCard HUD contract missing: $display_card_hud_contract"
+    fi
+done
+
+for layout_hud_contract in \
+    'Components.JcSurface {' \
+    'surfaceRole: "glass"' \
+    'id: layoutHudFrame' \
+    'showSecondaryAccent: false'
+do
+    if grep -Fq -- "$layout_hud_contract" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        ok "DisplayLayoutEditor HUD contract: $layout_hud_contract"
+    else
+        fail "DisplayLayoutEditor HUD contract missing: $layout_hud_contract"
+    fi
+done
+
+for display_view_hud_contract in \
+    'id: safeApplyHudFrame' \
+    'primaryAccentColor: root.theme.warning' \
+    'id: persistenceHudFrame' \
+    'root.persistenceService.hasPersistentChanges'
+do
+    if grep -Fq -- "$display_view_hud_contract" "$display_view" 2>/dev/null; then
+        ok "DisplayView HUD feedback contract: $display_view_hud_contract"
+    else
+        fail "DisplayView HUD feedback contract missing: $display_view_hud_contract"
+    fi
+done
+
+
+printf '\n==> H1.3.3b true angular HUD material\n'
+
+jc_surface="$config_dir/components/JcSurface.qml"
+jc_hud_frame="$config_dir/components/JcHudFrame.qml"
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+display_card="$config_dir/modules/displays/DisplayCard.qml"
+display_layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+display_view="$config_dir/modules/displays/DisplayView.qml"
+
+for surface_material_contract in \
+    'property bool fillEnabled: true' \
+    'root.theme.transparentSurface'
+do
+    if grep -Fq -- "$surface_material_contract" "$jc_surface" 2>/dev/null; then
+        ok "JcSurface material delegation contract: $surface_material_contract"
+    else
+        fail "JcSurface material delegation contract missing: $surface_material_contract"
+    fi
+done
+
+for hud_material_contract in \
+    'property color fillColor:' \
+    'ctx.fillStyle = root.fillColor'
+do
+    if grep -Fq -- "$hud_material_contract" "$jc_hud_frame" 2>/dev/null; then
+        ok "JcHudFrame material contract: $hud_material_contract"
+    else
+        fail "JcHudFrame material contract missing: $hud_material_contract"
+    fi
+done
+
+for shell_material_contract in \
+    'id: shellSurface' \
+    'fillEnabled: false' \
+    'id: shellHudFrame' \
+    'fillColor: root.theme.surfaceGlassRaised'
+do
+    if grep -Fq -- "$shell_material_contract" "$control_center_shell" 2>/dev/null; then
+        ok "ControlCenter angular material contract: $shell_material_contract"
+    else
+        fail "ControlCenter angular material contract missing: $shell_material_contract"
+    fi
+done
+
+for navigation_material_contract in \
+    'id: navigationSurface' \
+    'fillEnabled: false' \
+    'id: navigationHudFrame' \
+    'fillColor: root.theme.surfaceGlass'
+do
+    if grep -Fq -- "$navigation_material_contract" \
+        "$control_center_navigation" 2>/dev/null
+    then
+        ok "Navigation angular material contract: $navigation_material_contract"
+    else
+        fail "Navigation angular material contract missing: $navigation_material_contract"
+    fi
+done
+
+for displays_material_contract in \
+    'id: displayCardHudFrame' \
+    'fillColor: root.theme.hudSurface' \
+    'id: layoutHudFrame'
+do
+    if grep -Fq -- "$displays_material_contract" "$display_card" 2>/dev/null \
+        || grep -Fq -- "$displays_material_contract" \
+            "$display_layout_editor" 2>/dev/null
+    then
+        ok "Displays angular material contract: $displays_material_contract"
+    else
+        fail "Displays angular material contract missing: $displays_material_contract"
+    fi
+done
+
+for feedback_material_contract in \
+    'id: safeApplyHudFrame' \
+    'fillColor: root.theme.warningSurface' \
+    'id: persistenceHudFrame' \
+    'return root.theme.infoSurface;' \
+    'return root.theme.warningSurface;' \
+    'return root.theme.hudSurface;'
+do
+    if grep -Fq -- "$feedback_material_contract" "$display_view" 2>/dev/null; then
+        ok "Display feedback angular material contract: $feedback_material_contract"
+    else
+        fail "Display feedback angular material contract missing: $feedback_material_contract"
+    fi
+done
+
+
+printf '\n==> H1.3.4 JC Holo visual polish\n'
+
+jc_hud_frame="$config_dir/components/JcHudFrame.qml"
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+display_view="$config_dir/modules/displays/DisplayView.qml"
+
+for hud_polish_contract in \
+    'property color frameColor:' \
+    'ctx.strokeStyle = root.frameColor'
+do
+    if grep -Fq -- "$hud_polish_contract" "$jc_hud_frame" 2>/dev/null; then
+        ok "JcHudFrame polish contract: $hud_polish_contract"
+    else
+        fail "JcHudFrame polish contract missing: $hud_polish_contract"
+    fi
+done
+
+for shell_polish_contract in \
+    'id: headerHudIndicator' \
+    'id: headerHudConnector' \
+    'id: headerHudCore' \
+    'subtitle: root.activeModuleTitle' \
+    'id: statusHudIndicator' \
+    '? root.theme.warning' \
+    ': root.theme.success'
+do
+    if grep -Fq -- "$shell_polish_contract" "$control_center_shell" 2>/dev/null; then
+        ok "ControlCenter shell polish contract: $shell_polish_contract"
+    else
+        fail "ControlCenter shell polish contract missing: $shell_polish_contract"
+    fi
+done
+
+if grep -Fq -- 'id: navItem' \
+    "$control_center_navigation" 2>/dev/null
+then
+    ok "Navigation polish contract: id: navItem"
+else
+    fail "Navigation polish contract missing: id: navItem"
+fi
+
+for nav_item_selected_state_contract in \
+    'property bool selected: false' \
+    'readonly property color resolvedSurfaceColor:' \
+    'readonly property color resolvedBorderColor:'
+do
+    if grep -Fq -- "$nav_item_selected_state_contract" "$jc_nav_item" 2>/dev/null; then
+        ok "JcNavItem selected-state contract: $nav_item_selected_state_contract"
+    else
+        fail "JcNavItem selected-state contract missing: $nav_item_selected_state_contract"
+    fi
+done
+
+if grep -Fq 'id: selectedHudAccent' "$jc_nav_item" 2>/dev/null; then
+    fail "JcNavItem still contains selectedHudAccent overlay"
+else
+    ok "JcNavItem selected state has no detached HUD glint overlay"
+fi
+
+for persistence_polish_contract in \
+    'id: persistenceHudFrame' \
+    'bordered: true' \
+    'frameColor: {' \
+    'return root.theme.infoBorder;' \
+    'return root.theme.warningBorder;' \
+    'return root.theme.borderSubtle;'
+do
+    if grep -Fq -- "$persistence_polish_contract" "$display_view" 2>/dev/null; then
+        ok "Persistence polish contract: $persistence_polish_contract"
+    else
+        fail "Persistence polish contract missing: $persistence_polish_contract"
+    fi
+done
+
+
+printf '\n==> H1.3.4a integrated HUD glints\n'
+
+jc_hud_frame="$config_dir/components/JcHudFrame.qml"
+
+for glint_contract in \
+    'function drawGlint(' \
+    'ctx.createLinearGradient(' \
+    'haloGradient.addColorStop(' \
+    'coreGradient.addColorStop(' \
+    'property real glintIntensity:' \
+    'property real glintCoreWidth:' \
+    'property real glintHaloWidth:' \
+    'root.drawGlint(' \
+    'ctx.strokeStyle = root.frameColor'
+do
+    if grep -Fq -- "$glint_contract" "$jc_hud_frame" 2>/dev/null; then
+        ok "HUD glint contract: $glint_contract"
+    else
+        fail "HUD glint contract missing: $glint_contract"
+    fi
+done
+
+for forbidden_glint_residue in \
+    'ctx.moveTo(margin, root.frameWidth)' \
+    'ctx.lineTo(root.width - margin, root.height - root.frameWidth)'
+do
+    if grep -Fq -- "$forbidden_glint_residue" "$jc_hud_frame" 2>/dev/null; then
+        fail "legacy solid HUD accent remains: $forbidden_glint_residue"
+    else
+        ok "legacy solid HUD accent retired: $forbidden_glint_residue"
+    fi
+done
+
+
+printf '\n==> H1.3.4b HUD cleanup and translucent inner materials\n'
+
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+display_layout_editor="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+display_view="$config_dir/modules/displays/DisplayView.qml"
+
+if grep -Fq 'id: selectedHudAccent' "$jc_nav_item" 2>/dev/null; then
+    fail "JcNavItem selectedHudAccent overlay remains"
+else
+    ok "JcNavItem selected HUD glint overlay retired"
+fi
+
+if grep -Fq 'id: activeHudAccent' \
+    "$control_center_navigation" 2>/dev/null
+then
+    fail "navigation-local activeHudAccent still exists"
+else
+    ok "navigation-local activeHudAccent retired"
+fi
+
+for topology_glass_contract in \
+    'id: canvas' \
+    'color: root.theme.hudSurface' \
+    'border.color: root.theme.hudInnerFrame'
+do
+    if grep -Fq -- "$topology_glass_contract" \
+        "$display_layout_editor" 2>/dev/null
+    then
+        ok "Topology canvas glass contract: $topology_glass_contract"
+    else
+        fail "Topology canvas glass contract missing: $topology_glass_contract"
+    fi
+done
+
+transparent_feedback_surface_count="$(
+    grep -Fc 'color: root.theme.transparentSurface' \
+        "$display_view" 2>/dev/null || true
+)"
+
+if ((transparent_feedback_surface_count >= 2)); then
+    ok "Safe Apply and persistence parent materials are transparent"
+else
+    fail "expected at least 2 transparent HUD parent materials, found $transparent_feedback_surface_count"
+fi
+
+for persistence_glass_contract in \
+    'id: persistenceHudFrame' \
+    'return root.theme.hudSurface;'
+do
+    if grep -Fq -- "$persistence_glass_contract" \
+        "$display_view" 2>/dev/null
+    then
+        ok "Persistence glass contract: $persistence_glass_contract"
+    else
+        fail "Persistence glass contract missing: $persistence_glass_contract"
+    fi
+done
+
+if grep -Fq 'color: root.theme.surfaceSunken' \
+    "$display_layout_editor" 2>/dev/null
+then
+    fail "opaque topology canvas surfaceSunken material remains"
+else
+    ok "opaque topology canvas surfaceSunken material retired"
+fi
+
+
+printf '\n==> H1.3.4c canonical JcNavItem selected-state ownership\n'
+
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+
+for nav_item_selected_contract in \
+    'property bool selected: false' \
+    'readonly property color resolvedSurfaceColor:' \
+    'readonly property color resolvedBorderColor:' \
+    'root.theme.controlSurfaceSelected' \
+    'root.theme.controlBorderSelected' \
+    'root.theme.controlTextSelected'
+do
+    if grep -Fq -- "$nav_item_selected_contract" "$jc_nav_item" 2>/dev/null; then
+        ok "JcNavItem selected-state ownership: $nav_item_selected_contract"
+    else
+        fail "JcNavItem selected-state ownership missing: $nav_item_selected_contract"
+    fi
+done
+
+for retired_nav_overlay in \
+    'id: activeHudAccent' \
+    'id: selectedHudAccent' \
+    'showSelectedHudAccent'
+do
+    if grep -RFq -- "$retired_nav_overlay" \
+        "$control_center_navigation" "$jc_nav_item" 2>/dev/null
+    then
+        fail "retired navigation overlay remains: $retired_nav_overlay"
+    else
+        ok "retired navigation overlay absent: $retired_nav_overlay"
+    fi
+done
+
+printf '\n==> H1.3.4d canonical opacity token cleanup\n'
+
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+
+if grep -Fq 'root.theme.opacityEnabled' "$jc_nav_item" 2>/dev/null; then
+    ok "JcNavItem uses canonical opacityEnabled"
+else
+    fail "JcNavItem canonical opacityEnabled missing"
+fi
+
+if grep -Fq 'root.theme.opacityDisabled' "$control_center_shell" 2>/dev/null; then
+    ok "ControlCenterShell HUD connector uses canonical opacityDisabled"
+else
+    fail "ControlCenterShell HUD connector canonical opacityDisabled missing"
+fi
+
+undefined_holo_opacity_refs="$(
+    grep -RFn \
+        --include='*.qml' \
+        -e 'root.theme.opacityStrong' \
+        -e 'root.theme.opacityMuted' \
+        "$config_dir" 2>/dev/null || true
+)"
+
+if [[ -n "$undefined_holo_opacity_refs" ]]; then
+    fail "undefined H1 HUD opacity aliases remain:"
+    printf '%s\n' "$undefined_holo_opacity_refs" >&2
+else
+    ok "undefined H1 HUD opacity aliases retired"
+fi
+
+
+printf '\n==> H1.3.4e navigation selected-glint retirement\n'
+
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+control_center_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+
+for retired_selected_glint_contract in \
+    'id: activeHudAccent' \
+    'id: selectedHudAccent' \
+    'showSelectedHudAccent'
+do
+    if grep -RFq -- "$retired_selected_glint_contract" \
+        "$jc_nav_item" "$control_center_navigation" 2>/dev/null
+    then
+        fail "selected navigation glint residue remains: $retired_selected_glint_contract"
+    else
+        ok "selected navigation glint residue retired: $retired_selected_glint_contract"
+    fi
+done
+
+printf '\n==> H1.3.5 centered Control Center presentation\n'
+
+jc_nav_item="$config_dir/components/JcNavItem.qml"
+control_center_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+main_qml="$config_dir/Main.qml"
+
+for nav_rail_contract in \
+    'id: selectionIndicator' \
+    'anchors.verticalCenter: parent.verticalCenter' \
+    'height: Math.max(' \
+    'root.height - (root.theme.spaceMd * 2)'
+do
+    if grep -Fq -- "$nav_rail_contract" "$jc_nav_item" 2>/dev/null; then
+        ok "JcNavItem compact selected rail: $nav_rail_contract"
+    else
+        fail "JcNavItem compact selected rail missing: $nav_rail_contract"
+    fi
+done
+
+for centered_shell_contract in \
+    'property bool requestedVisible: false' \
+    'property bool mounted: false' \
+    'property var presentationScreen: null' \
+    'readonly property real closedPresentationScale: 0.985' \
+    'visible: root.mounted' \
+    'root.presentationScreen' \
+    'onRequestedVisibleChanged: {' \
+    'onTargetScreenChanged: {' \
+    'id: shellEnterAnimation' \
+    'id: shellExitAnimation' \
+    'property: "scale"' \
+    'transformOrigin: Item.Center' \
+    'duration: root.theme.motionPanel'
+do
+    if grep -Fq -- "$centered_shell_contract" "$control_center_shell" 2>/dev/null; then
+        ok "ControlCenter centered-presentation contract: $centered_shell_contract"
+    else
+        fail "ControlCenter centered-presentation contract missing: $centered_shell_contract"
+    fi
+done
+
+for retired_edge_contract in \
+    'top: true' \
+    'right: true' \
+    'id: shellTranslate'
+do
+    if grep -Fq -- "$retired_edge_contract" "$control_center_shell" 2>/dev/null; then
+        fail "retired edge/slide presentation remains: $retired_edge_contract"
+    else
+        ok "retired edge/slide presentation absent: $retired_edge_contract"
+    fi
+done
+
+if grep -Fq \
+    'requestedVisible: root.controlCenterVisible' \
+    "$main_qml" 2>/dev/null
+then
+    ok "Main preserves Control Center requested-visibility ownership"
+else
+    fail "Main requested-visibility binding missing"
+fi
+
+if grep -Fq \
+    'visible: root.controlCenterVisible' \
+    "$main_qml" 2>/dev/null
+then
+    fail "Main still directly unmounts ControlCenterShell"
+else
+    ok "ControlCenterShell owns exit-animation mount lifecycle"
+fi
 
 
 printf '\n==> Production PanelWindow dimensions\n'

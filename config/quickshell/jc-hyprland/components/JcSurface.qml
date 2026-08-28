@@ -13,6 +13,7 @@ Rectangle {
     property bool selected: false
     property bool focused: false
     property bool bordered: true
+    property bool fillEnabled: true
 
     property int cornerRadius: theme.radiusMd
     property int outlineWidth: theme.borderWidthThin
@@ -50,7 +51,9 @@ Rectangle {
         return root.theme.borderDefault;
     }
 
-    color: root.resolvedSurfaceColor
+    color: root.fillEnabled
+        ? root.resolvedSurfaceColor
+        : root.theme.transparentSurface
     radius: root.cornerRadius
 
     border.width: root.bordered ? root.outlineWidth : 0

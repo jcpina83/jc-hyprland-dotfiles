@@ -16,6 +16,15 @@ PanelWindow {
     property string statusText: "Ready"
     property string statusDetail: ""
     property bool transitionLocked: false
+
+    // requestedVisible is the application-level presentation request.
+    // mounted keeps the PanelWindow alive until exit motion completes.
+    property bool requestedVisible: false
+    property bool mounted: false
+    property var presentationScreen: null
+
+    readonly property real closedPresentationScale: 0.985
+
     property Component contentComponent: null
 
     readonly property var activeContentItem:
@@ -52,8 +61,35 @@ PanelWindow {
         });
     }
 
-    function playShellEnterMotion() {
-        shellEnterAnimation.restart();
+    function beginOpenPresentation() {
+        shellExitAnimation.stop();
+
+        if (root.targetScreen)
+            root.presentationScreen = root.targetScreen;
+
+        const wasMounted = root.mounted;
+
+        if (!wasMounted) {
+            shellSurface.opacity = 0.0;
+            shellSurface.scale = root.closedPresentationScale;
+            root.mounted = true;
+        }
+
+        Qt.callLater(function() {
+            if (!root.requestedVisible)
+                return;
+
+            shellEnterAnimation.restart();
+            root.requestInitialFocus();
+        });
+    }
+
+    function beginClosePresentation() {
+        if (!root.mounted)
+            return;
+
+        shellEnterAnimation.stop();
+        shellExitAnimation.restart();
     }
 
     function playStatusMotion() {
@@ -61,7 +97,11 @@ PanelWindow {
         statusChangeAnimation.restart();
     }
 
-    screen: root.targetScreen
+    visible: root.mounted
+
+    screen:
+        root.presentationScreen
+            || root.targetScreen
 
     implicitWidth:
         Math.min(
@@ -79,15 +119,8 @@ PanelWindow {
     focusable: true
     exclusiveZone: 0
 
-    anchors {
-        top: true
-        right: true
-    }
-
-    margins {
-        top: root.screenMargin
-        right: root.screenMargin
-    }
+    // Intentionally unanchored: PanelWindow is presented as a
+    // centered HUD/modal on presentationScreen instead of a sidebar.
 
     Shortcut {
         sequence: "Escape"
@@ -98,23 +131,28 @@ PanelWindow {
         }
     }
 
-    onVisibleChanged: {
-        if (root.visible) {
-            root.requestInitialFocus();
-            root.playShellEnterMotion();
-        }
+    onRequestedVisibleChanged: {
+        if (root.requestedVisible)
+            root.beginOpenPresentation();
+        else
+            root.beginClosePresentation();
+    }
+
+    onTargetScreenChanged: {
+        // Allow an explicit output change while open, but keep the last
+        // presentation screen frozen during exit motion.
+        if (root.requestedVisible && root.targetScreen)
+            root.presentationScreen = root.targetScreen;
     }
 
     onStatusTextChanged: {
-        if (root.visible)
+        if (root.requestedVisible)
             Qt.callLater(root.playStatusMotion);
     }
 
     Component.onCompleted: {
-        if (root.visible) {
-            root.requestInitialFocus();
-            root.playShellEnterMotion();
-        }
+        if (root.requestedVisible && !root.mounted)
+            root.beginOpenPresentation();
     }
 
     ParallelAnimation {
@@ -124,7 +162,6 @@ PanelWindow {
             target: shellSurface
             property: "opacity"
 
-            from: 0.0
             to: root.theme.opacityEnabled
 
             duration: root.theme.motionPanel
@@ -132,14 +169,47 @@ PanelWindow {
         }
 
         NumberAnimation {
-            target: shellTranslate
-            property: "x"
+            target: shellSurface
+            property: "scale"
 
-            from: root.theme.spaceSm
-            to: 0
+            to: 1.0
 
             duration: root.theme.motionPanel
             easing.type: root.theme.easingEnter
+        }
+    }
+
+    ParallelAnimation {
+        id: shellExitAnimation
+
+        NumberAnimation {
+            target: shellSurface
+            property: "opacity"
+
+            to: 0.0
+
+            duration: root.theme.motionPanel
+            easing.type: root.theme.easingStandard
+        }
+
+        NumberAnimation {
+            target: shellSurface
+            property: "scale"
+
+            to: root.closedPresentationScale
+
+            duration: root.theme.motionPanel
+            easing.type: root.theme.easingStandard
+        }
+
+        onFinished: {
+            if (root.requestedVisible) {
+                root.beginOpenPresentation();
+                return;
+            }
+
+            root.mounted = false;
+            root.presentationScreen = null;
         }
     }
 
@@ -186,15 +256,36 @@ PanelWindow {
 
         anchors.fill: parent
 
-        opacity: root.theme.opacityEnabled
-
-        transform: Translate {
-            id: shellTranslate
-            x: 0
-        }
+        opacity: 0.0
+        scale: root.closedPresentationScale
+        transformOrigin: Item.Center
 
         theme: root.theme
         surfaceRole: "glass-raised"
+        bordered: false
+        fillEnabled: false
+
+        Components.JcHudFrame {
+            id: shellHudFrame
+
+            anchors.fill: parent
+            anchors.margins: root.theme.space2Xs
+
+            theme: root.theme
+            surfaceRole: "glass-raised"
+
+            fillEnabled: true
+            fillColor: root.theme.surfaceGlassRaised
+            contentPadding: 0
+
+            cutSize: root.theme.spaceLg
+            accentLength: root.theme.controlHeightLarge * 2
+
+            glowEnabled: true
+            showInnerFrame: true
+            showCornerAccents: true
+            showSecondaryAccent: true
+        }
         cornerRadius: root.theme.radiusXl
 
         ColumnLayout {
@@ -206,6 +297,56 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: root.theme.spaceMd
+
+                Item {
+                    id: headerHudIndicator
+
+                    Layout.preferredWidth:
+                        root.theme.controlHeightDefault
+                    Layout.preferredHeight:
+                        root.theme.controlHeightDefault
+                    Layout.alignment: Qt.AlignVCenter
+
+                    Rectangle {
+                        id: headerHudConnector
+
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.horizontalCenter
+                        anchors.right: parent.right
+
+                        height: root.theme.borderWidthStrong
+
+                        color: root.theme.primary
+                        opacity: root.theme.opacityDisabled
+                    }
+
+                    Rectangle {
+                        anchors.centerIn: parent
+
+                        width: root.theme.iconSizeLg
+                        height: width
+                        radius: width / 2
+
+                        color: root.theme.transparentSurface
+
+                        border.width:
+                            root.theme.borderWidthThin
+                        border.color:
+                            root.theme.hudInnerFrame
+                    }
+
+                    Rectangle {
+                        id: headerHudCore
+
+                        anchors.centerIn: parent
+
+                        width: root.theme.spaceSm
+                        height: width
+                        radius: width / 2
+
+                        color: root.theme.primary
+                    }
+                }
 
                 Components.JcSectionHeader {
                     Layout.fillWidth: true
@@ -289,6 +430,34 @@ PanelWindow {
                 spacing: root.theme.spaceMd
 
                 opacity: root.theme.opacityEnabled
+
+                Rectangle {
+                    id: statusHudIndicator
+
+                    Layout.preferredWidth: root.theme.spaceSm
+                    Layout.preferredHeight: root.theme.spaceSm
+                    Layout.alignment: Qt.AlignVCenter
+
+                    radius: width / 2
+
+                    color: root.transitionLocked
+                        ? root.theme.warning
+                        : root.theme.success
+
+                    border.width:
+                        root.theme.borderWidthThin
+                    border.color:
+                        root.transitionLocked
+                            ? root.theme.warningBorder
+                            : root.theme.successBorder
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: root.theme.motionSelection
+                            easing.type: root.theme.easingStandard
+                        }
+                    }
+                }
 
                 Text {
                     text: root.statusText

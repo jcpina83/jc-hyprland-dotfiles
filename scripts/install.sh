@@ -24,6 +24,10 @@ base="$config_home/jc-hyprland-dotfiles"
 local_dir="$base/local"
 bin_dir="$base/bin"
 
+# Stable user-facing commands. Desktop/runtime consumers keep
+# using the canonical installed runtime wrappers in $bin_dir.
+public_bin_dir="$HOME/.local/bin"
+
 systemd_user_dir="$config_home/systemd/user"
 
 wallpaper_rotation_service="$repo_root/config/systemd/user/jc-wallpaper-rotation.service"
@@ -202,6 +206,7 @@ log "Distro: $distro"
 run mkdir -p \
     "$local_dir" \
     "$bin_dir" \
+    "$public_bin_dir" \
     "$hypr_dir" \
     "$quickshell_dir" \
     "$systemd_user_dir"
@@ -321,6 +326,29 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/theme.sh" \
     "$bin_dir/jc-theme"
+
+# ------------------------------------------------------------------------------
+# Public CLI entry points
+#
+# ~/.config/jc-hyprland-dotfiles/bin remains the canonical runtime layer.
+# Only stable user-facing commands are exposed through ~/.local/bin.
+# ------------------------------------------------------------------------------
+
+ensure_symlink \
+    "$bin_dir/jc-control-center" \
+    "$public_bin_dir/jc-control-center"
+
+ensure_symlink \
+    "$bin_dir/jc-displayctl" \
+    "$public_bin_dir/jc-displayctl"
+
+ensure_symlink \
+    "$bin_dir/jc-displaycfg" \
+    "$public_bin_dir/jc-displaycfg"
+
+ensure_symlink \
+    "$bin_dir/jc-theme" \
+    "$public_bin_dir/jc-theme"
 
 # ------------------------------------------------------------------------------
 # Quickshell configuration
@@ -466,6 +494,13 @@ echo "  $bin_dir/jc-displayctl"
 echo "  $bin_dir/jc-displaycfg"
 echo "  $bin_dir/network-traffic.sh"
 echo "  $bin_dir/amd-gpu.sh"
+
+echo
+echo "Public CLI:"
+echo "  $public_bin_dir/jc-control-center"
+echo "  $public_bin_dir/jc-displayctl"
+echo "  $public_bin_dir/jc-displaycfg"
+echo "  $public_bin_dir/jc-theme"
 
 echo
 echo "Quickshell:"

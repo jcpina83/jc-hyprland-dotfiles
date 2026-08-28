@@ -151,6 +151,9 @@ Scope {
     // Surface hierarchy
     // -------------------------------------------------------------------------
 
+    readonly property color transparentSurface:
+        Qt.rgba(0, 0, 0, 0)
+
     readonly property color surfaceSunken:
         root.colorToken("surfaceSunken", canvasAlt)
 
@@ -381,6 +384,73 @@ Scope {
         info.g,
         info.b,
         root.opacityToken("feedbackBorder", 0.34)
+    )
+
+    // =========================================================================
+    // HUD / technical framing
+    // =========================================================================
+
+    readonly property color hudSurface: Qt.rgba(
+        surfaceBase.r,
+        surfaceBase.g,
+        surfaceBase.b,
+        root.opacityToken("hudSurface", 0.18)
+    )
+
+    readonly property color hudSurfaceRaised: Qt.rgba(
+        surfaceRaised.r,
+        surfaceRaised.g,
+        surfaceRaised.b,
+        root.opacityToken("hudSurfaceRaised", 0.24)
+    )
+
+    readonly property color hudSelectedSurface: Qt.rgba(
+        accent.r,
+        accent.g,
+        accent.b,
+        root.opacityToken("hudSelectedSurface", 0.12)
+    )
+
+    readonly property color hudInnerFrame: Qt.rgba(
+        primary.r,
+        primary.g,
+        primary.b,
+        root.opacityToken("hudInnerFrame", 0.22)
+    )
+
+    readonly property color hudFrame: Qt.rgba(
+        primary.r,
+        primary.g,
+        primary.b,
+        root.opacityToken("hudFrame", 0.86)
+    )
+
+    readonly property color hudGlowSoft: Qt.rgba(
+        primary.r,
+        primary.g,
+        primary.b,
+        root.opacityToken("hudGlowSoft", 0.06)
+    )
+
+    readonly property color hudGlowMedium: Qt.rgba(
+        primary.r,
+        primary.g,
+        primary.b,
+        root.opacityToken("hudGlowMedium", 0.12)
+    )
+
+    readonly property color hudGlowStrong: Qt.rgba(
+        primary.r,
+        primary.g,
+        primary.b,
+        root.opacityToken("hudGlowStrong", 0.20)
+    )
+
+    readonly property color hudSecondaryAccent: Qt.rgba(
+        secondary.r,
+        secondary.g,
+        secondary.b,
+        root.opacityToken("hudSecondaryAccent", 0.72)
     )
 
     // =========================================================================

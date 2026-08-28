@@ -1,0 +1,122 @@
+/* ============================================================================
+ * jc-hyprland-dotfiles
+ * Theme: JC Holo
+ * Shared GTK CSS palette
+ * ========================================================================== */
+
+@define-color bg             #07111a;
+@define-color bg-alt         #091722;
+@define-color surface        #0a1824;
+@define-color surface-alt    #0d2231;
+
+@define-color foreground     #e6faff;
+@define-color foreground-alt #83a9b8;
+@define-color muted          #527384;
+
+@define-color primary        #20d9ff;
+@define-color secondary      #ff9d32;
+@define-color accent         #75ecff;
+
+@define-color green          #32f5a0;
+@define-color yellow         #ffb84d;
+@define-color orange         #ff9f43;
+@define-color red            #ff536c;
+@define-color pink           #ff5cc8;
+@define-color teal           #21d4b4;
+@define-color cyan           #20d9ff;
+
+@define-color glass          rgba(9, 11, 16, 0.82);
+@define-color glass-light    rgba(21, 26, 34, 0.90);
+@define-color glass-hover    rgba(33, 41, 54, 0.94);
+@define-color glass-border   rgba(0, 229, 255, 0.28);
+
+
+/* ============================================================================
+ * Semantic Design System API
+ * ========================================================================== */
+
+/* Canvas */
+@define-color canvas          @bg;
+@define-color canvas-alt      @bg-alt;
+
+/* Surface / glass hierarchy */
+@define-color surface-sunken       @bg-alt;
+@define-color surface-base         @surface;
+@define-color surface-raised       @surface-alt;
+@define-color surface-glass        @glass;
+@define-color surface-glass-raised @glass-light;
+@define-color surface-overlay      @glass-light;
+@define-color surface-interactive  @surface-alt;
+@define-color surface-hover        @glass-hover;
+@define-color surface-pressed      rgba(43, 54, 70, 0.96);
+@define-color surface-selected     rgba(0, 229, 255, 0.14);
+@define-color scrim                rgba(0, 0, 0, 0.46);
+
+/* Borders */
+@define-color border-subtle  @glass-border;
+@define-color border-default rgba(0, 229, 255, 0.30);
+@define-color border-strong  rgba(0, 229, 255, 0.44);
+@define-color border-accent  rgba(124, 255, 107, 0.36);
+@define-color border-focus   rgba(0, 229, 255, 0.68);
+
+/* Typography */
+@define-color text-primary   @foreground;
+@define-color text-secondary @foreground-alt;
+@define-color text-muted     @muted;
+
+/* Brand / interaction */
+@define-color action-primary   @primary;
+@define-color action-secondary @secondary;
+@define-color action-accent    @accent;
+
+/* Semantic states */
+@define-color state-success @green;
+@define-color state-warning @yellow;
+@define-color state-danger  @red;
+@define-color state-info    @cyan;
+
+/* Control interaction contract */
+@define-color control-surface-default  @surface-interactive;
+@define-color control-surface-hover    @surface-hover;
+@define-color control-surface-pressed  @surface-pressed;
+@define-color control-surface-selected @surface-selected;
+
+@define-color control-border-default  @border-default;
+@define-color control-border-hover    @border-strong;
+@define-color control-border-pressed  @border-strong;
+@define-color control-border-selected @border-accent;
+@define-color control-border-focus    @border-focus;
+
+@define-color control-text-default   @text-primary;
+@define-color control-text-secondary @text-secondary;
+@define-color control-text-disabled  @text-muted;
+@define-color control-text-selected  @action-accent;
+
+@define-color control-icon-default  @text-secondary;
+@define-color control-icon-active   @action-accent;
+@define-color control-icon-disabled @text-muted;
+
+/* Semantic feedback */
+@define-color success-surface rgba(76, 255, 154, 0.12);
+@define-color success-border  rgba(76, 255, 154, 0.34);
+
+@define-color warning-surface rgba(255, 230, 109, 0.12);
+@define-color warning-border  rgba(255, 230, 109, 0.34);
+
+@define-color danger-surface rgba(255, 77, 109, 0.12);
+@define-color danger-border  rgba(255, 77, 109, 0.34);
+
+@define-color info-surface rgba(0, 229, 255, 0.12);
+@define-color info-border  rgba(0, 229, 255, 0.34);
+
+
+/* Compatibility aliases */
+
+@define-color bg_alt         @bg-alt;
+@define-color surface_alt    @surface-alt;
+
+@define-color foreground_alt @foreground-alt;
+
+@define-color glass_light    @glass-light;
+@define-color glass_hover    @glass-hover;
+@define-color glass_border   @glass-border;

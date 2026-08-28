@@ -399,19 +399,21 @@ are respected because navigation only targets delegates whose
 Control Center motion uses the semantic motion tokens from `Theme.qml` and is
 kept intentionally lightweight:
 
-- opening the shell fades and translates the visual surface by a short distance;
+- opening the shell fades and scales the centered visual surface by a subtle amount;
 - loading or changing the hosted module fades and translates the content;
 - footer status changes use a short opacity/color transition;
 - navigation selection continues to use the motion already provided by
   `JcNavItem`.
 
-The `PanelWindow` geometry itself is not animated. Layout-managed `x`/`y`
-coordinates are not animated either; translation is applied through QML
-`Translate` transforms so layouts retain geometry ownership.
+The `PanelWindow` geometry itself is not animated. The centered shell surface
+uses opacity and scale only; hosted module content may continue to use a small
+QML `Translate` transform without transferring geometry ownership away from
+layouts.
 
-Closing remains immediate and existing guarded-transition behavior is
-unchanged. Display Safe Apply, persistence, and feature mutation services do
-not depend on animation completion.
+Closing uses the matching opacity/scale exit motion. `ControlCenterShell`
+keeps the `PanelWindow` mounted until that presentation animation completes,
+while guarded transitions remain unchanged. Display Safe Apply, persistence,
+and feature mutation services do not depend on animation completion.
 
 
 ---
@@ -459,3 +461,35 @@ and real-host runtime validation.
 Phase 2A.4 is next. It will migrate the current Displays visual layer to the
 shared component library while preserving observed, draft, runtime, and
 persistent state boundaries.
+
+
+---
+
+### H1.3.5 — Centered Control Center presentation
+
+The JC Holo presentation layer promotes the production Control Center from the
+former top-right sidebar treatment to a centered HUD/modal presentation on the
+resolved target output.
+
+Presentation ownership remains split cleanly:
+
+```text
+Main.qml
+    |
+    | requestedVisible
+    v
+ControlCenterShell
+    |-- presentationScreen
+    |-- mounted lifecycle
+    |-- fade + scale enter
+    `-- fade + scale exit
+```
+
+`requestedVisible` expresses application intent, while `mounted` keeps the
+`PanelWindow` alive long enough for exit motion to finish. The active target
+screen is frozen in `presentationScreen` during close so the shell cannot jump
+between outputs while disappearing.
+
+The centered presentation intentionally retires the old top/right anchoring and
+the shell-level `Translate` slide. Hosted module motion and all display runtime,
+Safe Apply, rollback, and persistence ownership remain unchanged.

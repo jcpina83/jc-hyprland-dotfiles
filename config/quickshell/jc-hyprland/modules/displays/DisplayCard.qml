@@ -6,7 +6,9 @@ import qs.components as Components
 Components.JcSurface {
     id: root
 
-    surfaceRole: "raised"
+    surfaceRole: "glass"
+    bordered: false
+    fillEnabled: false
     cornerRadius: root.theme.radiusMd
 
     property var monitor
@@ -52,6 +54,35 @@ Components.JcSurface {
     }
 
     implicitHeight: content.implicitHeight + (root.theme.spaceMd * 2)
+
+    Components.JcHudFrame {
+        id: displayCardHudFrame
+
+        anchors.fill: parent
+        anchors.margins: root.theme.space2Xs
+
+        theme: root.theme
+        surfaceRole: "glass"
+
+        fillEnabled: true
+        fillColor: root.theme.hudSurface
+        contentPadding: 0
+
+        cutSize: root.theme.spaceSm
+        accentLength: root.theme.controlHeightDefault
+
+        focused:
+            root.monitor
+            && root.monitor.focused
+
+        glowEnabled: false
+        showInnerFrame: true
+        showCornerAccents: true
+
+        showSecondaryAccent:
+            root.draft
+            && root.draft.dirty
+    }
 
     ColumnLayout {
         id: content

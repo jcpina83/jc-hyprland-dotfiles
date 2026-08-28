@@ -188,7 +188,10 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
 
         width: root.theme.borderWidthStrong
-        height: root.theme.controlHeightCompact
+        height: Math.max(
+            root.theme.spaceLg,
+            root.height - (root.theme.spaceMd * 2)
+        )
 
         radius: root.theme.radiusPill
         color: root.theme.controlIconActive
@@ -264,6 +267,7 @@ Item {
             }
         }
     }
+
 
     MouseArea {
         id: pointerArea

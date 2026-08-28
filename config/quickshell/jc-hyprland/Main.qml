@@ -263,7 +263,7 @@ Scope {
     ControlCenter.ControlCenterShell {
         id: controlCenterShell
 
-        visible: root.controlCenterVisible
+        requestedVisible: root.controlCenterVisible
 
         targetScreen:
             root.resolveScreen(

@@ -157,6 +157,82 @@ PanelWindow {
                     Layout.fillWidth: true
 
                     theme: root.theme
+                    title: "HUD frames"
+                    subtitle:
+                        "Technical glass framing · cyan energy + amber detail"
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: root.theme.spaceMd
+
+                    Components.JcHudFrame {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight:
+                            root.theme.controlHeightLarge * 2.2
+
+                        theme: root.theme
+                        surfaceRole: "glass"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Glass HUD"
+                            color: root.theme.textPrimary
+                            font.family: root.theme.fontFamilySans
+                            font.pixelSize: root.theme.textSizeBody
+                            font.weight: root.theme.fontWeightMedium
+                        }
+                    }
+
+                    Components.JcHudFrame {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight:
+                            root.theme.controlHeightLarge * 2.2
+
+                        theme: root.theme
+                        surfaceRole: "glass-raised"
+                        selected: true
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Selected HUD"
+                            color: root.theme.textPrimary
+                            font.family: root.theme.fontFamilySans
+                            font.pixelSize: root.theme.textSizeBody
+                            font.weight: root.theme.fontWeightMedium
+                        }
+                    }
+
+                    Components.JcHudFrame {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight:
+                            root.theme.controlHeightLarge * 2.2
+
+                        theme: root.theme
+                        surfaceRole: "glass"
+                        focused: true
+                        showSecondaryAccent: false
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Focused HUD"
+                            color: root.theme.textPrimary
+                            font.family: root.theme.fontFamilySans
+                            font.pixelSize: root.theme.textSizeBody
+                            font.weight: root.theme.fontWeightMedium
+                        }
+                    }
+                }
+
+                Components.JcDivider {
+                    Layout.fillWidth: true
+                    theme: root.theme
+                }
+
+                Components.JcSectionHeader {
+                    Layout.fillWidth: true
+
+                    theme: root.theme
                     title: "Actions"
                     subtitle:
                         "Default, selected and disabled controls"

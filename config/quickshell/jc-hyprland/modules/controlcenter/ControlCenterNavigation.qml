@@ -150,8 +150,32 @@ Item {
         anchors.fill: parent
 
         theme: root.theme
-        surfaceRole: "base"
+        surfaceRole: "glass"
+        bordered: false
+        fillEnabled: false
         cornerRadius: root.theme.radiusLg
+
+        Components.JcHudFrame {
+            id: navigationHudFrame
+
+            anchors.fill: parent
+            anchors.margins: root.theme.space2Xs
+
+            theme: root.theme
+            surfaceRole: "glass"
+
+            fillEnabled: true
+            fillColor: root.theme.surfaceGlass
+            contentPadding: 0
+
+            cutSize: root.theme.spaceMd
+            accentLength: root.theme.controlHeightLarge
+
+            glowEnabled: false
+            showInnerFrame: true
+            showCornerAccents: true
+            showSecondaryAccent: false
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -183,6 +207,8 @@ Item {
                     model: root.navigationItems
 
                     delegate: Components.JcNavItem {
+                        id: navItem
+
                         required property int index
                         required property var modelData
 
@@ -201,6 +227,7 @@ Item {
                             && (!root.navigationLocked
                                 || root.activeModuleId
                                     === String(modelData.id))
+
 
                         onClicked:
                             root.moduleRequested(

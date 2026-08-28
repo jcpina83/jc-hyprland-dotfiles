@@ -130,6 +130,10 @@ expected_targets=(
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-control-center"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displayctl"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displaycfg"
+    "$test_home/.local/bin/jc-control-center"
+    "$test_home/.local/bin/jc-displayctl"
+    "$test_home/.local/bin/jc-displaycfg"
+    "$test_home/.local/bin/jc-theme"
     "$test_home/.config/jc-hyprland-dotfiles/local/monitors.lua"
     "$test_home/.config/hypr/jc-dotfiles"
 )
@@ -157,6 +161,10 @@ unexpected_links=(
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-control-center"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displayctl"
     "$test_home/.config/jc-hyprland-dotfiles/bin/jc-displaycfg"
+    "$test_home/.local/bin/jc-control-center"
+    "$test_home/.local/bin/jc-displayctl"
+    "$test_home/.local/bin/jc-displaycfg"
+    "$test_home/.local/bin/jc-theme"
     "$test_home/.config/jc-hyprland-dotfiles/local/monitors.lua"
     "$test_home/.config/hypr/jc-dotfiles"
 )

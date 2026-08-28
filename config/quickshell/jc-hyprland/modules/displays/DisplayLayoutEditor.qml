@@ -6,7 +6,9 @@ import qs.components as Components
 Components.JcSurface {
     id: root
 
-    surfaceRole: "raised"
+    surfaceRole: "glass"
+    bordered: false
+    fillEnabled: false
     cornerRadius: root.theme.radiusMd
 
     property var draftStore
@@ -292,6 +294,28 @@ Components.JcSurface {
         root.recalculateBounds();
     }
 
+    Components.JcHudFrame {
+        id: layoutHudFrame
+
+        anchors.fill: parent
+        anchors.margins: root.theme.space2Xs
+
+        theme: root.theme
+        surfaceRole: "glass"
+
+        fillEnabled: true
+        fillColor: root.theme.hudSurface
+        contentPadding: 0
+
+        cutSize: root.theme.spaceMd
+        accentLength: root.theme.controlHeightLarge
+
+        glowEnabled: false
+        showInnerFrame: true
+        showCornerAccents: true
+        showSecondaryAccent: false
+    }
+
     ColumnLayout {
         id: contentColumn
 
@@ -347,10 +371,10 @@ Components.JcSurface {
             clip: true
 
             radius: root.theme.radiusMd
-            color: root.theme.surfaceSunken
+            color: root.theme.hudSurface
 
             border.width: root.theme.borderWidthThin
-            border.color: root.theme.borderSubtle
+            border.color: root.theme.hudInnerFrame
 
             Repeater {
                 model: root.projectedMonitors
