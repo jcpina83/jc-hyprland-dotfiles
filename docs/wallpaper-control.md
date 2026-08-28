@@ -243,3 +243,46 @@ Control Center mutation path must use `jc-wallpaperctl apply`.
 
 Phase 2B.4.1 does not add an Apply button to QML. QML integration begins only
 after this CLI transaction is validated.
+
+
+## Wallpaper Apply service
+
+Phase 2B.4.2 adds `WallpaperApplyService.qml` as the only Quickshell owner of
+the stable wallpaper mutation API.
+
+```text
+WallpaperDraftStore
+        |
+        v
+WallpaperApplyService.qml
+        |
+        v
+jc-wallpaperctl apply ... --json
+        |
+        v
+transactional backend
+```
+
+`WallpaperApplyService.qml` sends only dirty targets. MAIN-only drafts use
+`--main`, SECONDARY-only drafts use `--secondary`, and a two-output draft is
+sent as one `--main ... --secondary ...` invocation.
+
+The service exposes `busy`, `canApply`, `errorMessage`, `statusMessage`, and
+`lastResult`. A successful backend response must report `status=applied`,
+`committed=true`, `rolledBack=false`, and `runtimeVerified=true`.
+
+After a successful transaction, `WallpaperDraftStore.prepareForRefreshAfterApply()`
+marks the next observed-state refresh as authoritative. That single refresh
+may replace the old draft baseline with the newly observed effective state.
+Ordinary refreshes while a draft is dirty keep the existing conflict
+detection behavior.
+
+A backend `rolled-back` response preserves the QML draft, exposes the failure,
+and refreshes observed state without accepting it as a successful Apply.
+
+`WallpaperApplyService.qml` may invoke only the stable `jc-wallpaperctl`
+boundary. It does not know about `awww`, `hyprpaper`, preference files,
+`wallpaper-manager.sh`, or rotation internals.
+
+Phase 2B.4.2 wires the service into `Main.qml` but intentionally adds no Apply
+button to `WallpaperView.qml`. UI activation belongs to Phase 2B.4.3.

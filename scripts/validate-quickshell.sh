@@ -56,6 +56,7 @@ required_files=(
     "services/DisplayPersistenceService.qml"
     "services/WallpaperService.qml"
     "services/WallpaperDraftStore.qml"
+    "services/WallpaperApplyService.qml"
     "modules/wallpapers/WallpaperView.qml"
     "modules/wallpapers/WallpaperPreviewCard.qml"
     "modules/wallpapers/WallpaperTile.qml"
@@ -75,6 +76,114 @@ for relative in "${required_files[@]}"; do
         ok "$relative"
     else
         fail "missing or unreadable: $relative"
+    fi
+done
+
+
+printf '\n==> Phase 2B.4.2 Wallpaper Apply service\n'
+
+wallpaper_apply_service="$config_dir/services/WallpaperApplyService.qml"
+wallpaper_draft_store="$config_dir/services/WallpaperDraftStore.qml"
+wallpaper_main="$config_dir/Main.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for wallpaper_apply_service_contract in \
+    'Scope {' \
+    'property var wallpaperService' \
+    'property var draftStore' \
+    'property bool applying: false' \
+    'property bool awaitingRefresh: false' \
+    'readonly property bool busy:' \
+    'readonly property bool canApply:' \
+    'property var lastResult: null' \
+    'signal applied(bool mainChanged, bool secondaryChanged)' \
+    'signal rolledBack(string message)' \
+    'signal failed(string message)' \
+    'function wallpaperctlPath() {' \
+    'function buildApplyArguments() {' \
+    'function applyDirty(): void {' \
+    '"apply"' \
+    '"--main"' \
+    '"--secondary"' \
+    '"--json"' \
+    'root.draftStore.mainDirty' \
+    'root.draftStore.secondaryDirty' \
+    'payload.status === "applied"' \
+    'payload.status === "rolled-back"' \
+    'root.draftStore.prepareForRefreshAfterApply();' \
+    'root.wallpaperService.refresh();' \
+    'Process {' \
+    'StdioCollector {' \
+    'Connections {'
+do
+    if grep -Fq "$wallpaper_apply_service_contract" \
+        "$wallpaper_apply_service"
+    then
+        ok "WallpaperApplyService contract: $wallpaper_apply_service_contract"
+    else
+        fail "WallpaperApplyService contract missing: $wallpaper_apply_service_contract"
+    fi
+done
+
+for wallpaper_apply_forbidden_contract in \
+    '"awww"' \
+    '"hyprpaper"' \
+    '"systemctl"' \
+    'wallpaper.env' \
+    'local/wallpapers/' \
+    'wallpaper-manager'
+do
+    if grep -Fq "$wallpaper_apply_forbidden_contract" \
+        "$wallpaper_apply_service"
+    then
+        fail "WallpaperApplyService bypasses stable mutation boundary: $wallpaper_apply_forbidden_contract"
+    else
+        ok "WallpaperApplyService excludes backend detail: $wallpaper_apply_forbidden_contract"
+    fi
+done
+
+for wallpaper_draft_reconcile_contract in \
+    'property bool syncAfterApplyPending: false' \
+    'function prepareForRefreshAfterApply(): void {' \
+    'root.syncAfterApplyPending = true;' \
+    'if (root.syncAfterApplyPending) {' \
+    'root.syncAfterApplyPending = false;' \
+    'root.syncFromObserved(true);'
+do
+    if grep -Fq "$wallpaper_draft_reconcile_contract" \
+        "$wallpaper_draft_store"
+    then
+        ok "WallpaperDraftStore Apply reconciliation: $wallpaper_draft_reconcile_contract"
+    else
+        fail "WallpaperDraftStore Apply reconciliation missing: $wallpaper_draft_reconcile_contract"
+    fi
+done
+
+for wallpaper_apply_main_contract in \
+    'readonly property var wallpaperApplyServiceHandle: wallpaperApplyService' \
+    'Services.WallpaperApplyService {' \
+    'id: wallpaperApplyService' \
+    'wallpaperService: wallpaperService' \
+    'draftStore: wallpaperDraftStore'
+do
+    if grep -Fq "$wallpaper_apply_main_contract" "$wallpaper_main"; then
+        ok "Main WallpaperApplyService wiring: $wallpaper_apply_main_contract"
+    else
+        fail "Main WallpaperApplyService wiring missing: $wallpaper_apply_main_contract"
+    fi
+done
+
+for wallpaper_apply_doc_contract in \
+    '## Wallpaper Apply service' \
+    'WallpaperApplyService.qml' \
+    'prepareForRefreshAfterApply()' \
+    'only dirty targets' \
+    'Phase 2B.4.2'
+do
+    if grep -Fq "$wallpaper_apply_doc_contract" "$wallpaper_doc"; then
+        ok "Wallpaper Apply service documentation: $wallpaper_apply_doc_contract"
+    else
+        fail "Wallpaper Apply service documentation missing: $wallpaper_apply_doc_contract"
     fi
 done
 

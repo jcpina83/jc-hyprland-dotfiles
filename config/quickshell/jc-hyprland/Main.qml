@@ -94,6 +94,7 @@ Scope {
     // Explicit binding handle for dynamically-instantiated feature views.
     readonly property var monitorServiceHandle: monitorService
     readonly property var wallpaperServiceHandle: wallpaperService
+    readonly property var wallpaperApplyServiceHandle: wallpaperApplyService
     readonly property var themeHandle: theme
 
     function resolveScreen(outputName) {
@@ -269,6 +270,13 @@ Scope {
         id: wallpaperDraftStore
 
         wallpaperService: wallpaperService
+    }
+
+    Services.WallpaperApplyService {
+        id: wallpaperApplyService
+
+        wallpaperService: wallpaperService
+        draftStore: wallpaperDraftStore
     }
 
     Services.DisplayDraftStore {

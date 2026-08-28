@@ -16,6 +16,7 @@ Scope {
 
     property bool initialized: false
     property bool observedChangedWhileDirty: false
+    property bool syncAfterApplyPending: false
 
     readonly property bool mainDirty:
         root.initialized
@@ -107,7 +108,12 @@ Scope {
         root.observedChangedWhileDirty = false;
     }
 
+    function prepareForRefreshAfterApply(): void {
+        root.syncAfterApplyPending = true;
+    }
+
     function reset(): void {
+        root.syncAfterApplyPending = false;
         root.syncFromObserved(true);
         root.selectedTarget = "main";
         root.resetCompleted();
@@ -117,6 +123,12 @@ Scope {
         target: root.wallpaperService
 
         function onRefreshed() {
+            if (root.syncAfterApplyPending) {
+                root.syncAfterApplyPending = false;
+                root.syncFromObserved(true);
+                return;
+            }
+
             root.syncFromObserved(false);
         }
     }
