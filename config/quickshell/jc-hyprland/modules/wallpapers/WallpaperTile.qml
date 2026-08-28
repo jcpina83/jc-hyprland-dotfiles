@@ -17,6 +17,7 @@ Item {
     property bool draftSelected: false
     property bool currentForTarget: false
     property bool keyboardCurrent: false
+    property bool controlEnabled: true
     property int itemIndex: -1
 
     readonly property string stateLabel:
@@ -44,8 +45,12 @@ Item {
             : ""
 
     activeFocusOnTab: false
+    opacity: root.controlEnabled ? 1 : root.theme.opacityDisabled
 
     Keys.onPressed: event => {
+        if (!root.controlEnabled)
+            return;
+
         if (event.key === Qt.Key_Return
                 || event.key === Qt.Key_Enter
                 || event.key === Qt.Key_Space) {
@@ -219,8 +224,11 @@ Item {
     MouseArea {
         anchors.fill: parent
 
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        enabled: root.controlEnabled
+        hoverEnabled: root.controlEnabled
+        cursorShape: root.controlEnabled
+            ? Qt.PointingHandCursor
+            : Qt.ArrowCursor
 
         onPressed: root.forceActiveFocus()
         onClicked: root.activated(root.wallpaperPath, root.itemIndex)

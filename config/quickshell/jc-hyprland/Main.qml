@@ -22,9 +22,19 @@ Scope {
         monitorApplyService.busy
         || monitorApplyService.pendingConfirmation
         || displayPersistenceService.saving
+        || wallpaperApplyService.busy
 
     readonly property string controlCenterStatusText: {
         if (root.activeModuleId === "wallpapers") {
+            if (wallpaperApplyService.applying)
+                return "Applying wallpaper changes…";
+
+            if (wallpaperApplyService.awaitingRefresh)
+                return "Reconciling wallpaper state…";
+
+            if (wallpaperApplyService.errorMessage.length > 0)
+                return "Wallpaper Apply error";
+
             if (wallpaperDraftStore.observedChangedWhileDirty)
                 return "Wallpaper state changed";
 
@@ -61,11 +71,17 @@ Scope {
 
     readonly property string controlCenterStatusDetail: {
         if (root.activeModuleId === "wallpapers") {
+            if (wallpaperApplyService.busy)
+                return wallpaperApplyService.statusMessage;
+
+            if (wallpaperApplyService.errorMessage.length > 0)
+                return wallpaperApplyService.errorMessage;
+
             if (wallpaperDraftStore.observedChangedWhileDirty)
                 return "Reset the draft before selecting another wallpaper.";
 
             if (wallpaperDraftStore.hasDirty)
-                return "Selection is draft-only; runtime has not changed.";
+                return "Review the draft, then choose Apply or Reset.";
 
             if (wallpaperService.errorMessage.length > 0)
                 return wallpaperService.errorMessage;
@@ -312,9 +328,11 @@ Scope {
         Wallpapers.WallpaperView {
             wallpaperService: root.wallpaperServiceHandle
             draftStore: wallpaperDraftStore
+            applyService: root.wallpaperApplyServiceHandle
             theme: root.themeHandle
 
             onRefreshRequested: wallpaperService.refresh()
+            onApplyRequested: wallpaperApplyService.applyDirty()
         }
     }
 

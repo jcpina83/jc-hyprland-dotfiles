@@ -286,3 +286,47 @@ boundary. It does not know about `awww`, `hyprpaper`, preference files,
 
 Phase 2B.4.2 wires the service into `Main.qml` but intentionally adds no Apply
 button to `WallpaperView.qml`. UI activation belongs to Phase 2B.4.3.
+
+
+## Wallpaper Apply UI integration
+
+Phase 2B.4.3 connects the draft-only gallery to the Apply service without
+moving process ownership into the view.
+
+```text
+WallpaperView.qml
+    |
+    | applyRequested()
+    v
+Main.qml
+    |
+    v
+WallpaperApplyService.applyDirty()
+    |
+    v
+jc-wallpaperctl apply
+```
+
+The Apply button appears whenever a wallpaper draft is pending and is enabled
+only when `WallpaperApplyService.canApply` is true. During Apply and the
+authoritative observed-state refresh, target switching, wallpaper activation,
+filters, Reset, Refresh, navigation, and Control Center close are locked.
+
+A successful flow is:
+
+`Apply → backend → observed refresh → clean draft`.
+
+The DraftStore post-Apply reconciliation makes the confirmed effective
+wallpapers the new baseline, so MAIN-only, SECONDARY-only, and combined drafts
+all return to `dirtyCount = 0` after the refresh completes.
+
+If the transactional backend returns `rolled-back`, runtime and persisted
+preferences have already been restored by the backend. The UI exposes the
+failure and rollback keeps the draft pending so it may be reviewed, reset, or
+retried.
+
+`WallpaperView.qml` still owns no `Process`, shell command, wallpaper runtime,
+or preference-file mutation. It only emits `applyRequested()`.
+
+Phase 2B.4.3 completes the first end-to-end wallpaper Apply workflow. Manual
+runtime validation covers MAIN-only, SECONDARY-only, and combined drafts.

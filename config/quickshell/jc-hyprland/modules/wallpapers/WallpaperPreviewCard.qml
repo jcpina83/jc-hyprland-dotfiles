@@ -15,6 +15,7 @@ Item {
     property string fitMode: ""
     property bool targetSelected: false
     property bool draftDirty: false
+    property bool controlEnabled: true
 
     signal clicked()
 
@@ -29,9 +30,13 @@ Item {
             : ""
 
     implicitHeight: root.theme.controlHeightLarge * 3
-    activeFocusOnTab: true
+    activeFocusOnTab: root.controlEnabled
+    opacity: root.controlEnabled ? 1 : root.theme.opacityDisabled
 
     Keys.onPressed: event => {
+        if (!root.controlEnabled)
+            return;
+
         if (event.key === Qt.Key_Return
                 || event.key === Qt.Key_Enter
                 || event.key === Qt.Key_Space) {
@@ -199,8 +204,11 @@ Item {
     MouseArea {
         anchors.fill: parent
 
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        enabled: root.controlEnabled
+        hoverEnabled: root.controlEnabled
+        cursorShape: root.controlEnabled
+            ? Qt.PointingHandCursor
+            : Qt.ArrowCursor
 
         onPressed: root.forceActiveFocus()
         onClicked: root.clicked()

@@ -80,6 +80,111 @@ for relative in "${required_files[@]}"; do
 done
 
 
+printf '\n==> Phase 2B.4.3 Wallpaper Apply UI integration\n'
+
+wallpaper_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+wallpaper_preview="$config_dir/modules/wallpapers/WallpaperPreviewCard.qml"
+wallpaper_tile="$config_dir/modules/wallpapers/WallpaperTile.qml"
+wallpaper_main="$config_dir/Main.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+
+for contract in \
+    'property var applyService' \
+    'readonly property bool interactionLocked:' \
+    'readonly property string operationError:' \
+    'signal applyRequested()' \
+    '? "Applying…"' \
+    '? "Reconciling…"' \
+    ': "Apply"' \
+    'root.applyService.canApply' \
+    'onClicked: root.applyRequested()' \
+    'visible: root.operationError.length > 0' \
+    'text: root.operationError' \
+    'controlEnabled: !root.interactionLocked'
+do
+    if grep -Fq "$contract" "$wallpaper_view"; then
+        ok "Wallpaper Apply UI contract: $contract"
+    else
+        fail "Wallpaper Apply UI contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool controlEnabled: true' \
+    'activeFocusOnTab: root.controlEnabled' \
+    'opacity: root.controlEnabled ? 1 : root.theme.opacityDisabled' \
+    'enabled: root.controlEnabled' \
+    'hoverEnabled: root.controlEnabled'
+do
+    if grep -Fq "$contract" "$wallpaper_preview"; then
+        ok "Wallpaper preview Apply lock: $contract"
+    else
+        fail "Wallpaper preview Apply lock missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool controlEnabled: true' \
+    'opacity: root.controlEnabled ? 1 : root.theme.opacityDisabled' \
+    'enabled: root.controlEnabled' \
+    'hoverEnabled: root.controlEnabled'
+do
+    if grep -Fq "$contract" "$wallpaper_tile"; then
+        ok "Wallpaper tile Apply lock: $contract"
+    else
+        fail "Wallpaper tile Apply lock missing: $contract"
+    fi
+done
+
+for contract in \
+    '|| wallpaperApplyService.busy' \
+    'return "Applying wallpaper changes…";' \
+    'return "Reconciling wallpaper state…";' \
+    'return "Wallpaper Apply error";' \
+    'return wallpaperApplyService.statusMessage;' \
+    'return wallpaperApplyService.errorMessage;' \
+    'return "Review the draft, then choose Apply or Reset.";' \
+    'applyService: root.wallpaperApplyServiceHandle' \
+    'onApplyRequested: wallpaperApplyService.applyDirty()'
+do
+    if grep -Fq "$contract" "$wallpaper_main"; then
+        ok "Main wallpaper Apply UI wiring: $contract"
+    else
+        fail "Main wallpaper Apply UI wiring missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-wallpaperctl' \
+    '"awww"' \
+    '"hyprpaper"' \
+    '"systemctl"' \
+    'wallpaper.env' \
+    'wallpaper-manager'
+do
+    if grep -Fq "$forbidden" "$wallpaper_view"; then
+        fail "WallpaperView bypasses Apply service boundary: $forbidden"
+    else
+        ok "WallpaperView preserves Apply service boundary: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Wallpaper Apply UI integration' \
+    'applyRequested()' \
+    'Apply → backend → observed refresh → clean draft' \
+    'rollback keeps the draft pending' \
+    'Phase 2B.4.3'
+do
+    if grep -Fq "$contract" "$wallpaper_doc"; then
+        ok "Wallpaper Apply UI documentation: $contract"
+    else
+        fail "Wallpaper Apply UI documentation missing: $contract"
+    fi
+done
+
+
 printf '\n==> Phase 2B.4.2 Wallpaper Apply service\n'
 
 wallpaper_apply_service="$config_dir/services/WallpaperApplyService.qml"

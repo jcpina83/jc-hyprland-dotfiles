@@ -9,11 +9,30 @@ Item {
 
     property var wallpaperService
     property var draftStore
+    property var applyService
     required property var theme
 
     property string catalogFilter: "all"
 
+    readonly property bool interactionLocked:
+        root.applyService && root.applyService.busy
+
+    readonly property string operationError: {
+        if (root.applyService
+                && root.applyService.errorMessage.length > 0) {
+            return root.applyService.errorMessage;
+        }
+
+        if (root.wallpaperService
+                && root.wallpaperService.errorMessage.length > 0) {
+            return root.wallpaperService.errorMessage;
+        }
+
+        return "";
+    }
+
     signal refreshRequested()
+    signal applyRequested()
 
     readonly property var filteredWallpapers: {
         if (!root.wallpaperService
@@ -66,6 +85,9 @@ Item {
     }
 
     function activateCurrentGridItem(): void {
+        if (root.interactionLocked)
+            return;
+
         const index = wallpaperGrid.currentIndex;
 
         if (index < 0 || index >= root.filteredWallpapers.length)
@@ -124,10 +146,31 @@ Item {
                 visible: root.draftStore && root.draftStore.hasDirty
 
                 theme: root.theme
+
+                text:
+                    root.applyService && root.applyService.applying
+                        ? "Applying…"
+                        : root.applyService
+                            && root.applyService.awaitingRefresh
+                                ? "Reconciling…"
+                                : "Apply"
+
+                controlEnabled:
+                    root.applyService
+                    && root.applyService.canApply
+
+                onClicked: root.applyRequested()
+            }
+
+            Components.JcButton {
+                visible: root.draftStore && root.draftStore.hasDirty
+
+                theme: root.theme
                 text: "Reset"
 
                 controlEnabled:
-                    root.draftStore
+                    !root.interactionLocked
+                    && root.draftStore
                     && !root.draftStore.observedChangedWhileDirty
 
                 onClicked: root.draftStore.reset()
@@ -143,7 +186,8 @@ Item {
                         : "Refresh"
 
                 controlEnabled:
-                    root.wallpaperService
+                    !root.interactionLocked
+                    && root.wallpaperService
                     && !root.wallpaperService.loading
                     && !(root.draftStore && root.draftStore.hasDirty)
 
@@ -152,9 +196,7 @@ Item {
         }
 
         Components.JcSurface {
-            visible:
-                root.wallpaperService
-                && root.wallpaperService.errorMessage.length > 0
+            visible: root.operationError.length > 0
 
             Layout.fillWidth: true
 
@@ -172,9 +214,7 @@ Item {
                 anchors.fill: parent
                 anchors.margins: root.theme.spaceSm
 
-                text: root.wallpaperService
-                    ? root.wallpaperService.errorMessage
-                    : ""
+                text: root.operationError
 
                 color: root.theme.danger
 
@@ -241,6 +281,7 @@ Item {
                 theme: root.theme
 
                 targetId: "main"
+                controlEnabled: !root.interactionLocked
                 outputName: root.wallpaperService
                     ? root.wallpaperService.mainOutput
                     : ""
@@ -275,6 +316,7 @@ Item {
                 theme: root.theme
 
                 targetId: "secondary"
+                controlEnabled: !root.interactionLocked
                 outputName: root.wallpaperService
                     ? root.wallpaperService.secondaryOutput
                     : ""
@@ -328,6 +370,7 @@ Item {
                 theme: root.theme
                 text: "All"
                 compact: true
+                controlEnabled: !root.interactionLocked
                 checked: root.catalogFilter === "all"
 
                 onClicked: root.catalogFilter = "all"
@@ -337,6 +380,7 @@ Item {
                 theme: root.theme
                 text: "Theme"
                 compact: true
+                controlEnabled: !root.interactionLocked
                 checked: root.catalogFilter === "theme"
 
                 onClicked: root.catalogFilter = "theme"
@@ -346,6 +390,7 @@ Item {
                 theme: root.theme
                 text: "Library"
                 compact: true
+                controlEnabled: !root.interactionLocked
                 checked: root.catalogFilter === "library"
 
                 onClicked: root.catalogFilter = "library"
@@ -426,6 +471,7 @@ Item {
                         - root.theme.spaceSm
 
                     theme: root.theme
+                    controlEnabled: !root.interactionLocked
 
                     wallpaperPath:
                         String(modelData.path || "")
@@ -458,6 +504,9 @@ Item {
                     itemIndex: index
 
                     onActivated: (path, itemIndex) => {
+                        if (root.interactionLocked)
+                            return;
+
                         wallpaperGrid.currentIndex = itemIndex;
                         wallpaperGrid.forceActiveFocus();
 
