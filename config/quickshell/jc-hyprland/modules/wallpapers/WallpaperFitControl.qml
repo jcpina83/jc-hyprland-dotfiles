@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 
 import qs.components as Components
 
@@ -18,75 +17,37 @@ Item {
     signal fitSelected(string fitMode)
 
     readonly property var fitOptions: [
-        { label: "Fit", value: "contain", enabled: true },
-        { label: "Fill", value: "cover", enabled: true },
-        { label: "Stretch", value: "stretch", enabled: true },
-        { label: "Center", value: "center", enabled: true }
+        { label: "Fit", value: "contain", iconName: "fit", enabled: true },
+        { label: "Fill", value: "cover", iconName: "fill", enabled: true },
+        { label: "Stretch", value: "stretch", iconName: "stretch", enabled: true },
+        { label: "Center", value: "center", iconName: "center", enabled: true }
     ]
 
-    implicitHeight: root.theme.controlHeightLarge * 1.45
+    implicitHeight: fitChoices.implicitHeight
     opacity: root.controlEnabled ? 1 : root.theme.opacityDisabled
 
-    Components.JcSurface {
-        anchors.fill: parent
-
+    Components.JcChoiceGroup {
+        id: fitChoices
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
         theme: root.theme
-        surfaceRole: "glass"
-        selected: root.targetSelected
+        options: root.fitOptions
+        selectedValue: root.selectedFit
+        controlEnabled: root.controlEnabled
+        centerContent: true
+        onValueSelected: value => root.fitSelected(value)
+    }
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: root.theme.spaceSm
-            spacing: root.theme.spaceXs
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: root.theme.spaceSm
-
-                Text {
-                    Layout.fillWidth: true
-
-                    text:
-                        "Presentation · "
-                        + String(root.targetId).toUpperCase()
-                        + (
-                            root.outputName.length > 0
-                                ? " · " + root.outputName
-                                : ""
-                        )
-
-                    color: root.targetSelected
-                        ? root.theme.accent
-                        : root.theme.textSecondary
-
-                    font.family: root.theme.fontFamilySans
-                    font.pixelSize: root.theme.textSizeCaption
-                    font.weight: root.theme.fontWeightSemibold
-
-                    elide: Text.ElideRight
-                }
-
-                Components.JcChip {
-                    visible: root.draftDirty
-
-                    theme: root.theme
-                    text: "Fit draft"
-                    compact: true
-                    checked: true
-                    controlEnabled: false
-                }
-            }
-
-            Components.JcChoiceGroup {
-                Layout.fillWidth: true
-
-                theme: root.theme
-                options: root.fitOptions
-                selectedValue: root.selectedFit
-                controlEnabled: root.controlEnabled
-
-                onValueSelected: value => root.fitSelected(value)
-            }
-        }
+    Text {
+        visible: root.draftDirty
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        text: "DRAFT"
+        color: root.theme.accent
+        font.family: root.theme.fontFamilySans
+        font.pixelSize: root.theme.textSizeCaption
+        font.weight: root.theme.fontWeightSemibold
+        font.letterSpacing: 0.8
     }
 }

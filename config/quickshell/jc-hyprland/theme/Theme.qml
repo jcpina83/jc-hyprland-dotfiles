@@ -483,6 +483,15 @@ Scope {
     readonly property int controlHeightDefault: 34
     readonly property int controlHeightLarge: 42
 
+    // JC Holo interactive-control geometry.
+    readonly property int controlCornerRadiusCompact: 4
+    readonly property int controlCornerRadiusDefault: 5
+    readonly property int controlAccentThickness: 2
+    readonly property int controlAccentInset: space2Xs
+    readonly property int controlAccentLengthCompact: 10
+    readonly property int controlAccentLengthDefault: 14
+    readonly property int controlContentGap: spaceXs
+
     readonly property int iconSizeSm: 14
     readonly property int iconSizeMd: 18
     readonly property int iconSizeLg: 22

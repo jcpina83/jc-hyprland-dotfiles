@@ -34,6 +34,8 @@ required_files=(
     "theme/Theme.qml"
     "components/JcButton.qml"
     "components/JcIconButton.qml"
+    "components/JcIcon.qml"
+    "components/JcInteractiveFrame.qml"
     "components/JcChip.qml"
     "components/JcToggle.qml"
     "components/JcSlider.qml"
@@ -1954,19 +1956,22 @@ jc_choice_group="$config_dir/components/JcChoiceGroup.qml"
 for chip_contract in \
     'required property var theme' \
     'property string text: ""' \
+    'property string iconName: ""' \
+    'property string icon: ""' \
     'property bool controlEnabled: true' \
     'property bool checked: false' \
     'property bool compact: false' \
     'signal clicked()' \
-    'root.theme.controlSurfaceDefault' \
-    'root.theme.controlSurfaceHover' \
-    'root.theme.controlSurfacePressed' \
-    'root.theme.controlSurfaceSelected' \
-    'root.theme.controlBorderSelected' \
+    'JcInteractiveFrame {' \
+    'hovered: root.hovered' \
+    'pressed: root.pressed' \
+    'selected: root.checked' \
+    'focused: root.activeFocus' \
+    'JcIcon {' \
     'root.theme.controlTextDisabled' \
     'root.theme.controlTextSelected' \
-    'root.theme.radiusPill' \
-    'root.theme.motionSelection'
+    'root.theme.controlHeightCompact' \
+    'root.theme.controlHeightDefault'
 do
     if grep -Fq -- "$chip_contract" "$jc_chip" 2>/dev/null; then
         ok "JcChip contract: $chip_contract"
@@ -2005,9 +2010,12 @@ for choice_contract in \
     'property string selectedValue: ""' \
     'property string emptyText: "No options"' \
     'property bool controlEnabled: true' \
+    'property int optionSpacing: root.theme.spaceSm' \
     'signal valueSelected(string value)' \
-    'spacing: root.theme.spaceXs' \
+    'spacing: root.optionSpacing' \
     'delegate: JcChip {' \
+    'iconName: String(modelData.iconName || "")' \
+    'icon: String(modelData.icon || "")' \
     'root.theme.textSecondary' \
     'root.theme.textSizeBody'
 do
@@ -2069,24 +2077,22 @@ jc_icon_button="$config_dir/components/JcIconButton.qml"
 for button_contract in \
     'required property var theme' \
     'property string text: ""' \
+    'property string iconName: ""' \
+    'property string icon: ""' \
     'property bool controlEnabled: true' \
     'property bool checked: false' \
     'property bool compact: false' \
     'signal clicked()' \
-    'root.theme.controlSurfaceDefault' \
-    'root.theme.controlSurfaceHover' \
-    'root.theme.controlSurfacePressed' \
-    'root.theme.controlSurfaceSelected' \
-    'root.theme.controlBorderDefault' \
-    'root.theme.controlBorderHover' \
-    'root.theme.controlBorderPressed' \
-    'root.theme.controlBorderSelected' \
+    'JcInteractiveFrame {' \
+    'hovered: root.hovered' \
+    'pressed: root.pressed' \
+    'selected: root.checked' \
+    'focused: root.activeFocus' \
+    'JcIcon {' \
     'root.theme.controlTextDisabled' \
     'root.theme.controlTextSelected' \
     'root.theme.controlHeightCompact' \
     'root.theme.controlHeightDefault' \
-    'root.theme.radiusSm' \
-    'root.theme.borderWidthThin' \
     'root.theme.opacityDisabled' \
     'root.theme.motionHover' \
     'root.theme.motionPress' \
@@ -2104,15 +2110,18 @@ done
 for icon_button_contract in \
     'required property var theme' \
     'property string icon: ""' \
+    'property string iconName: ""' \
     'property string accessibleName: ""' \
     'property bool controlEnabled: true' \
     'property bool checked: false' \
     'property bool compact: false' \
     'signal clicked()' \
-    'root.theme.controlSurfaceDefault' \
-    'root.theme.controlSurfaceHover' \
-    'root.theme.controlSurfacePressed' \
-    'root.theme.controlSurfaceSelected' \
+    'JcInteractiveFrame {' \
+    'hovered: root.hovered' \
+    'pressed: root.pressed' \
+    'selected: root.checked' \
+    'focused: root.activeFocus' \
+    'JcIcon {' \
     'root.theme.controlIconDefault' \
     'root.theme.controlIconActive' \
     'root.theme.controlIconDisabled' \
@@ -2120,10 +2129,7 @@ for icon_button_contract in \
     'root.theme.controlHeightDefault' \
     'root.theme.iconSizeSm' \
     'root.theme.iconSizeMd' \
-    'root.theme.motionHover' \
-    'root.theme.motionPress' \
-    'root.theme.motionSelection' \
-    'root.theme.motionControl'
+    'root.theme.motionPress'
 do
     if grep -Fq -- "$icon_button_contract" "$jc_icon_button" 2>/dev/null; then
         ok "JcIconButton contract: $icon_button_contract"
@@ -2683,8 +2689,8 @@ for keyboard_button in "$jc_button" "$jc_icon_button"; do
         'event.key === Qt.Key_Return' \
         'event.key === Qt.Key_Enter' \
         'event.key === Qt.Key_Space' \
-        'if (root.activeFocus)' \
-        '? root.theme.focusRingWidth' \
+        'JcInteractiveFrame {' \
+        'focused: root.activeFocus' \
         'onPressed: root.forceActiveFocus()'
     do
         if grep -Fq -- "$keyboard_contract" "$keyboard_button" 2>/dev/null; then
@@ -4779,6 +4785,96 @@ for forbidden in 'Process {' '"awww"' '"hyprpaper"' '"systemctl"' 'wallpaper.env
     fi
 done
 
+
+
+printf '\n==> Phase H1.4.1 JC Holo interactive controls\n'
+
+holo_icon="$config_dir/components/JcIcon.qml"
+holo_frame="$config_dir/components/JcInteractiveFrame.qml"
+holo_button="$config_dir/components/JcButton.qml"
+holo_icon_button="$config_dir/components/JcIconButton.qml"
+holo_chip="$config_dir/components/JcChip.qml"
+holo_choice="$config_dir/components/JcChoiceGroup.qml"
+holo_fit="$config_dir/modules/wallpapers/WallpaperFitControl.qml"
+
+for contract in \
+    'case "fit": return "⌑";' \
+    'case "fill": return "▣";' \
+    'case "stretch": return "↔";' \
+    'case "center": return "⊙";'
+do
+    if grep -Fq -- "$contract" "$holo_icon"; then
+        ok "JcIcon semantic contract: $contract"
+    else
+        fail "JcIcon semantic contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool hovered: false' \
+    'property bool pressed: false' \
+    'property bool selected: false' \
+    'property bool focused: false' \
+    'root.theme.hudGlowMedium' \
+    'root.theme.hudSecondaryAccent' \
+    'root.theme.controlAccentInset'
+do
+    if grep -Fq -- "$contract" "$holo_frame"; then
+        ok "JcInteractiveFrame contract: $contract"
+    else
+        fail "JcInteractiveFrame contract missing: $contract"
+    fi
+done
+
+for component in "$holo_button" "$holo_icon_button" "$holo_chip"; do
+    if grep -Fq -- 'JcInteractiveFrame {' "$component"; then
+        ok "$(basename "$component") uses JcInteractiveFrame"
+    else
+        fail "$(basename "$component") must use JcInteractiveFrame"
+    fi
+    if grep -Fq -- 'JcIcon {' "$component"; then
+        ok "$(basename "$component") uses JcIcon"
+    else
+        fail "$(basename "$component") must use JcIcon"
+    fi
+done
+
+for contract in \
+    'property int optionSpacing: root.theme.spaceSm' \
+    'property bool centerContent: false' \
+    'function activeRepeater() {' \
+    'id: centeredChoiceRow' \
+    'iconName: String(modelData.iconName || "")' \
+    'icon: String(modelData.icon || "")'
+do
+    if grep -Fq -- "$contract" "$holo_choice"; then
+        ok "JcChoiceGroup H1.4 contract: $contract"
+    else
+        fail "JcChoiceGroup H1.4 contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'iconName: "fit"' \
+    'iconName: "fill"' \
+    'iconName: "stretch"' \
+    'iconName: "center"' \
+    'id: fitChoices' \
+    'centerContent: true' \
+    'text: "DRAFT"'
+do
+    if grep -Fq -- "$contract" "$holo_fit"; then
+        ok "Wallpaper Fit H1.4 consumer: $contract"
+    else
+        fail "Wallpaper Fit H1.4 consumer missing: $contract"
+    fi
+done
+
+if grep -Fq -- 'Components.JcSurface {' "$holo_fit"; then
+    fail "Wallpaper Fit group must not own a background JcSurface"
+else
+    ok "Wallpaper Fit group uses flat control composition"
+fi
 
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 

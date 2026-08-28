@@ -361,11 +361,11 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Layout.minimumHeight:
-                root.theme.controlHeightLarge * 1.45
+                root.theme.controlHeightLarge * 1.30
             Layout.preferredHeight:
-                root.theme.controlHeightLarge * 1.45
+                root.theme.controlHeightLarge * 1.30
             Layout.maximumHeight:
-                root.theme.controlHeightLarge * 1.45
+                root.theme.controlHeightLarge * 1.30
 
             spacing: root.theme.spaceMd
 

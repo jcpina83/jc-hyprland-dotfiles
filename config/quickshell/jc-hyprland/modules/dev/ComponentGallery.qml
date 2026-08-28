@@ -245,11 +245,13 @@ PanelWindow {
                     Components.JcButton {
                         theme: root.theme
                         text: "Default"
+                        iconName: "refresh"
                     }
 
                     Components.JcButton {
                         theme: root.theme
                         text: "Selected"
+                        iconName: "apply"
                         checked: true
                     }
 
@@ -261,13 +263,13 @@ PanelWindow {
 
                     Components.JcIconButton {
                         theme: root.theme
-                        icon: "★"
+                        iconName: "favorite"
                         accessibleName: "Favorite"
                     }
 
                     Components.JcIconButton {
                         theme: root.theme
-                        icon: "✓"
+                        iconName: "apply"
                         accessibleName: "Selected"
                         checked: true
                     }

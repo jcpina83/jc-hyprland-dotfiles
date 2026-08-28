@@ -1,11 +1,12 @@
 import QtQuick
 
-Rectangle {
+Item {
     id: root
 
     required property var theme
-
     property string text: ""
+    property string iconName: ""
+    property string icon: ""
     property bool controlEnabled: true
     property bool checked: false
     property bool compact: false
@@ -39,19 +40,16 @@ Rectangle {
             event.accepted = true;
             return;
         }
-
         if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) {
             root.nextFocusRequested();
             event.accepted = true;
             return;
         }
-
         if (event.key === Qt.Key_Home) {
             root.firstFocusRequested();
             event.accepted = true;
             return;
         }
-
         if (event.key === Qt.Key_End) {
             root.lastFocusRequested();
             event.accepted = true;
@@ -60,143 +58,89 @@ Rectangle {
 
     readonly property bool hovered:
         root.controlEnabled && pointerArea.containsMouse
-
     readonly property bool pressed:
         root.controlEnabled && pointerArea.pressed
-
+    readonly property bool hasIcon:
+        root.iconName.length > 0 || root.icon.length > 0
     readonly property int horizontalPadding: root.compact
-        ? root.theme.spaceSm
+        ? root.theme.spaceSm + root.theme.space2Xs
         : root.theme.spaceMd
 
-    readonly property int transitionDuration: {
-        if (root.pressed)
-            return root.theme.motionPress;
-
-        if (root.hovered)
-            return root.theme.motionHover;
-
-        if (root.checked)
-            return root.theme.motionSelection;
-
-        return root.theme.motionControl;
-    }
-
-    readonly property color resolvedSurfaceColor: {
-        if (!root.controlEnabled)
-            return root.theme.controlSurfaceDefault;
-
-        if (root.pressed)
-            return root.theme.controlSurfacePressed;
-
-        if (root.checked)
-            return root.theme.controlSurfaceSelected;
-
-        if (root.hovered)
-            return root.theme.controlSurfaceHover;
-
-        return root.theme.controlSurfaceDefault;
-    }
-
-    readonly property color resolvedBorderColor: {
-        if (!root.controlEnabled)
-            return root.theme.controlBorderDefault;
-
-        if (root.activeFocus)
-            return root.theme.controlBorderFocus;
-
-        if (root.pressed)
-            return root.theme.controlBorderPressed;
-
-        if (root.checked)
-            return root.theme.controlBorderSelected;
-
-        if (root.hovered)
-            return root.theme.controlBorderHover;
-
-        return root.theme.controlBorderDefault;
-    }
-
-    readonly property color resolvedTextColor: {
-        if (!root.controlEnabled)
+    readonly property color resolvedContentColor: {
+        if (!root.controlEnabled && !root.checked)
             return root.theme.controlTextDisabled;
-
-        if (root.checked)
+        if (root.checked || root.activeFocus)
             return root.theme.controlTextSelected;
-
+        if (root.hovered)
+            return root.theme.textPrimary;
         return root.theme.controlTextDefault;
     }
 
-    implicitWidth:
-        label.implicitWidth
-        + (root.horizontalPadding * 2)
-
+    implicitWidth: content.implicitWidth + (root.horizontalPadding * 2)
     implicitHeight: root.compact
         ? root.theme.controlHeightCompact
         : root.theme.controlHeightDefault
 
-    radius: root.theme.radiusPill
+    scale: root.pressed ? 0.98 : 1.0
 
-    color: root.resolvedSurfaceColor
-
-    border.width: root.activeFocus
-        ? root.theme.focusRingWidth
-        : root.theme.borderWidthThin
-
-    border.color: root.resolvedBorderColor
-
-    opacity: root.controlEnabled
-        ? root.theme.opacityEnabled
-        : root.theme.opacityDisabled
-
-    Behavior on color {
-        ColorAnimation {
-            duration: root.transitionDuration
-            easing.type: root.theme.easingStandard
-        }
-    }
-
-    Behavior on opacity {
+    Behavior on scale {
         NumberAnimation {
-            duration: root.theme.motionControl
+            duration: root.theme.motionPress
             easing.type: root.theme.easingStandard
         }
     }
 
-    Text {
-        id: label
+    JcInteractiveFrame {
+        anchors.fill: parent
+        theme: root.theme
+        controlEnabled: root.controlEnabled
+        hovered: root.hovered
+        pressed: root.pressed
+        selected: root.checked
+        focused: root.activeFocus
+        compact: root.compact
+    }
 
+    Row {
+        id: content
         anchors.centerIn: parent
+        spacing: root.hasIcon ? root.theme.controlContentGap : 0
 
-        text: root.text
-        color: root.resolvedTextColor
+        JcIcon {
+            visible: root.hasIcon
+            anchors.verticalCenter: parent.verticalCenter
+            theme: root.theme
+            name: root.iconName
+            glyph: root.icon
+            iconColor: root.resolvedContentColor
+            iconSize: root.compact
+                ? root.theme.iconSizeSm
+                : root.theme.iconSizeMd
+            emphasized: root.checked || root.activeFocus
+        }
 
-        font.family: root.theme.fontFamilySans
-        font.pixelSize: root.compact
-            ? root.theme.textSizeBody
-            : root.theme.textSizeBodyLarge
-
-        font.weight: root.checked
-            ? root.theme.fontWeightSemibold
-            : root.theme.fontWeightMedium
-
-        Behavior on color {
-            ColorAnimation {
-                duration: root.transitionDuration
-                easing.type: root.theme.easingStandard
-            }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.text
+            color: root.resolvedContentColor
+            font.family: root.theme.fontFamilySans
+            font.pixelSize: root.compact
+                ? root.theme.textSizeBody
+                : root.theme.textSizeBodyLarge
+            font.weight: root.checked
+                ? root.theme.fontWeightSemibold
+                : root.theme.fontWeightMedium
         }
     }
 
     MouseArea {
         id: pointerArea
-
         anchors.fill: parent
-
         enabled: root.controlEnabled
         hoverEnabled: true
-
-        cursorShape: Qt.PointingHandCursor
-
+        cursorShape: root.controlEnabled
+            ? Qt.PointingHandCursor
+            : Qt.ArrowCursor
         onPressed: root.forceActiveFocus()
         onClicked: root.clicked()
     }

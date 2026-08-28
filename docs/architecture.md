@@ -910,3 +910,30 @@ visual Control Center
 ```
 
 Ese desacoplamiento es la base del proyecto.
+
+
+## H1.4 JC Holo interactive controls
+
+Small interactive controls use `JcInteractiveFrame.qml`, a lightweight
+presentation primitive that owns the control perimeter, cyan energy rail,
+technical top accent, restrained amber detail, and shared state transitions.
+
+`JcHudFrame.qml` remains the panel/card HUD perimeter; it is intentionally not
+reused for small controls.
+
+`JcIcon.qml` is the semantic icon boundary. Callers can use `iconName`; the
+existing raw `icon` glyph remains a compatibility fallback. This lets the icon
+renderer evolve later without rewriting every Control Center module.
+
+H1.4.1 preserves the existing interaction contracts for `JcButton`,
+`JcIconButton`, `JcChip`, and `JcChoiceGroup`. H1.4.2 migrates semantic action
+icons through active modules after the shared visual language is approved.
+
+### Interactive grouping rule
+
+Decorative framing is not added around a button or choice group merely to
+group controls visually. The nearest functional panel or card owns the outer
+perimeter; the content area stays clean, and each interactive control owns
+only its `JcInteractiveFrame`. Nested framed surfaces are reserved for
+independent functional cards. This avoids frame-on-frame overlap and keeps the
+JC Holo hierarchy aligned with the Control Center visual reference.
