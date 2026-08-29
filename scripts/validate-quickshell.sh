@@ -5439,6 +5439,92 @@ do
     fi
 done
 
+
+printf '\n==> Phase 2B.6.3 rotation mutation API\n'
+
+rotation_manager="$repo_root/scripts/runtime/wallpaper-rotation-manager.sh"
+wallpaperctl="$repo_root/scripts/runtime/jc-wallpaperctl.sh"
+wallpaper_docs="$repo_root/docs/wallpaper-control.md"
+architecture_docs="$repo_root/docs/architecture.md"
+
+for contract in \
+    'wallpaper-rotation-manager.sh current --json' \
+    'wallpaper-rotation-manager.sh transactional-set' \
+    'acquire_mutation_lock() {' \
+    '.wallpaper-rotation.mutation.lock' \
+    'write_rotation_configuration() {' \
+    'shell_assignment_value() {' \
+    'configure-wallpaper-rotation.sh' \
+    'verify_expected_state() {' \
+    'return 6' \
+    'return 7'
+do
+    if grep -Fq -- "$contract" "$rotation_manager"; then
+        ok "Rotation manager contract: $contract"
+    else
+        fail "Rotation manager contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'jc-wallpaperctl rotation status [--json]' \
+    'jc-wallpaperctl rotation apply' \
+    "rotation_manager=\"\$base/bin/wallpaper-rotation-manager.sh\"" \
+    'rotation_apply() {' \
+    'rotation_command() {' \
+    'rotation)' \
+    "| .rotation = \$rotation"
+do
+    if grep -Fq -- "$contract" "$wallpaperctl"; then
+        ok "Stable rotation API contract: $contract"
+    else
+        fail "Stable rotation API contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'systemctl' \
+    'configure-wallpaper-rotation' \
+    'wallpaper.env'
+do
+    if grep -R -Fq -- "$forbidden" \
+        "$config_dir/modules/wallpapers" \
+        "$config_dir/services/WallpaperService.qml" \
+        "$config_dir/services/WallpaperApplyService.qml"
+    then
+        fail "Wallpaper QML contains forbidden rotation backend detail: $forbidden"
+    else
+        ok "Wallpaper QML excludes rotation backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Rotation mutation API' \
+    'jc-wallpaperctl rotation apply' \
+    'wallpaper-rotation-manager.sh' \
+    'Byte-for-byte restoration is required for transactional' \
+    "\`6\` means rollback was verified. Exit code \`7\` means" \
+    "Exit code \`7\`"
+do
+    if grep -Fq -- "$contract" "$wallpaper_docs"; then
+        ok "Rotation mutation documentation: $contract"
+    else
+        fail "Rotation mutation documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.6.3 Rotation mutation boundary' \
+    'Rotation state is not duplicated into the theme' \
+    'No QML component owns systemd lifecycle'
+do
+    if grep -Fq -- "$contract" "$architecture_docs"; then
+        ok "Rotation architecture contract: $contract"
+    else
+        fail "Rotation architecture contract missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

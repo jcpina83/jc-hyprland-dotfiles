@@ -392,6 +392,7 @@ runtime_links=(
     "launch-foot.sh:scripts/runtime/launch-foot.sh"
     "apply-wallpaper.sh:scripts/runtime/apply-wallpaper.sh"
     "wallpaper-manager.sh:scripts/runtime/wallpaper-manager.sh"
+    "wallpaper-rotation-manager.sh:scripts/runtime/wallpaper-rotation-manager.sh"
     "rotate-wallpaper.sh:scripts/runtime/rotate-wallpaper.sh"
     "jc-theme:scripts/theme.sh"
 )

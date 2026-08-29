@@ -1179,3 +1179,25 @@ not apply runtime monitor state.
 Selected display and Relative to remain compact selectors below the canvas.
 Safe Apply, persistence, topology validation, dragging, snapping, and the
 observed/draft/applied/persistent state boundary are unchanged.
+
+
+## Phase 2B.6.3 Rotation mutation boundary
+
+Automatic wallpaper rotation remains machine-local and separate from per-theme
+wallpaper overrides.
+
+```text
+QML
+  -> jc-wallpaperctl
+       -> wallpaper-rotation-manager.sh
+            -> local/wallpaper.env
+            -> configure-wallpaper-rotation.sh
+                 -> systemd user timer drop-in/lifecycle
+```
+
+The stable public boundary exposes rotation status and transactional Apply.
+The backend serializes mutation with flock, preserves unrelated wallpaper.env
+settings, and verifies systemd state before reporting success.
+
+Rotation state is not duplicated into the theme wallpaper preference file.
+No QML component owns systemd lifecycle or writes rotation configuration.

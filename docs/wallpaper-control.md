@@ -493,3 +493,38 @@ An observed wallpaper or fit change while editing raises the existing
 `observedChangedWhileDirty` conflict instead of silently replacing the draft.
 
 Phase 2B.6.2 does not add rotation mutation controls.
+
+
+## Rotation mutation API
+
+Phase 2B.6.3 adds a stable mutation boundary for automatic wallpaper rotation.
+
+Public API:
+
+```text
+jc-wallpaperctl rotation status
+jc-wallpaperctl rotation status --json
+jc-wallpaperctl rotation apply [--enabled true|false] [--mode next|random]
+                               [--target main|secondary|both]
+                               [--interval <systemd-timespan>] [--json]
+```
+
+`wallpaper-rotation-manager.sh` owns machine-local rotation persistence in
+`local/wallpaper.env`. It edits only the four `WALLPAPER_ROTATION_*` keys and
+preserves the rest of the wallpaper configuration.
+
+Shell-safe rotation values are serialized in a canonical form. Successful mutations may normalize the textual representation of the four managed rotation assignments, while all unrelated `wallpaper.env` content is preserved. Byte-for-byte restoration is required for transactional rollback because rollback restores the captured file snapshot.
+
+The transaction snapshots `wallpaper.env`, writes rotation state atomically,
+runs `configure-wallpaper-rotation.sh`, verifies the timer drop-in and systemd
+lifecycle, and commits only when runtime state is synchronized.
+
+On failure it restores `wallpaper.env` and re-runs the configurator. Exit code
+`6` means rollback was verified. Exit code `7` means the configuration file was
+restored but runtime rollback could not be verified.
+
+`jc-wallpaperctl status --json` preserves `rotation.enabled`, `rotation.mode`,
+`rotation.target`, and `rotation.interval`, and adds `rotation.runtime`.
+
+QML does not call systemctl, edit wallpaper.env, or invoke the rotation
+configurator. Future rotation UI uses only the stable jc-wallpaperctl boundary.

@@ -12,6 +12,7 @@ set -euo pipefail
 base="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles"
 host_env="$base/local/host.env"
 manager="$base/bin/wallpaper-manager.sh"
+rotation_manager="$base/bin/wallpaper-rotation-manager.sh"
 
 die() {
     printf 'ERROR: %s\n' "$*" >&2
@@ -29,6 +30,8 @@ Usage:
   jc-wallpaperctl apply --secondary <file> [--main <file>] [--main-fit <mode>] [--secondary-fit <mode>] [--json]
   jc-wallpaperctl apply --main-fit <cover|contain|stretch|center> [--secondary-fit <mode>] [--json]
   jc-wallpaperctl apply --secondary-fit <cover|contain|stretch|center> [--main-fit <mode>] [--json]
+  jc-wallpaperctl rotation status [--json]
+  jc-wallpaperctl rotation apply [--enabled true|false] [--mode next|random] [--target main|secondary|both] [--interval <timespan>] [--json]
 EOF
 }
 
@@ -42,6 +45,9 @@ require_jq() {
 
 [[ -x "$manager" ]] \
     || die "wallpaper manager not found: $manager"
+
+[[ -x "$rotation_manager" ]] \
+    || die "wallpaper rotation manager not found: $rotation_manager"
 
 # shellcheck disable=SC1090
 source "$host_env"
@@ -145,20 +151,24 @@ runtime_json() {
 
 print_status_json() {
     local configured
+    local rotation
     local runtime
 
     require_jq
 
     configured="$("$manager" current --json)"
+    rotation="$("$rotation_manager" current --json)"
     runtime="$(runtime_json "$configured")"
 
     jq -n \
         --argjson configured "$configured" \
+        --argjson rotation "$rotation" \
         --argjson runtime "$runtime" \
         --arg mainOutput "$MAIN_OUTPUT" \
         --arg secondaryOutput "$SECONDARY_OUTPUT" \
         '
         $configured
+        | .rotation = $rotation
         | .outputs.main.output = $mainOutput
         | .outputs.secondary.output = $secondaryOutput
         | .runtime = $runtime
@@ -481,6 +491,367 @@ apply_transaction() {
 }
 
 
+rotation_error() {
+    local message="$1"
+    local exit_code="${2:-2}"
+    local output_json="${3:-false}"
+
+    if [[ "$output_json" == true ]]; then
+        jq -n \
+            --arg message "$message" \
+            --argjson exitCode "$exit_code" \
+            '{
+                status: "invalid-request",
+                committed: false,
+                rolledBack: false,
+                configurationRestored: false,
+                runtimeRollbackVerified: false,
+                runtimeVerified: false,
+                exitCode: $exitCode,
+                message: $message
+            }'
+    else
+        printf 'ERROR: %s\n' "$message" >&2
+    fi
+
+    exit "$exit_code"
+}
+
+
+canonical_rotation_enabled() {
+    case "$1" in
+        true|false)
+            printf '%s\n' "$1"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+
+canonical_rotation_mode() {
+    case "$1" in
+        next|random)
+            printf '%s\n' "$1"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+
+canonical_rotation_target() {
+    case "$1" in
+        main|secondary|both)
+            printf '%s\n' "$1"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+
+canonical_rotation_interval() {
+    local value="$1"
+
+    command -v systemd-analyze >/dev/null 2>&1 \
+        || return 1
+
+    systemd-analyze timespan "$value" >/dev/null 2>&1 \
+        || return 1
+
+    printf '%s\n' "$value"
+}
+
+
+rotation_apply() {
+    local requested_enabled="__KEEP__"
+    local requested_mode="__KEEP__"
+    local requested_target="__KEEP__"
+    local requested_interval="__KEEP__"
+    local output_json=false
+    local json_seen=false
+    local argument
+
+    local before
+    local after
+    local manager_log
+    local mutation_status
+    local response_status
+    local enabled_changed=false
+    local mode_changed=false
+    local target_changed=false
+    local interval_changed=false
+    local runtime_verified=false
+
+    require_jq
+    shift
+
+    for argument in "$@"; do
+        if [[ "$argument" == "--json" ]]; then
+            output_json=true
+        fi
+    done
+
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            --enabled)
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || rotation_error "--enabled requires true or false" 2 "$output_json"
+
+                [[ "$requested_enabled" == "__KEEP__" ]] \
+                    || rotation_error "--enabled may only be supplied once" 2 "$output_json"
+
+                if ! requested_enabled="$(canonical_rotation_enabled "$2")"; then
+                    rotation_error "unsupported rotation enabled value: $2" 2 "$output_json"
+                fi
+
+                shift 2
+                ;;
+
+            --mode)
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || rotation_error "--mode requires next or random" 2 "$output_json"
+
+                [[ "$requested_mode" == "__KEEP__" ]] \
+                    || rotation_error "--mode may only be supplied once" 2 "$output_json"
+
+                if ! requested_mode="$(canonical_rotation_mode "$2")"; then
+                    rotation_error "unsupported rotation mode: $2" 2 "$output_json"
+                fi
+
+                shift 2
+                ;;
+
+            --target)
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || rotation_error "--target requires main, secondary or both" 2 "$output_json"
+
+                [[ "$requested_target" == "__KEEP__" ]] \
+                    || rotation_error "--target may only be supplied once" 2 "$output_json"
+
+                if ! requested_target="$(canonical_rotation_target "$2")"; then
+                    rotation_error "unsupported rotation target: $2" 2 "$output_json"
+                fi
+
+                shift 2
+                ;;
+
+            --interval)
+                [[ "$#" -ge 2 && "$2" != --* ]] \
+                    || rotation_error "--interval requires a systemd timespan" 2 "$output_json"
+
+                [[ "$requested_interval" == "__KEEP__" ]] \
+                    || rotation_error "--interval may only be supplied once" 2 "$output_json"
+
+                if ! requested_interval="$(canonical_rotation_interval "$2")"; then
+                    rotation_error "unsupported rotation interval: $2" 2 "$output_json"
+                fi
+
+                shift 2
+                ;;
+
+            --json)
+                [[ "$json_seen" == false ]] \
+                    || rotation_error "--json may only be supplied once" 2 true
+
+                json_seen=true
+                output_json=true
+                shift
+                ;;
+
+            *)
+                rotation_error "unsupported rotation apply argument: $1" 2 "$output_json"
+                ;;
+        esac
+    done
+
+    if [[ "$requested_enabled" == "__KEEP__" \
+        && "$requested_mode" == "__KEEP__" \
+        && "$requested_target" == "__KEEP__" \
+        && "$requested_interval" == "__KEEP__" ]]
+    then
+        rotation_error \
+            "rotation apply requires --enabled, --mode, --target and/or --interval" \
+            2 \
+            "$output_json"
+    fi
+
+    before="$("$rotation_manager" current --json)"
+    manager_log="$(
+        mktemp "${XDG_RUNTIME_DIR:-/tmp}/jc-wallpaper-rotation-apply.XXXXXX"
+    )"
+
+    cleanup_rotation_log() {
+        rm -f -- "$manager_log"
+    }
+
+    trap cleanup_rotation_log RETURN
+
+    if "$rotation_manager" transactional-set \
+        "$requested_enabled" \
+        "$requested_mode" \
+        "$requested_target" \
+        "$requested_interval" \
+        >"$manager_log" 2>&1
+    then
+        mutation_status=0
+    else
+        mutation_status=$?
+        after="$("$rotation_manager" current --json 2>/dev/null || printf '{}')"
+
+        if [[ "$output_json" == true ]]; then
+            if [[ "$mutation_status" -eq 7 ]]; then
+                response_status="rollback-failed"
+                jq -n \
+                    --arg status "$response_status" \
+                    --arg message "$(tail -n 16 "$manager_log")" \
+                    --argjson exitCode "$mutation_status" \
+                    --argjson before "$before" \
+                    --argjson after "$after" \
+                    '{
+                        status: $status,
+                        committed: false,
+                        rolledBack: false,
+                        configurationRestored: true,
+                        runtimeRollbackVerified: false,
+                        runtimeVerified: false,
+                        exitCode: $exitCode,
+                        message: $message,
+                        before: $before,
+                        after: $after
+                    }'
+            else
+                response_status="rolled-back"
+                jq -n \
+                    --arg status "$response_status" \
+                    --arg message "$(tail -n 16 "$manager_log")" \
+                    --argjson exitCode "$mutation_status" \
+                    --argjson before "$before" \
+                    --argjson after "$after" \
+                    '{
+                        status: $status,
+                        committed: false,
+                        rolledBack: true,
+                        configurationRestored: true,
+                        runtimeRollbackVerified: true,
+                        runtimeVerified: false,
+                        exitCode: $exitCode,
+                        message: $message,
+                        before: $before,
+                        after: $after
+                    }'
+            fi
+        else
+            cat "$manager_log" >&2
+        fi
+
+        trap - RETURN
+        cleanup_rotation_log
+        return "$mutation_status"
+    fi
+
+    after="$("$rotation_manager" current --json)"
+
+    [[ "$(jq -r '.enabled' <<< "$before")" \
+        != "$(jq -r '.enabled' <<< "$after")" ]] \
+        && enabled_changed=true
+
+    [[ "$(jq -r '.mode' <<< "$before")" \
+        != "$(jq -r '.mode' <<< "$after")" ]] \
+        && mode_changed=true
+
+    [[ "$(jq -r '.target' <<< "$before")" \
+        != "$(jq -r '.target' <<< "$after")" ]] \
+        && target_changed=true
+
+    [[ "$(jq -r '.interval' <<< "$before")" \
+        != "$(jq -r '.interval' <<< "$after")" ]] \
+        && interval_changed=true
+
+    if jq -e '.runtime.synchronized == true' \
+        <<< "$after" >/dev/null
+    then
+        runtime_verified=true
+    fi
+
+    if [[ "$enabled_changed" == false \
+        && "$mode_changed" == false \
+        && "$target_changed" == false \
+        && "$interval_changed" == false ]]
+    then
+        response_status="reconciled"
+    else
+        response_status="applied"
+    fi
+
+    if [[ "$output_json" == true ]]; then
+        jq -n \
+            --arg status "$response_status" \
+            --argjson before "$before" \
+            --argjson after "$after" \
+            --argjson enabledChanged "$enabled_changed" \
+            --argjson modeChanged "$mode_changed" \
+            --argjson targetChanged "$target_changed" \
+            --argjson intervalChanged "$interval_changed" \
+            --argjson runtimeVerified "$runtime_verified" \
+            '{
+                status: $status,
+                committed: true,
+                rolledBack: false,
+                configurationRestored: false,
+                runtimeRollbackVerified: false,
+                runtimeVerified: $runtimeVerified,
+                changed: {
+                    enabled: $enabledChanged,
+                    mode: $modeChanged,
+                    target: $targetChanged,
+                    interval: $intervalChanged
+                },
+                before: $before,
+                after: $after
+            }'
+    else
+        cat "$manager_log"
+        printf '\nRotation transaction summary:\n'
+        printf '  runtime verified: %s\n' "$runtime_verified"
+    fi
+
+    trap - RETURN
+    cleanup_rotation_log
+}
+
+
+rotation_command() {
+    local action="${2:-}"
+
+    case "$action" in
+        status)
+            if [[ "$#" -eq 2 ]]; then
+                exec "$rotation_manager" current
+            elif [[ "$#" -eq 3 && "$3" == "--json" ]]; then
+                exec "$rotation_manager" current --json
+            else
+                usage >&2
+                exit 2
+            fi
+            ;;
+
+        apply)
+            rotation_apply "${@:2}"
+            ;;
+
+        *)
+            usage >&2
+            exit 2
+            ;;
+    esac
+}
+
+
 print_status() {
     "$manager" current
 
@@ -500,6 +871,9 @@ print_status() {
     else
         printf '  engine: unknown\n'
     fi
+
+    printf '\n'
+    "$rotation_manager" current
 }
 
 command_name="${1:-}"
@@ -518,6 +892,10 @@ case "$command_name" in
 
     apply)
         apply_transaction "$@"
+        ;;
+
+    rotation)
+        rotation_command "$@"
         ;;
 
     catalog)

@@ -33,6 +33,7 @@ systemd_user_dir="$config_home/systemd/user"
 wallpaper_rotation_service="$repo_root/config/systemd/user/jc-wallpaper-rotation.service"
 wallpaper_rotation_timer="$repo_root/config/systemd/user/jc-wallpaper-rotation.timer"
 wallpaper_rotation_configurator="$repo_root/scripts/configure-wallpaper-rotation.sh"
+wallpaper_rotation_manager="$repo_root/scripts/runtime/wallpaper-rotation-manager.sh"
 
 hypr_dir="$config_home/hypr"
 
@@ -175,6 +176,9 @@ ensure_local_file() {
 
 [[ -x "$wallpaper_rotation_configurator" ]] \
     || die "Wallpaper rotation configurator is not executable: $wallpaper_rotation_configurator"
+
+[[ -x "$wallpaper_rotation_manager" ]] \
+    || die "Wallpaper rotation manager is not executable: $wallpaper_rotation_manager"
 
 [[ -r "$hypr_lua_source/init.lua" ]] \
     || die "Missing Hyprland Lua integration: $hypr_lua_source/init.lua"
@@ -322,6 +326,10 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/wallpaper-manager.sh" \
     "$bin_dir/wallpaper-manager.sh"
+
+ensure_symlink \
+    "$repo_root/scripts/runtime/wallpaper-rotation-manager.sh" \
+    "$bin_dir/wallpaper-rotation-manager.sh"
 
 ensure_symlink \
     "$repo_root/scripts/runtime/rotate-wallpaper.sh" \
