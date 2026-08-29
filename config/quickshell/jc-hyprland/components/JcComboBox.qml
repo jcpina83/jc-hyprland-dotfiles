@@ -10,6 +10,7 @@ Controls.ComboBox {
     property string selectedValue: ""
     property string placeholder: "Select"
     property bool controlEnabled: true
+    property bool compact: false
 
     signal valueSelected(string value)
 
@@ -26,11 +27,16 @@ Controls.ComboBox {
         root.theme.controlHeightLarge * 4
     )
 
-    implicitHeight: root.theme.controlHeightDefault
+    implicitHeight: root.compact
+        ? root.theme.controlHeightCompact
+        : root.theme.controlHeightDefault
 
-    leftPadding: root.theme.spaceSm
+    leftPadding: root.theme.spaceMd
+
     rightPadding:
-        root.theme.controlHeightDefault
+        (root.compact
+            ? root.theme.controlHeightCompact
+            : root.theme.controlHeightDefault)
         + root.theme.space2Xs
 
     topPadding: 0
@@ -109,12 +115,17 @@ Controls.ComboBox {
             if (root.currentIndex < 0)
                 return root.theme.controlTextSecondary;
 
+            if (root.popup.visible || root.activeFocus)
+                return root.theme.controlTextSelected;
+
             return root.theme.controlTextDefault;
         }
 
         font.family: root.theme.fontFamilySans
         font.pixelSize: root.theme.textSizeBody
-        font.weight: root.theme.fontWeightMedium
+        font.weight: root.popup.visible || root.activeFocus
+            ? root.theme.fontWeightSemibold
+            : root.theme.fontWeightMedium
 
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
@@ -127,7 +138,7 @@ Controls.ComboBox {
         }
     }
 
-    indicator: Text {
+    indicator: JcIcon {
         x:
             root.width
             - width
@@ -135,15 +146,26 @@ Controls.ComboBox {
 
         y: (root.height - height) / 2
 
-        text: "⌄"
+        theme: root.theme
+        name: "chevron-down"
 
-        color: root.controlEnabled
-            ? root.theme.controlIconDefault
-            : root.theme.controlIconDisabled
+        iconColor: {
+            if (!root.controlEnabled)
+                return root.theme.controlIconDisabled;
 
-        font.family: root.theme.fontFamilySans
-        font.pixelSize: root.theme.iconSizeMd
-        font.weight: root.theme.fontWeightSemibold
+            if (root.popup.visible || root.activeFocus)
+                return root.theme.controlIconActive;
+
+            return root.theme.controlIconDefault;
+        }
+
+        iconSize: root.compact
+            ? root.theme.iconSizeCompactControl
+            : root.theme.iconSizeMd
+
+        emphasized:
+            root.popup.visible
+            || root.activeFocus
 
         rotation: root.popup.visible ? 180 : 0
 
@@ -153,64 +175,17 @@ Controls.ComboBox {
                 easing.type: root.theme.easingStandard
             }
         }
-
-        Behavior on color {
-            ColorAnimation {
-                duration: root.theme.motionControl
-                easing.type: root.theme.easingStandard
-            }
-        }
     }
 
-    background: Rectangle {
-        radius: root.theme.radiusSm
+    background: JcInteractiveFrame {
+        theme: root.theme
 
-        color: {
-            if (!root.controlEnabled)
-                return root.theme.controlSurfaceDefault;
-
-            if (root.down)
-                return root.theme.controlSurfacePressed;
-
-            if (root.hovered)
-                return root.theme.controlSurfaceHover;
-
-            return root.theme.controlSurfaceDefault;
-        }
-
-        border.width: root.activeFocus
-            ? root.theme.focusRingWidth
-            : root.theme.borderWidthThin
-
-        border.color: {
-            if (root.activeFocus)
-                return root.theme.focusRingColor;
-
-            if (root.down)
-                return root.theme.controlBorderPressed;
-
-            if (root.hovered)
-                return root.theme.controlBorderHover;
-
-            return root.theme.controlBorderDefault;
-        }
-
-        Behavior on color {
-            ColorAnimation {
-                duration: root.down
-                    ? root.theme.motionPress
-                    : root.theme.motionHover
-
-                easing.type: root.theme.easingStandard
-            }
-        }
-
-        Behavior on border.color {
-            ColorAnimation {
-                duration: root.theme.motionControl
-                easing.type: root.theme.easingStandard
-            }
-        }
+        controlEnabled: root.controlEnabled
+        hovered: root.hovered
+        pressed: root.down
+        selected: root.popup.visible
+        focused: root.activeFocus
+        compact: root.compact
     }
 
     delegate: Controls.ItemDelegate {
@@ -228,6 +203,10 @@ Controls.ComboBox {
             && String(option.value) === root.selectedValue
 
         width: root.width
+
+        implicitHeight: root.compact
+            ? root.theme.controlHeightCompact
+            : root.theme.controlHeightDefault
 
         enabled:
             root.controlEnabled
@@ -295,7 +274,9 @@ Controls.ComboBox {
             contentList.implicitHeight
                 + topPadding
                 + bottomPadding,
-            (root.theme.controlHeightDefault * 6)
+            ((root.compact
+                ? root.theme.controlHeightCompact
+                : root.theme.controlHeightDefault) * 6)
                 + topPadding
                 + bottomPadding
         )

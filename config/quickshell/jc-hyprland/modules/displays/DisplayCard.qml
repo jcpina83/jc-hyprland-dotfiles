@@ -14,11 +14,17 @@ Components.JcSurface {
     property var monitor
     property var draftStore
     property bool editorEnabled: true
+    property string outputRole: ""
 
     readonly property var draft:
         root.monitor && root.draftStore
             ? root.draftStore.draftFor(root.monitor.output)
             : null
+
+    readonly property string disableReason:
+        root.monitor && root.draftStore
+            ? root.draftStore.enableDisableReason(root.monitor.output)
+            : ""
 
     readonly property var resolutionOptions:
         root.monitor && root.draftStore
@@ -39,6 +45,32 @@ Components.JcSurface {
         root.monitor && root.draftStore
             ? root.draftStore.transformOptionsFor(root.monitor.output)
             : []
+
+    readonly property real controlStripMinColumnWidth:
+        root.theme.controlHeightLarge * 2.4
+
+    readonly property int controlStripColumns: {
+        const availableWidth = Math.max(
+            0,
+            root.width - (root.theme.spaceMd * 2)
+        );
+
+        const twoColumns =
+            (root.controlStripMinColumnWidth * 2)
+            + root.theme.spaceMd;
+
+        const threeColumns =
+            (root.controlStripMinColumnWidth * 3)
+            + (root.theme.spaceMd * 2);
+
+        if (availableWidth >= threeColumns)
+            return 3;
+
+        if (availableWidth >= twoColumns)
+            return 2;
+
+        return 1;
+    }
 
     function scaleIndexForValue(scaleValue) {
         const target = String(scaleValue);
@@ -110,6 +142,9 @@ Components.JcSurface {
 
                 text: root.monitor && root.monitor.output.length > 0
                     ? root.monitor.output
+                        + (root.outputRole.length > 0
+                            ? " · " + root.outputRole
+                            : "")
                     : "Unknown output"
 
                 color: root.theme.textPrimary
@@ -310,158 +345,203 @@ Components.JcSurface {
                 font.pixelSize: root.theme.textSizeCaption
             }
 
-            Components.JcButton {
-                theme: root.theme
-                compact: true
-                iconName: "power"
+            Item {
+                implicitWidth: disableButton.implicitWidth
+                implicitHeight: disableButton.implicitHeight
 
-                text: root.draft && root.draft.enabled
-                    ? "Disable"
-                    : "Enable"
+                Layout.alignment: Qt.AlignVCenter
 
-                controlEnabled: {
-                    if (!root.editorEnabled || !root.draftStore || !root.draft)
-                        return false;
+                Components.JcButton {
+                    id: disableButton
 
-                    if (!root.draft.enabled)
-                        return true;
+                    theme: root.theme
+                    compact: true
+                    iconName: "power"
 
-                    return root.draftStore.canDisable(root.monitor.output);
+                    text: root.draft && root.draft.enabled
+                        ? "Disable"
+                        : "Enable"
+
+                    controlEnabled: {
+                        if (!root.editorEnabled || !root.draftStore || !root.draft)
+                            return false;
+
+                        if (!root.draft.enabled)
+                            return true;
+
+                        return root.draftStore.canDisable(root.monitor.output);
+                    }
+
+                    onClicked: {
+                        if (!root.monitor || !root.draftStore || !root.draft)
+                            return;
+
+                        root.draftStore.setEnabled(
+                            root.monitor.output,
+                            !root.draft.enabled
+                        );
+                    }
+                }
+                MouseArea {
+                    id: disableReasonHover
+
+                    anchors.fill: parent
+
+                    enabled:
+                        root.draft
+                        && root.draft.enabled
+                        && root.disableReason.length > 0
+
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
                 }
 
-                onClicked: {
-                    if (!root.monitor || !root.draftStore || !root.draft)
-                        return;
+                Components.JcTooltip {
+                    theme: root.theme
 
-                    root.draftStore.setEnabled(
-                        root.monitor.output,
-                        !root.draft.enabled
-                    );
+                    controlEnabled: disableReasonHover.enabled
+                    visible: disableReasonHover.containsMouse
+                    text: root.disableReason
                 }
             }
         }
 
-        Text {
-            visible:
-                root.monitor
-                && root.draft
-                && root.draft.enabled
-                && root.draftStore
-                && root.draftStore.enableDisableReason(root.monitor.output).length > 0
+
+        GridLayout {
+            id: displayControlStrip
 
             Layout.fillWidth: true
 
-            text: root.monitor && root.draftStore
-                ? root.draftStore.enableDisableReason(root.monitor.output)
-                : ""
+            columns: root.controlStripColumns
+            columnSpacing: root.theme.spaceMd
+            rowSpacing: root.theme.spaceSm
 
-            color: root.theme.warning
-            font.pixelSize: root.theme.textSizeCaption
-            wrapMode: Text.Wrap
-        }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: root.theme.space2Xs
 
-        Text {
-            text: "Resolution"
-            color: root.theme.textSecondary
-            font.pixelSize: root.theme.textSizeCaption
-        }
+                Text {
+                    Layout.fillWidth: true
 
-        Components.JcComboBox {
-            Layout.fillWidth: true
+                    text: "Resolution"
+                    color: root.theme.textSecondary
+                    font.pixelSize: root.theme.textSizeCaption
+                    font.weight: root.theme.fontWeightMedium
+                    elide: Text.ElideRight
+                }
 
-            theme: root.theme
-            options: root.resolutionOptions
-            selectedValue: root.draft ? root.draft.resolutionKey : ""
-            placeholder: root.draft && !root.draft.enabled
-                ? "Display disabled"
-                : "Select resolution"
+                Components.JcComboBox {
+                    Layout.fillWidth: true
 
-            controlEnabled:
-                root.editorEnabled
-                && root.draft
-                && root.draft.enabled
+                    theme: root.theme
+                    compact: true
+                    options: root.resolutionOptions
+                    selectedValue: root.draft ? root.draft.resolutionKey : ""
+                    placeholder: root.draft && !root.draft.enabled
+                        ? "Display disabled"
+                        : "Select resolution"
 
-            onValueSelected: value => {
-                if (root.monitor && root.draftStore)
-                    root.draftStore.setResolution(root.monitor.output, value);
+                    controlEnabled:
+                        root.editorEnabled
+                        && root.draft
+                        && root.draft.enabled
+
+                    onValueSelected: value => {
+                        if (root.monitor && root.draftStore) {
+                            root.draftStore.setResolution(root.monitor.output, value);
+                        }
+                    }
+                }
             }
-        }
 
-        Text {
-            text: "Refresh rate"
-            color: root.theme.textSecondary
-            font.pixelSize: root.theme.textSizeCaption
-        }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: root.theme.space2Xs
 
-        Components.JcComboBox {
-            Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
 
-            theme: root.theme
-            options: root.refreshOptions
-            selectedValue: root.draft ? root.draft.modeRaw : ""
-            placeholder: root.draft && !root.draft.enabled
-                ? "Display disabled"
-                : "Select refresh rate"
+                    text: "Refresh rate"
+                    color: root.theme.textSecondary
+                    font.pixelSize: root.theme.textSizeCaption
+                    font.weight: root.theme.fontWeightMedium
+                    elide: Text.ElideRight
+                }
 
-            controlEnabled:
-                root.editorEnabled
-                && root.draft
-                && root.draft.enabled
+                Components.JcComboBox {
+                    Layout.fillWidth: true
 
-            onValueSelected: value => {
-                if (root.monitor && root.draftStore)
-                    root.draftStore.setRefreshMode(root.monitor.output, value);
+                    theme: root.theme
+                    compact: true
+                    options: root.refreshOptions
+                    selectedValue: root.draft ? root.draft.modeRaw : ""
+                    placeholder: root.draft && !root.draft.enabled
+                        ? "Display disabled"
+                        : "Select refresh rate"
+
+                    controlEnabled:
+                        root.editorEnabled
+                        && root.draft
+                        && root.draft.enabled
+
+                    onValueSelected: value => {
+                        if (root.monitor && root.draftStore) {
+                            root.draftStore.setRefreshMode(root.monitor.output, value);
+                        }
+                    }
+                }
             }
-        }
 
-        Text {
-            text: "Scale"
-            color: root.theme.textSecondary
-            font.pixelSize: root.theme.textSizeCaption
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: root.theme.space2Xs
+
+                Text {
+                    Layout.fillWidth: true
+
+                    text: "Orientation"
+                    color: root.theme.textSecondary
+                    font.pixelSize: root.theme.textSizeCaption
+                    font.weight: root.theme.fontWeightMedium
+                    elide: Text.ElideRight
+                }
+
+                Components.JcComboBox {
+                    Layout.fillWidth: true
+
+                    theme: root.theme
+                    compact: true
+                    options: root.transformOptions
+                    selectedValue: root.draft ? String(root.draft.transform) : ""
+                    placeholder: root.draft && !root.draft.enabled
+                        ? "Display disabled"
+                        : "Select orientation"
+
+                    controlEnabled:
+                        root.editorEnabled
+                        && root.draft
+                        && root.draft.enabled
+
+                    onValueSelected: value => {
+                        if (root.monitor && root.draftStore) {
+                            root.draftStore.setTransform(root.monitor.output, value);
+                        }
+                    }
+                }
+            }
         }
 
         RowLayout {
             Layout.fillWidth: true
             spacing: root.theme.spaceSm
 
-            Components.JcSlider {
-                id: scaleSlider
-
+            Text {
                 Layout.fillWidth: true
 
-                theme: root.theme
-
-                from: 0
-                to: Math.max(0, root.scaleOptions.length - 1)
-                stepSize: 1
-
-                value: root.draft
-                    ? root.scaleIndexForValue(root.draft.scale)
-                    : 0
-
-                controlEnabled:
-                    root.editorEnabled
-                    && root.draft
-                    && root.draft.enabled
-                    && root.scaleOptions.length > 0
-
-                onMoved: {
-                    const optionIndex = Math.round(value);
-
-                    if (optionIndex < 0
-                            || optionIndex >= root.scaleOptions.length) {
-                        return;
-                    }
-
-                    const option = root.scaleOptions[optionIndex];
-
-                    if (root.monitor && root.draftStore && option) {
-                        root.draftStore.setScale(
-                            root.monitor.output,
-                            String(option.value)
-                        );
-                    }
-                }
+                text: "Scale"
+                color: root.theme.textSecondary
+                font.pixelSize: root.theme.textSizeCaption
+                font.weight: root.theme.fontWeightMedium
             }
 
             Text {
@@ -487,82 +567,51 @@ Components.JcSurface {
                 color: root.theme.textPrimary
                 font.family: root.theme.fontFamilySans
                 font.pixelSize: root.theme.textSizeBody
-                font.weight: root.theme.fontWeightMedium
+                font.weight: root.theme.fontWeightSemibold
                 horizontalAlignment: Text.AlignRight
-                verticalAlignment: Text.AlignVCenter
             }
         }
 
-        Text {
-            text: "Orientation"
-            color: root.theme.textSecondary
-            font.pixelSize: root.theme.textSizeCaption
-        }
+        Components.JcSlider {
+            id: scaleSlider
 
-        Components.JcComboBox {
             Layout.fillWidth: true
 
             theme: root.theme
-            options: root.transformOptions
-            selectedValue: root.draft ? String(root.draft.transform) : ""
-            placeholder: root.draft && !root.draft.enabled
-                ? "Display disabled"
-                : "Select orientation"
+
+            from: 0
+            to: Math.max(0, root.scaleOptions.length - 1)
+            stepSize: 1
+
+            value: root.draft
+                ? root.scaleIndexForValue(root.draft.scale)
+                : 0
 
             controlEnabled:
                 root.editorEnabled
                 && root.draft
                 && root.draft.enabled
+                && root.scaleOptions.length > 0
 
-            onValueSelected: value => {
-                if (root.monitor && root.draftStore)
-                    root.draftStore.setTransform(root.monitor.output, value);
+            onMoved: {
+                const optionIndex = Math.round(value);
+
+                if (optionIndex < 0
+                        || optionIndex >= root.scaleOptions.length) {
+                    return;
+                }
+
+                const option = root.scaleOptions[optionIndex];
+
+                if (root.monitor && root.draftStore && option) {
+                    root.draftStore.setScale(
+                        root.monitor.output,
+                        String(option.value)
+                    );
+                }
             }
         }
 
-        Text {
-            Layout.fillWidth: true
 
-            text: {
-                if (!root.draft || !root.draftStore)
-                    return "Draft unavailable";
-
-                const logical = root.draftStore.logicalSize(
-                    root.draft.width,
-                    root.draft.height,
-                    root.draft.scale,
-                    root.draft.transform
-                );
-
-                if (!root.draft.enabled)
-                    return "Draft: Disabled";
-
-                return "Draft: "
-                    + root.draft.width + "×" + root.draft.height
-                    + " @ " + root.draft.refreshRate.toFixed(2) + " Hz"
-                    + " · " + Number(root.draft.scale).toFixed(2) + "×"
-                    + " · "
-                    + root.draftStore.transformLabel(root.draft.transform)
-                    + " · logical "
-                    + Math.round(logical.width)
-                    + "×" + Math.round(logical.height);
-            }
-
-            color: root.theme.accent
-            font.pixelSize: root.theme.textSizeCaption
-            wrapMode: Text.Wrap
-        }
-
-        Text {
-            Layout.fillWidth: true
-
-            text:
-                "Options marked “move required” can be selected. Use the "
-                + "visual layout editor to resolve any overlap before Safe Apply."
-
-            color: root.theme.textSecondary
-            font.pixelSize: root.theme.textSizeCaption
-            wrapMode: Text.Wrap
-        }
     }
 }

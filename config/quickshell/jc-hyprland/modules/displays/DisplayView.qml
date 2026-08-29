@@ -12,6 +12,12 @@ Item {
     property var persistenceService
     required property var theme
 
+    readonly property real monitorCardMinWidth:
+        root.theme.controlHeightLarge * 8
+
+    readonly property real monitorCardTwoColumnThreshold:
+        (root.monitorCardMinWidth * 2) + root.theme.spaceMd
+
     signal refreshRequested()
     signal resetRequested()
     signal applyRequested()
@@ -27,16 +33,19 @@ Item {
             Layout.fillWidth: true
             spacing: root.theme.spaceMd
 
-            Text {
+            Components.JcSectionHeader {
                 Layout.fillWidth: true
 
-                text: {
+                theme: root.theme
+                title: "Monitors"
+
+                subtitle: {
                     if (!root.monitorService)
                         return "Monitor service unavailable";
 
                     const base =
                         root.monitorService.activeCount
-                        + " active / "
+                        + " active · "
                         + root.monitorService.count
                         + " detected";
 
@@ -56,12 +65,6 @@ Item {
 
                     return base;
                 }
-
-                color: root.theme.textSecondary
-                font.family: root.theme.fontFamilySans
-                font.pixelSize: root.theme.textSizeBody
-                font.weight: root.theme.fontWeightMedium
-                elide: Text.ElideRight
             }
 
             Components.JcButton {
@@ -547,26 +550,76 @@ Item {
                     font.weight: root.theme.fontWeightRegular
                 }
 
-                Repeater {
-                    model: root.monitorService
-                        ? root.monitorService.monitors
-                        : []
+                Components.JcDivider {
+                    width: parent.width
+                    theme: root.theme
+                }
 
-                    delegate: DisplayCard {
-                        required property var modelData
+                Components.JcSectionHeader {
+                    width: parent.width
 
-                        width: contentColumn.width
+                    theme: root.theme
+                    title: "Monitor settings"
 
-                        theme: root.theme
-                        monitor: modelData
-                        draftStore: root.draftStore
+                    subtitle: {
+                        if (!root.monitorService)
+                            return "Monitor service unavailable";
 
-                        editorEnabled:
-                            !(root.applyService && root.applyService.busy)
-                            && !(root.applyService
-                                && root.applyService.pendingConfirmation)
-                            && !(root.persistenceService
-                                && root.persistenceService.saving)
+                        if (root.monitorService.loading)
+                            return "Refreshing detected monitor details…";
+
+                        if (root.monitorService.count === 0)
+                            return "No detected outputs to configure.";
+
+                        return root.monitorService.count
+                            + " detected · resolution · refresh rate · scale · orientation";
+                    }
+                }
+
+                Grid {
+                    id: monitorCardGrid
+
+                    width: contentColumn.width
+                    height: implicitHeight
+
+                    columns:
+                        width >= root.monitorCardTwoColumnThreshold
+                            ? 2
+                            : 1
+
+                    columnSpacing: root.theme.spaceMd
+                    rowSpacing: root.theme.spaceMd
+
+                    readonly property real cardWidth:
+                        columns > 1
+                            ? (width - columnSpacing) / columns
+                            : width
+
+                    Repeater {
+                        model: root.monitorService
+                            ? root.monitorService.monitors
+                            : []
+
+                        delegate: DisplayCard {
+                            required property var modelData
+
+                            width: monitorCardGrid.cardWidth
+
+                            theme: root.theme
+                            monitor: modelData
+                            draftStore: root.draftStore
+
+                            outputRole: root.monitorService
+                                ? root.monitorService.roleForOutput(modelData.output)
+                                : ""
+
+                            editorEnabled:
+                                !(root.applyService && root.applyService.busy)
+                                && !(root.applyService
+                                    && root.applyService.pendingConfirmation)
+                                && !(root.persistenceService
+                                    && root.persistenceService.saving)
+                        }
                     }
                 }
             }

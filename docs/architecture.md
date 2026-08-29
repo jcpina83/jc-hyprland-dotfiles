@@ -1046,3 +1046,136 @@ semantic icons: `all`, `theme`, and `library`.
 
 This preserves the one-owner-perimeter rule while making the module's
 information architecture explicit.
+
+### H1.4.4a Displays visual hierarchy
+
+Displays adopts the same section-first information hierarchy approved for
+Wallpapers without flattening independent functional HUD cards:
+
+```text
+Monitors
+  -> active / detected / draft state + global actions
+  -> Layout & position HUD
+
+Monitor settings
+  -> one DisplayCard per detected output
+
+Persistent configuration
+  -> persistence state + Save Configuration
+```
+
+`DisplayLayoutEditor`, `DisplayCard`, Safe Apply confirmation, and persistent
+configuration remain independent functional surfaces and therefore retain
+their existing perimeter ownership. Section headers provide hierarchy;
+additional decorative frames are not introduced.
+
+H1.4.4a is presentation-only. Monitor observation, draft mutation, topology
+editing, Safe Apply, rollback, and persistence contracts are unchanged.
+
+### H1.4.4b Display control strip
+
+`DisplayCard` groups the three enumerated monitor settings into a compact
+responsive control strip:
+
+```text
+Resolution | Refresh rate | Orientation   -> 3 columns when space permits
+Scale                                      -> full-width slider below
+```
+
+The strip falls back to 2 columns and then 1 column from semantic control
+geometry rather than physical-pixel breakpoints.
+
+`JcComboBox` now participates in the canonical JC Holo interactive-control
+language through `JcInteractiveFrame`. It exposes a `compact` mode and uses
+the semantic `chevron-down` vector from `JcIcon`; selection data, popup
+behavior, keyboard focus, and `valueSelected` remain unchanged.
+
+Because `JcComboBox` is shared, the visual treatment also applies to the
+topology selectors and future modules without duplicating styling.
+
+## H1.4.4b2 dual-monitor card layout
+
+The Displays module presents monitor settings as responsive peer cards rather
+than a vertical list. At normal Control Center width, two `DisplayCard`
+instances share one row; below a semantic breakpoint derived from Theme API
+control geometry and spacing, the same cards fall back to one column.
+
+Monitor role labels are configuration-derived and remain separate from focus.
+The read-only flow is:
+
+```text
+local/host.env
+  -> start-quickshell.sh
+     -> JC_MAIN_OUTPUT / JC_SECONDARY_OUTPUT
+        -> MonitorService.qml
+           -> roleForOutput(...)
+              -> DisplayCard.outputRole
+```
+
+`Primary` therefore means the configured `MAIN_OUTPUT`, and `Secondary` means
+the configured `SECONDARY_OUTPUT`. Neither role is inferred from the currently
+focused monitor, and no output name is hardcoded in QML.
+
+The compact Resolution / Refresh rate / Orientation strip remains three
+`JcComboBox` controls and Scale remains `JcSlider`; only the semantic minimum
+column width is tightened so all three compact controls can coexist inside a
+half-width monitor card when space permits. Existing keyboard, draft,
+Safe Apply, rollback, topology, and persistence contracts are unchanged.
+
+## H1.4.4b3 Display card density polish
+
+The dual-monitor layout keeps lifecycle restrictions available without letting
+one monitor-specific warning alter peer-card geometry.
+
+`DisplayDraftStore.enableDisableReason(output)` remains the source of truth for
+why an enabled display cannot currently be disabled. `DisplayCard` exposes that
+reason as read-only presentation state and shows it through `JcTooltip` over the
+disabled power action instead of reserving a permanent warning row.
+
+The permanent draft summary and the generic `move required` explanatory footer
+are removed from `DisplayCard`. Resolution, refresh rate, orientation, Scale,
+observed state, dirty/matching state, and topology validation already expose the
+same operational information closer to the controls that own it.
+
+This is presentation-only. Enable/disable guards, draft mutation, topology
+validation, Safe Apply, rollback, and persistent configuration semantics remain
+unchanged.
+
+## H1.4.4c Compact layout editor
+
+The `Layout & position` HUD keeps the topology canvas unchanged and reduces the
+visual weight of the controls beneath it.
+
+The two topology selectors use compact `JcComboBox` controls in the existing
+responsive 2/1-column grid. The four direction actions form a compact segmented
+strip by composing the existing compact `JcButton` controls with the smallest
+canonical gap; their semantic left, right, above, and below icons remain the
+interaction language.
+
+The topology-valid state remains visible with caption-level typography, while
+the negative-coordinate hint is retained as muted supporting copy. The canvas
+therefore remains the focal point without hiding operational information.
+
+Responsive behavior is preserved: selectors fall from 2 columns to 1 and
+direction actions from 4 columns to 2. `snapPosition`, `setPosition`,
+`snapRelative`, keyboard interaction, Safe Apply and topology mutation
+semantics remain unchanged.
+
+## H1.4.4d In-canvas HUD D-Pad
+
+H1.4.4d supersedes the H1.4.4c bottom segmented direction strip. Position
+actions now live inside a compact JC Holo D-Pad on the right side of the
+topology canvas, matching the visual editing surface that owns those actions.
+
+The canvas reserves a presentation-only right rail for the D-Pad so projected
+monitor nodes remain visible and do not render beneath the control cluster.
+The four directional icon actions continue to call `snapSelected(...)`, which
+delegates to the existing `DisplayDraftStore.snapRelative(...)` draft boundary.
+
+The center action recenters the topology viewport by calling
+`recalculateBounds()`. It does not reset or mutate the display draft and does
+not apply runtime monitor state.
+
+Selected display and Relative to remain compact selectors below the canvas.
+Safe Apply, persistence, topology validation, dragging, snapping, and the
+observed/draft/applied/persistent state boundary are unchanged.

@@ -14,11 +14,36 @@ Scope {
     readonly property string focusedOutputName:
         Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
 
+    readonly property string mainOutputName:
+        String(Quickshell.env("JC_MAIN_OUTPUT") || "")
+
+    readonly property string secondaryOutputName:
+        String(Quickshell.env("JC_SECONDARY_OUTPUT") || "")
+
     property bool loading: false
     property string errorMessage: ""
     property string lastRefresh: ""
 
     signal refreshed()
+
+    function roleForOutput(output) {
+        const outputName = String(output || "");
+
+        if (outputName.length === 0)
+            return "";
+
+        if (root.mainOutputName.length > 0
+                && outputName === root.mainOutputName) {
+            return "Primary";
+        }
+
+        if (root.secondaryOutputName.length > 0
+                && outputName === root.secondaryOutputName) {
+            return "Secondary";
+        }
+
+        return "";
+    }
 
     function logicalSize(width, height, scale, transform) {
         const safeScale = scale > 0 ? scale : 1;

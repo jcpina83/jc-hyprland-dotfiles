@@ -33,10 +33,49 @@ Components.JcSurface {
         Math.max(1, root.maximumY - root.minimumY)
 
     readonly property real canvasPadding: root.theme.spaceLg
+    readonly property real dpadButtonSize:
+
+        root.theme.controlHeightCompact
+
+    readonly property real dpadGap:
+
+        root.theme.space2Xs
+
+    readonly property real dpadPadding:
+
+        root.theme.spaceSm
+
+    readonly property real dpadPanelSize:
+
+        (root.dpadButtonSize * 3)
+
+        + (root.dpadGap * 2)
+
+        + (root.dpadPadding * 2)
+
+    readonly property real dpadReservedWidth:
+
+        root.dpadPanelSize + root.theme.spaceMd
+
+
     readonly property real usableWidth:
-        Math.max(1, canvas.width - root.canvasPadding * 2)
+
+        Math.max(
+
+            1,
+
+            canvas.width
+
+                - (root.canvasPadding * 2)
+
+                - root.dpadReservedWidth
+
+        )
+
     readonly property real usableHeight:
+
         Math.max(1, canvas.height - root.canvasPadding * 2)
+
 
     readonly property real topologyScale:
         Math.min(
@@ -321,17 +360,17 @@ Components.JcSurface {
 
         anchors.fill: parent
         anchors.margins: root.theme.spaceMd
-        spacing: root.theme.spaceMd
+        spacing: root.theme.spaceSm
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: root.theme.spaceMd
+            spacing: root.theme.spaceSm
 
             Components.JcSectionHeader {
                 Layout.fillWidth: true
 
                 theme: root.theme
-                title: "Visual layout"
+                title: "Layout & position"
                 subtitle:
                     "Drag a display or use the keyboard selectors below. "
                     + "Nearby edges and centers snap automatically."
@@ -357,8 +396,8 @@ Components.JcSurface {
                 }
 
                 font.family: root.theme.fontFamilySans
-                font.pixelSize: root.theme.textSizeBody
-                font.weight: root.theme.fontWeightSemibold
+                font.pixelSize: root.theme.textSizeCaption
+                font.weight: root.theme.fontWeightMedium
             }
         }
 
@@ -375,6 +414,145 @@ Components.JcSurface {
 
             border.width: root.theme.borderWidthThin
             border.color: root.theme.hudInnerFrame
+
+            Item {
+                id: topologyDPad
+
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: root.theme.spaceMd
+                anchors.rightMargin: root.theme.spaceMd
+
+                width: root.dpadPanelSize
+                height: root.dpadPanelSize
+
+                z: 50
+
+                Components.JcHudFrame {
+                    anchors.fill: parent
+
+                    theme: root.theme
+                    surfaceRole: "glass-raised"
+
+                    fillEnabled: true
+                    fillColor: root.theme.hudSurfaceRaised
+                    contentPadding: 0
+
+                    cutSize: root.theme.spaceSm
+                    accentLength: root.theme.controlHeightCompact
+
+                    glowEnabled: true
+                    showInnerFrame: true
+                    showCornerAccents: true
+                    showSecondaryAccent: false
+                }
+
+                GridLayout {
+                    anchors.centerIn: parent
+
+                    columns: 3
+                    rows: 3
+
+                    columnSpacing: root.dpadGap
+                    rowSpacing: root.dpadGap
+
+                    Components.JcIconButton {
+                        Layout.row: 0
+                        Layout.column: 1
+                        Layout.preferredWidth: root.dpadButtonSize
+                        Layout.preferredHeight: root.dpadButtonSize
+
+                        theme: root.theme
+                        compact: true
+
+                        iconName: "above"
+                        accessibleName: "Position display above"
+
+                        controlEnabled:
+                            root.editorEnabled
+                            && root.anchorOutput.length > 0
+
+                        onClicked: root.snapSelected("above")
+                    }
+
+                    Components.JcIconButton {
+                        Layout.row: 1
+                        Layout.column: 0
+                        Layout.preferredWidth: root.dpadButtonSize
+                        Layout.preferredHeight: root.dpadButtonSize
+
+                        theme: root.theme
+                        compact: true
+
+                        iconName: "left"
+                        accessibleName: "Position display left"
+
+                        controlEnabled:
+                            root.editorEnabled
+                            && root.anchorOutput.length > 0
+
+                        onClicked: root.snapSelected("left")
+                    }
+
+                    Components.JcIconButton {
+                        id: recenterTopologyButton
+
+                        Layout.row: 1
+                        Layout.column: 1
+                        Layout.preferredWidth: root.dpadButtonSize
+                        Layout.preferredHeight: root.dpadButtonSize
+
+                        theme: root.theme
+                        compact: true
+
+                        iconName: "center"
+                        accessibleName: "Recenter topology"
+
+                        controlEnabled:
+                            root.projectedMonitors.length > 0
+
+                        onClicked: root.recalculateBounds()
+                    }
+
+                    Components.JcIconButton {
+                        Layout.row: 1
+                        Layout.column: 2
+                        Layout.preferredWidth: root.dpadButtonSize
+                        Layout.preferredHeight: root.dpadButtonSize
+
+                        theme: root.theme
+                        compact: true
+
+                        iconName: "right"
+                        accessibleName: "Position display right"
+
+                        controlEnabled:
+                            root.editorEnabled
+                            && root.anchorOutput.length > 0
+
+                        onClicked: root.snapSelected("right")
+                    }
+
+                    Components.JcIconButton {
+                        Layout.row: 2
+                        Layout.column: 1
+                        Layout.preferredWidth: root.dpadButtonSize
+                        Layout.preferredHeight: root.dpadButtonSize
+
+                        theme: root.theme
+                        compact: true
+
+                        iconName: "below"
+                        accessibleName: "Position display below"
+
+                        controlEnabled:
+                            root.editorEnabled
+                            && root.anchorOutput.length > 0
+
+                        onClicked: root.snapSelected("below")
+                    }
+                }
+            }
 
             Repeater {
                 model: root.projectedMonitors
@@ -563,11 +741,13 @@ Components.JcSurface {
         }
 
         GridLayout {
+            id: topologySelectorGrid
+
             Layout.fillWidth: true
 
             columns: root.compactLayout ? 1 : 2
-            columnSpacing: root.theme.spaceMd
-            rowSpacing: root.theme.spaceSm
+            columnSpacing: root.theme.spaceSm
+            rowSpacing: root.theme.space2Xs
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -588,6 +768,7 @@ Components.JcSurface {
                     Layout.fillWidth: true
 
                     theme: root.theme
+                    compact: true
                     options: root.selectedOptions
                     selectedValue: root.selectedOutput
                     placeholder: root.selectedOptions.length > 0
@@ -622,6 +803,7 @@ Components.JcSurface {
                     Layout.fillWidth: true
 
                     theme: root.theme
+                    compact: true
                     options: root.anchorOptions
                     selectedValue: root.anchorOutput
                     placeholder: root.anchorOptions.length > 0
@@ -639,79 +821,12 @@ Components.JcSurface {
             }
         }
 
-        GridLayout {
-            Layout.fillWidth: true
-
-            columns: root.compactLayout ? 2 : 4
-            columnSpacing: root.theme.spaceXs
-            rowSpacing: root.theme.spaceXs
-
-            Components.JcButton {
-                Layout.fillWidth: true
-
-                theme: root.theme
-                text: "Left"
-                iconName: "left"
-                compact: true
-
-                controlEnabled:
-                    root.editorEnabled
-                    && root.anchorOutput.length > 0
-
-                onClicked: root.snapSelected("left")
-            }
-
-            Components.JcButton {
-                Layout.fillWidth: true
-
-                theme: root.theme
-                text: "Right"
-                iconName: "right"
-                compact: true
-
-                controlEnabled:
-                    root.editorEnabled
-                    && root.anchorOutput.length > 0
-
-                onClicked: root.snapSelected("right")
-            }
-
-            Components.JcButton {
-                Layout.fillWidth: true
-
-                theme: root.theme
-                text: "Above"
-                iconName: "above"
-                compact: true
-
-                controlEnabled:
-                    root.editorEnabled
-                    && root.anchorOutput.length > 0
-
-                onClicked: root.snapSelected("above")
-            }
-
-            Components.JcButton {
-                Layout.fillWidth: true
-
-                theme: root.theme
-                text: "Below"
-                iconName: "below"
-                compact: true
-
-                controlEnabled:
-                    root.editorEnabled
-                    && root.anchorOutput.length > 0
-
-                onClicked: root.snapSelected("below")
-            }
-        }
 
         Text {
             Layout.fillWidth: true
 
             text: "Negative coordinates are allowed."
-            color: root.theme.textSecondary
+            color: root.theme.textMuted
 
             font.family: root.theme.fontFamilySans
             font.pixelSize: root.theme.textSizeCaption

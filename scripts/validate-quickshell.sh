@@ -1892,12 +1892,19 @@ for combo_contract in \
     'property string selectedValue: ""' \
     'property string placeholder: "Select"' \
     'property bool controlEnabled: true' \
+    'property bool compact: false' \
     'signal valueSelected(string value)' \
     'textRole: "label"' \
     'valueRole: "value"' \
     'function indexForSelectedValue(): int' \
     'function syncCurrentIndex(): void' \
     'onActivated: index =>' \
+    'JcInteractiveFrame {' \
+    'hovered: root.hovered' \
+    'pressed: root.down' \
+    'selected: root.popup.visible' \
+    'focused: root.activeFocus' \
+    'name: "chevron-down"' \
     'delegate: Controls.ItemDelegate {' \
     'popup: Controls.Popup {' \
     'root.theme.controlSurfaceDefault' \
@@ -1907,7 +1914,6 @@ for combo_contract in \
     'root.theme.controlTextDisabled' \
     'root.theme.controlTextSelected' \
     'root.theme.surfaceOverlay' \
-    'root.theme.focusRingColor' \
     'root.theme.motionControl'
 do
     if grep -Fq -- "$combo_contract" "$jc_combo_box" 2>/dev/null; then
@@ -3427,7 +3433,7 @@ for layout_editor_visual_contract in \
     'root.theme.danger' \
     'root.theme.borderAccent' \
     'Components.JcComboBox {' \
-    'Components.JcButton {' \
+    'Components.JcIconButton {' \
     'root.theme.textSizeBody' \
     'root.theme.textSizeCaption'
 do
@@ -3855,9 +3861,10 @@ for topology_responsive_contract in \
     '(root.theme.controlHeightLarge * 8)' \
     'readonly property bool compactLayout:' \
     'columns: root.compactLayout ? 1 : 2' \
-    'columns: root.compactLayout ? 2 : 4' \
-    'columnSpacing: root.theme.spaceMd' \
-    'rowSpacing: root.theme.spaceXs'
+    'columnSpacing: root.theme.spaceSm' \
+    'rowSpacing: root.theme.space2Xs' \
+    'id: topologyDPad' \
+    'anchors.right: parent.right'
 do
     if grep -Fq -- "$topology_responsive_contract" \
         "$display_layout_editor" 2>/dev/null
@@ -4933,13 +4940,9 @@ else
 fi
 
 for contract in \
-    'text: "Left"' \
     'iconName: "left"' \
-    'text: "Right"' \
     'iconName: "right"' \
-    'text: "Above"' \
     'iconName: "above"' \
-    'text: "Below"' \
     'iconName: "below"'
 do
     if grep -Fq -- "$contract" "$semantic_layout"; then
@@ -5188,6 +5191,254 @@ do
     fi
 done
 
+
+printf '\n==> Phase H1.4.4a Displays visual hierarchy\n'
+
+holo_display_view="$config_dir/modules/displays/DisplayView.qml"
+holo_display_layout="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+
+for contract in \
+    'title: "Monitors"' \
+    '+ " active · "' \
+    'title: "Monitor settings"' \
+    '" detected · resolution · refresh rate · scale · orientation"' \
+    'delegate: DisplayCard {' \
+    'title: "Persistent configuration"'
+do
+    if grep -Fq -- "$contract" "$holo_display_view"; then
+        ok "Displays hierarchy contract: $contract"
+    else
+        fail "Displays hierarchy contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'title: "Layout & position"' \
+    'root.draftStore.topologyValid' \
+    'Components.JcComboBox {' \
+    'Components.JcIconButton {'
+do
+    if grep -Fq -- "$contract" "$holo_display_layout"; then
+        ok "Displays layout hierarchy contract: $contract"
+    else
+        fail "Displays layout hierarchy contract missing: $contract"
+    fi
+done
+
+if grep -Fq -- 'title: "Visual layout"' "$holo_display_layout"; then
+    fail 'Displays retains superseded "Visual layout" title'
+else
+    ok 'Displays retired superseded "Visual layout" title'
+fi
+
+for contract in \
+    'id: layoutHudFrame' \
+    'id: persistenceHudFrame'
+do
+    if grep -R -Fq -- "$contract" \
+        "$holo_display_view" \
+        "$holo_display_layout"
+    then
+        ok "Displays functional perimeter preserved: $contract"
+    else
+        fail "Displays functional perimeter missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase H1.4.4b Display control strip\n'
+
+holo_display_card="$config_dir/modules/displays/DisplayCard.qml"
+holo_combo_box="$config_dir/components/JcComboBox.qml"
+holo_icon="$config_dir/components/JcIcon.qml"
+
+for contract in \
+    'readonly property real controlStripMinColumnWidth:' \
+    'readonly property int controlStripColumns:' \
+    'id: displayControlStrip' \
+    'columns: root.controlStripColumns' \
+    'columnSpacing: root.theme.spaceMd' \
+    'text: "Resolution"' \
+    'text: "Refresh rate"' \
+    'text: "Orientation"' \
+    'text: "Scale"'
+do
+    if grep -Fq -- "$contract" "$holo_display_card"; then
+        ok "Display control strip contract: $contract"
+    else
+        fail "Display control strip contract missing: $contract"
+    fi
+done
+
+display_card_combo_count="$(
+    grep -Fc 'Components.JcComboBox {' "$holo_display_card" 2>/dev/null || true
+)"
+display_card_slider_count="$(
+    grep -Fc 'Components.JcSlider {' "$holo_display_card" 2>/dev/null || true
+)"
+compact_combo_count="$(
+    awk '
+        /Components.JcComboBox \{/ { in_combo=1; next }
+        in_combo && /compact: true/ { count++; in_combo=0 }
+        in_combo && /^        }/ { in_combo=0 }
+        END { print count+0 }
+    ' "$holo_display_card"
+)"
+
+if [[ "$display_card_combo_count" == "3" \
+    && "$display_card_slider_count" == "1" ]]
+then
+    ok "DisplayCard remains 3 ComboBoxes + 1 Slider"
+else
+    fail "DisplayCard control counts changed: combo=$display_card_combo_count slider=$display_card_slider_count"
+fi
+
+if [[ "$compact_combo_count" == "3" ]]; then
+    ok "DisplayCard uses compact mode on all three enum ComboBoxes"
+else
+    fail "DisplayCard expected 3 compact enum ComboBoxes, found $compact_combo_count"
+fi
+
+for contract in \
+    'property bool compact: false' \
+    'implicitHeight: root.compact' \
+    'JcInteractiveFrame {' \
+    'selected: root.popup.visible' \
+    'focused: root.activeFocus' \
+    'name: "chevron-down"' \
+    '? root.theme.iconSizeCompactControl'
+do
+    if grep -Fq -- "$contract" "$holo_combo_box"; then
+        ok "JC Holo ComboBox contract: $contract"
+    else
+        fail "JC Holo ComboBox contract missing: $contract"
+    fi
+done
+
+if grep -Fq -- 'text: "⌄"' "$holo_combo_box"; then
+    fail "JcComboBox still owns the raw chevron glyph"
+else
+    ok "JcComboBox uses semantic chevron rendering"
+fi
+
+for contract in \
+    '"chevron-down"' \
+    'case "chevron-down":' \
+    '[[6.2, 8.8], [12, 14.5], [17.8, 8.8]]'
+do
+    if grep -Fq -- "$contract" "$holo_icon"; then
+        ok "Semantic chevron contract: $contract"
+    else
+        fail "Semantic chevron contract missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase H1.4.4d in-canvas HUD D-Pad\n'
+
+holo_display_layout="$config_dir/modules/displays/DisplayLayoutEditor.qml"
+holo_architecture="$repo_root/docs/architecture.md"
+
+for contract in \
+    'id: topologySelectorGrid' \
+    'columns: root.compactLayout ? 1 : 2' \
+    'id: topologyDPad' \
+    'anchors.right: parent.right' \
+    'root.dpadReservedWidth' \
+    'Components.JcHudFrame {' \
+    'surfaceRole: "glass-raised"' \
+    'columns: 3' \
+    'rows: 3'
+do
+    if grep -Fq -- "$contract" "$holo_display_layout"; then
+        ok "HUD D-Pad composition: $contract"
+    else
+        fail "HUD D-Pad composition missing: $contract"
+    fi
+done
+
+layout_combo_count="$(
+    grep -Fc 'Components.JcComboBox {' "$holo_display_layout" 2>/dev/null || true
+)"
+layout_icon_button_count="$(
+    grep -Fc 'Components.JcIconButton {' "$holo_display_layout" 2>/dev/null || true
+)"
+layout_bottom_button_count="$(
+    grep -Fc 'Components.JcButton {' "$holo_display_layout" 2>/dev/null || true
+)"
+
+if [[ "$layout_combo_count" == "2" \
+    && "$layout_icon_button_count" == "5" \
+    && "$layout_bottom_button_count" == "0" ]]
+then
+    ok "Layout editor uses 2 selectors + 5 in-canvas HUD icon actions"
+else
+    fail "Unexpected layout control count: combo=$layout_combo_count icon=$layout_icon_button_count bottom=$layout_bottom_button_count"
+fi
+
+for semantic_icon in above left center right below
+do
+    if grep -Fq -- "iconName: \"$semantic_icon\"" "$holo_display_layout"; then
+        ok "HUD D-Pad semantic icon: $semantic_icon"
+    else
+        fail "HUD D-Pad semantic icon missing: $semantic_icon"
+    fi
+done
+
+for direction in above left right below
+do
+    if grep -Fq -- "root.snapSelected(\"$direction\")" "$holo_display_layout"; then
+        ok "HUD D-Pad draft direction: $direction"
+    else
+        fail "HUD D-Pad draft direction missing: $direction"
+    fi
+done
+
+for center_contract in \
+    'id: recenterTopologyButton' \
+    'accessibleName: "Recenter topology"' \
+    'onClicked: root.recalculateBounds()'
+do
+    if grep -Fq -- "$center_contract" "$holo_display_layout"; then
+        ok "HUD D-Pad center action: $center_contract"
+    else
+        fail "HUD D-Pad center action missing: $center_contract"
+    fi
+done
+
+if grep -Fq -- 'id: positionSegmentedActions' "$holo_display_layout"; then
+    fail "Retired bottom position strip remains"
+else
+    ok "Retired bottom position strip removed"
+fi
+
+for runtime_contract in \
+    'root.draftStore.snapPosition(' \
+    'root.draftStore.setPosition(' \
+    'root.draftStore.snapRelative(' \
+    'root.draftStore.topologyValid'
+do
+    if grep -Fq -- "$runtime_contract" "$holo_display_layout"; then
+        ok "HUD D-Pad preserves topology boundary: $runtime_contract"
+    else
+        fail "HUD D-Pad topology boundary missing: $runtime_contract"
+    fi
+done
+
+for doc_contract in \
+    '## H1.4.4d In-canvas HUD D-Pad' \
+    'right side of the' \
+    'topology canvas, matching the visual editing surface' \
+    'center action recenters the topology viewport' \
+    'does not reset or mutate the display draft'
+do
+    if grep -Fq -- "$doc_contract" "$holo_architecture"; then
+        ok "H1.4.4d architecture contract: $doc_contract"
+    else
+        fail "H1.4.4d architecture contract missing: $doc_contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then
@@ -5195,3 +5446,199 @@ if ((errors > 0)); then
 fi
 
 printf 'Quickshell static checks passed.\n'
+
+printf '\n==> Phase H1.4.4b2 dual-monitor card layout\n'
+
+holo_monitor_service="$config_dir/services/MonitorService.qml"
+holo_display_view="$config_dir/modules/displays/DisplayView.qml"
+holo_display_card="$config_dir/modules/displays/DisplayCard.qml"
+holo_quickshell_launcher="$repo_root/scripts/runtime/start-quickshell.sh"
+holo_architecture="$repo_root/docs/architecture.md"
+
+# Literal validator contracts intentionally contain shell expressions.
+# shellcheck disable=SC2016
+for contract in \
+    'host_env="$runtime_base/local/host.env"' \
+    'source "$host_env"' \
+    'export JC_MAIN_OUTPUT="${MAIN_OUTPUT:-}"' \
+    'export JC_SECONDARY_OUTPUT="${SECONDARY_OUTPUT:-}"'
+do
+    if grep -Fq -- "$contract" "$holo_quickshell_launcher"; then
+        ok "Quickshell host-role bridge: $contract"
+    else
+        fail "Quickshell host-role bridge missing: $contract"
+    fi
+done
+
+for contract in \
+    'readonly property string mainOutputName:' \
+    'Quickshell.env("JC_MAIN_OUTPUT")' \
+    'readonly property string secondaryOutputName:' \
+    'Quickshell.env("JC_SECONDARY_OUTPUT")' \
+    'function roleForOutput(output)' \
+    'return "Primary";' \
+    'return "Secondary";'
+do
+    if grep -Fq -- "$contract" "$holo_monitor_service"; then
+        ok "MonitorService role contract: $contract"
+    else
+        fail "MonitorService role contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'readonly property real monitorCardMinWidth:' \
+    'root.theme.controlHeightLarge * 8' \
+    'readonly property real monitorCardTwoColumnThreshold:' \
+    'id: monitorCardGrid' \
+    'width >= root.monitorCardTwoColumnThreshold' \
+    '? 2' \
+    ': 1' \
+    'readonly property real cardWidth:' \
+    'width: monitorCardGrid.cardWidth' \
+    'delegate: DisplayCard {' \
+    'required property var modelData' \
+    'monitor: modelData' \
+    'outputRole: root.monitorService' \
+    'root.monitorService.roleForOutput(modelData.output)'
+do
+    if grep -Fq -- "$contract" "$holo_display_view"; then
+        ok "Displays dual-card contract: $contract"
+    else
+        fail "Displays dual-card contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'property string outputRole: ""' \
+    '? " · " + root.outputRole' \
+    'readonly property real controlStripMinColumnWidth:' \
+    'root.theme.controlHeightLarge * 2.4' \
+    'id: displayControlStrip'
+do
+    if grep -Fq -- "$contract" "$holo_display_card"; then
+        ok "DisplayCard dual-column contract: $contract"
+    else
+        fail "DisplayCard dual-column contract missing: $contract"
+    fi
+done
+
+if grep -Eq 'DP-[0-9]+' \
+    "$holo_monitor_service" \
+    "$holo_display_view" \
+    "$holo_display_card" \
+    "$holo_quickshell_launcher"
+then
+    fail "Dual-monitor presentation contains a hardcoded DP-* output"
+else
+    ok "Dual-monitor roles contain no hardcoded DP-* output"
+fi
+
+display_card_combo_count="$(
+    grep -Fc 'Components.JcComboBox {' "$holo_display_card" 2>/dev/null || true
+)"
+display_card_slider_count="$(
+    grep -Fc 'Components.JcSlider {' "$holo_display_card" 2>/dev/null || true
+)"
+
+if [[ "$display_card_combo_count" == "3" \
+    && "$display_card_slider_count" == "1" ]]
+then
+    ok "Dual-card layout preserves 3 ComboBoxes + 1 Slider per DisplayCard"
+else
+    fail "Dual-card layout changed DisplayCard control count unexpectedly: combo=$display_card_combo_count slider=$display_card_slider_count"
+fi
+
+for contract in \
+    '## H1.4.4b2 dual-monitor card layout' \
+    'JC_MAIN_OUTPUT / JC_SECONDARY_OUTPUT' \
+    'roleForOutput(...)' \
+    'Safe Apply, rollback, topology, and persistence contracts are unchanged.'
+do
+    if grep -Fq -- "$contract" "$holo_architecture"; then
+        ok "H1.4.4b2 architecture contract: $contract"
+    else
+        fail "H1.4.4b2 architecture contract missing: $contract"
+    fi
+done
+
+printf '\n==> Phase H1.4.4b3 Display card density polish\n'
+
+holo_display_card="$config_dir/modules/displays/DisplayCard.qml"
+holo_architecture="$repo_root/docs/architecture.md"
+
+for contract in \
+    'readonly property string disableReason:' \
+    'root.draftStore.enableDisableReason(root.monitor.output)' \
+    'id: disableButton' \
+    'id: disableReasonHover' \
+    'acceptedButtons: Qt.NoButton' \
+    'root.disableReason.length > 0' \
+    'Components.JcTooltip {' \
+    'visible: disableReasonHover.containsMouse' \
+    'text: root.disableReason'
+do
+    if grep -Fq -- "$contract" "$holo_display_card"; then
+        ok "DisplayCard contextual Disable reason: $contract"
+    else
+        fail "DisplayCard contextual Disable reason missing: $contract"
+    fi
+done
+
+for retired_copy in \
+    'Focus another display before disabling this one.' \
+    'Draft unavailable' \
+    'Draft: Disabled' \
+    'return "Draft: "' \
+    'Options marked “move required” can be selected. Use the '
+do
+    if grep -Fq -- "$retired_copy" "$holo_display_card"; then
+        fail "DisplayCard retains retired permanent copy: $retired_copy"
+    else
+        ok "DisplayCard retired permanent copy: $retired_copy"
+    fi
+done
+
+display_card_combo_count="$(
+    grep -Fc 'Components.JcComboBox {' "$holo_display_card" 2>/dev/null || true
+)"
+display_card_slider_count="$(
+    grep -Fc 'Components.JcSlider {' "$holo_display_card" 2>/dev/null || true
+)"
+
+if [[ "$display_card_combo_count" == "3" \
+    && "$display_card_slider_count" == "1" ]]
+then
+    ok "Density polish preserves 3 ComboBoxes + 1 Slider"
+else
+    fail "Density polish changed controls unexpectedly: combo=$display_card_combo_count slider=$display_card_slider_count"
+fi
+
+for mutation_contract in \
+    'setEnabled(' \
+    'setResolution(root.monitor.output, value)' \
+    'setRefreshMode(root.monitor.output, value)' \
+    'root.draftStore.setScale(' \
+    'setTransform(root.monitor.output, value)'
+do
+    if grep -Fq -- "$mutation_contract" "$holo_display_card"; then
+        ok "Density polish preserves mutation contract: $mutation_contract"
+    else
+        fail "Density polish mutation contract missing: $mutation_contract"
+    fi
+done
+
+# Literal documentation contracts intentionally contain Markdown backticks.
+# shellcheck disable=SC2016
+for contract in \
+    '## H1.4.4b3 Display card density polish' \
+    '`DisplayDraftStore.enableDisableReason(output)` remains the source of truth' \
+    'shows it through `JcTooltip` over the' \
+    'Safe Apply, rollback, and persistent configuration semantics remain'
+do
+    if grep -Fq -- "$contract" "$holo_architecture"; then
+        ok "H1.4.4b3 architecture contract: $contract"
+    else
+        fail "H1.4.4b3 architecture contract missing: $contract"
+    fi
+done

@@ -37,6 +37,7 @@ Item {
         "notifications",
         "all",
         "library",
+        "chevron-down",
         "favorite",
         "power"
     ]
@@ -80,6 +81,7 @@ Item {
         case "notifications": return "●";
         case "all": return "▦";
         case "library": return "▰";
+        case "chevron-down": return "⌄";
         case "favorite": return "★";
         case "power": return "⏻";
         default: return "";
@@ -436,6 +438,14 @@ Item {
             ctx.closePath();
             ctx.stroke();
             root.strokePolyline(ctx, [[3.5, 7.0], [3.5, 18.8]], false);
+            break;
+
+        case "chevron-down":
+            root.strokePolyline(
+                ctx,
+                [[6.2, 8.8], [12, 14.5], [17.8, 8.8]],
+                false
+            );
             break;
 
         case "favorite":

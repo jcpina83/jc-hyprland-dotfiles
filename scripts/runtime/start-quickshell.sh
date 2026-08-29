@@ -14,6 +14,18 @@ config_name="${JC_QUICKSHELL_CONFIG:-jc-hyprland}"
 config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 config_dir="$config_home/quickshell/$config_name"
 
+runtime_base="$config_home/jc-hyprland-dotfiles"
+host_env="$runtime_base/local/host.env"
+
+if [[ -r "$host_env" ]]; then
+    # Machine-local host roles are configuration input, not QML-owned state.
+    # shellcheck disable=SC1090
+    source "$host_env"
+fi
+
+export JC_MAIN_OUTPUT="${MAIN_OUTPUT:-}"
+export JC_SECONDARY_OUTPUT="${SECONDARY_OUTPUT:-}"
+
 if ! command -v qs >/dev/null 2>&1; then
     printf 'ERROR: quickshell (qs) is not installed or not in PATH.\n' >&2
     exit 1
