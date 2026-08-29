@@ -35,6 +35,8 @@ Item {
         "media",
         "network",
         "notifications",
+        "all",
+        "library",
         "favorite",
         "power"
     ]
@@ -76,6 +78,8 @@ Item {
         case "media": return "♪";
         case "network": return "⌁";
         case "notifications": return "●";
+        case "all": return "▦";
+        case "library": return "▰";
         case "favorite": return "★";
         case "power": return "⏻";
         default: return "";
@@ -238,19 +242,24 @@ Item {
             break;
 
         case "fit":
-            root.drawCornerFrame(ctx, 3.7);
+            root.drawCornerFrame(ctx, 3.6);
+
+            // Contain: content remains fully visible inside the viewport.
             root.beginStroke(ctx);
-            ctx.rect(7.3, 7.3, 9.4, 9.4);
+            ctx.rect(6.7, 8.3, 10.6, 7.4);
             ctx.stroke();
             break;
 
         case "fill":
-            root.drawCornerFrame(ctx, 3.7);
+            // Fill: content expands toward the viewport boundaries.
             root.beginStroke(ctx);
-            ctx.rect(6.2, 6.2, 11.6, 11.6);
+            ctx.rect(5.0, 5.0, 14.0, 14.0);
             ctx.stroke();
-            root.strokePolyline(ctx, [[8, 8], [16, 16]], false);
-            root.strokePolyline(ctx, [[16, 8], [8, 16]], false);
+
+            root.drawArrow(ctx, 10.8, 10.8, 6.4, 6.4, 1.7);
+            root.drawArrow(ctx, 13.2, 10.8, 17.6, 6.4, 1.7);
+            root.drawArrow(ctx, 10.8, 13.2, 6.4, 17.6, 1.7);
+            root.drawArrow(ctx, 13.2, 13.2, 17.6, 17.6, 1.7);
             break;
 
         case "stretch":
@@ -397,6 +406,36 @@ Item {
             ctx.lineTo(6.3, 16.4);
             ctx.stroke();
             root.strokePolyline(ctx, [[10.3, 19], [13.7, 19]], false);
+            break;
+
+        case "all":
+            // All sources: four equal catalog cells.
+            root.beginStroke(ctx);
+            ctx.rect(4.2, 4.2, 6.1, 6.1);
+            ctx.stroke();
+            root.beginStroke(ctx);
+            ctx.rect(13.7, 4.2, 6.1, 6.1);
+            ctx.stroke();
+            root.beginStroke(ctx);
+            ctx.rect(4.2, 13.7, 6.1, 6.1);
+            ctx.stroke();
+            root.beginStroke(ctx);
+            ctx.rect(13.7, 13.7, 6.1, 6.1);
+            ctx.stroke();
+            break;
+
+        case "library":
+            // Library: local collection/folder.
+            root.beginStroke(ctx);
+            ctx.moveTo(3.5, 7.0);
+            ctx.lineTo(9.2, 7.0);
+            ctx.lineTo(11.0, 9.0);
+            ctx.lineTo(20.5, 9.0);
+            ctx.lineTo(20.5, 18.8);
+            ctx.lineTo(3.5, 18.8);
+            ctx.closePath();
+            ctx.stroke();
+            root.strokePolyline(ctx, [[3.5, 7.0], [3.5, 18.8]], false);
             break;
 
         case "favorite":

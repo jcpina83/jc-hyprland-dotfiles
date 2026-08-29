@@ -115,32 +115,38 @@ Item {
             Layout.fillWidth: true
             spacing: root.theme.spaceMd
 
-            Text {
+            Components.JcSectionHeader {
                 Layout.fillWidth: true
 
-                text: {
+                theme: root.theme
+                title: "Wallpaper targets"
+
+                subtitle: {
                     if (!root.wallpaperService)
                         return "Wallpaper service unavailable";
 
                     if (root.wallpaperService.loading)
-                        return "Loading wallpaper library…";
+                        return "Refreshing observed wallpaper state…";
 
                     if (!root.wallpaperService.ready)
-                        return "Wallpaper library not ready";
+                        return "Observed wallpaper state not ready";
 
-                    return root.wallpaperService.wallpaperCount
-                        + " available · "
+                    const mainOutput =
+                        root.wallpaperService.mainOutput.length > 0
+                            ? root.wallpaperService.mainOutput
+                            : "MAIN";
+                    const secondaryOutput =
+                        root.wallpaperService.secondaryOutput.length > 0
+                            ? root.wallpaperService.secondaryOutput
+                            : "SECONDARY";
+
+                    return mainOutput
+                        + " · "
+                        + secondaryOutput
+                        + " · "
                         + root.wallpaperService.runtimeEngine
                         + " runtime";
                 }
-
-                color: root.theme.textSecondary
-
-                font.family: root.theme.fontFamilySans
-                font.pixelSize: root.theme.textSizeBody
-                font.weight: root.theme.fontWeightMedium
-
-                elide: Text.ElideRight
             }
 
             Components.JcButton {
@@ -459,6 +465,7 @@ Item {
             Components.JcChip {
                 theme: root.theme
                 text: "All"
+                iconName: "all"
                 compact: true
                 controlEnabled: !root.interactionLocked
                 checked: root.catalogFilter === "all"
@@ -469,6 +476,7 @@ Item {
             Components.JcChip {
                 theme: root.theme
                 text: "Theme"
+                iconName: "theme"
                 compact: true
                 controlEnabled: !root.interactionLocked
                 checked: root.catalogFilter === "theme"
@@ -479,6 +487,7 @@ Item {
             Components.JcChip {
                 theme: root.theme
                 text: "Library"
+                iconName: "library"
                 compact: true
                 controlEnabled: !root.interactionLocked
                 checked: root.catalogFilter === "library"

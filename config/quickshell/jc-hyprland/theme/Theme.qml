@@ -493,6 +493,7 @@ Scope {
     readonly property int controlContentGap: spaceXs
 
     readonly property int iconSizeSm: 14
+    readonly property int iconSizeCompactControl: 16
     readonly property int iconSizeMd: 18
     readonly property int iconSizeLg: 22
     readonly property int iconSizeXl: 28

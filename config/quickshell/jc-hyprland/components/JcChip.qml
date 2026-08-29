@@ -114,7 +114,7 @@ Item {
             glyph: root.icon
             iconColor: root.resolvedContentColor
             iconSize: root.compact
-                ? root.theme.iconSizeSm
+                ? root.theme.iconSizeCompactControl
                 : root.theme.iconSizeMd
             emphasized: root.checked || root.activeFocus
         }

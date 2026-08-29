@@ -5107,6 +5107,87 @@ else
     ok "JcIcon vector renderer is self-contained"
 fi
 
+
+printf '\n==> Phase H1.4.3b compact icon differentiation\n'
+
+holo_compact_icon="$config_dir/components/JcIcon.qml"
+holo_compact_chip="$config_dir/components/JcChip.qml"
+holo_compact_theme="$config_dir/theme/Theme.qml"
+
+if grep -Fq -- \
+    'readonly property int iconSizeCompactControl: 16' \
+    "$holo_compact_theme"
+then
+    ok 'compact interactive icon size token is 16 px'
+else
+    fail 'compact interactive icon size token missing'
+fi
+
+if grep -Fq -- \
+    '? root.theme.iconSizeCompactControl' \
+    "$holo_compact_chip"
+then
+    ok 'JcChip uses compact interactive icon size'
+else
+    fail 'JcChip compact icon size contract missing'
+fi
+
+for contract in \
+    'ctx.rect(6.7, 8.3, 10.6, 7.4);' \
+    'ctx.rect(5.0, 5.0, 14.0, 14.0);' \
+    'root.drawArrow(ctx, 10.8, 10.8, 6.4, 6.4, 1.7);' \
+    'root.drawArrow(ctx, 13.2, 13.2, 17.6, 17.6, 1.7);'
+do
+    if grep -Fq -- "$contract" "$holo_compact_icon"; then
+        ok "Fit/Fill differentiation contract: $contract"
+    else
+        fail "Fit/Fill differentiation contract missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase H1.4.3b wallpaper section hierarchy\n'
+
+holo_wallpaper_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+holo_library_icon="$config_dir/components/JcIcon.qml"
+
+for contract in \
+    'title: "Wallpaper targets"' \
+    'root.wallpaperService.mainOutput.length > 0' \
+    'root.wallpaperService.secondaryOutput.length > 0' \
+    'iconName: "all"' \
+    'iconName: "theme"' \
+    'iconName: "library"'
+do
+    if grep -Fq -- "$contract" "$holo_wallpaper_view"; then
+        ok "Wallpaper section hierarchy: $contract"
+    else
+        fail "Wallpaper section hierarchy missing: $contract"
+    fi
+done
+
+for semantic_name in all library
+do
+    if grep -Fq -- "\"$semantic_name\"" "$holo_library_icon"; then
+        ok "Wallpaper filter semantic icon: $semantic_name"
+    else
+        fail "Wallpaper filter semantic icon missing: $semantic_name"
+    fi
+done
+
+for contract in \
+    'case "all":' \
+    'case "library":' \
+    'ctx.rect(4.2, 4.2, 6.1, 6.1);' \
+    'ctx.lineTo(20.5, 18.8);'
+do
+    if grep -Fq -- "$contract" "$holo_library_icon"; then
+        ok "Wallpaper filter vector contract: $contract"
+    else
+        fail "Wallpaper filter vector contract missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

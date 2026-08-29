@@ -1010,3 +1010,39 @@ feature -> iconName -> JcIcon -> JC Holo vector renderer
 
 H1.4.3a changes rendering only. Feature modules, interaction semantics,
 keyboard behavior, and control geometry remain unchanged.
+
+### H1.4.3b compact icon differentiation
+
+Compact choice controls use a dedicated 16 px semantic-icon size while
+retaining the existing compact control height and padding.
+
+`fit` and `fill` intentionally use different visual metaphors:
+
+```text
+fit  -> complete content rectangle contained by viewport brackets
+fill -> viewport outline with outward expansion vectors
+```
+
+The goal is immediate recognition at compact size rather than micro-detail.
+`stretch` and `center` remain unchanged because they were already visually
+distinct at the approved H1.4.3a size.
+
+This phase changes only icon rendering and compact icon sizing; semantic
+contracts, draft behavior, layout geometry, keyboard interaction, and
+feature logic remain unchanged.
+
+### H1.4.3b wallpaper section hierarchy
+
+The Wallpapers module presents two peer sections:
+
+```text
+Wallpaper targets -> MAIN / SECONDARY previews and presentation controls
+Library           -> catalog source filters and wallpaper gallery
+```
+
+The top section reuses `JcSectionHeader`, matching the Library hierarchy
+without introducing another framed surface. Library source filters use
+semantic icons: `all`, `theme`, and `library`.
+
+This preserves the one-owner-perimeter rule while making the module's
+information architecture explicit.
