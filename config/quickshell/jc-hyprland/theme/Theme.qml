@@ -497,6 +497,11 @@ Scope {
     readonly property int iconSizeLg: 22
     readonly property int iconSizeXl: 28
 
+    // JC Holo semantic vector icon geometry. The renderer uses a normalized
+    // 24x24 coordinate system, so this ratio scales uniformly at every size.
+    readonly property real iconStrokeRatio: 0.072
+    readonly property real iconEmphasisStrokeScale: 1.12
+
     // =========================================================================
     // Typography scale
     // =========================================================================

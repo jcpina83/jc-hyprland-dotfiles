@@ -989,3 +989,24 @@ Notifications  -> notifications
 Navigation geometry, selection treatment, keyboard semantics, and enabled /
 disabled behavior remain owned by `JcNavItem`; H1.4.2b changes only icon
 identity and rendering ownership.
+
+### H1.4.3a JC Holo vector icon renderer
+
+`JcIcon` renders known semantic names as self-contained Canvas vectors on
+a normalized 24x24 coordinate system. The renderer uses theme-driven icon
+color and stroke geometry and does not depend on system icon themes, Nerd
+Fonts, Font Awesome, or external SVG assets.
+
+`glyph` remains an explicit compatibility override. When a caller supplies
+a raw glyph, `JcIcon` uses the fallback Text renderer; otherwise known
+semantic names use the vector path.
+
+This keeps the stable boundary:
+
+```text
+feature -> iconName -> JcIcon -> JC Holo vector renderer
+                    \-> raw glyph fallback when explicitly requested
+```
+
+H1.4.3a changes rendering only. Feature modules, interaction semantics,
+keyboard behavior, and control geometry remain unchanged.

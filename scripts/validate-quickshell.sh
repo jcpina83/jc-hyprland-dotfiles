@@ -5050,6 +5050,63 @@ do
     fi
 done
 
+
+printf '\n==> Phase H1.4.3a JC Holo vector icon renderer\n'
+
+holo_vector_icon="$config_dir/components/JcIcon.qml"
+holo_vector_theme="$config_dir/theme/Theme.qml"
+
+for contract in \
+    'property var vectorNames:' \
+    'readonly property bool vectorKnown:' \
+    'readonly property bool useVector:' \
+    'Canvas {' \
+    'root.drawIcon(ctx, root.name);' \
+    'ctx.scale(width / 24, height / 24);' \
+    'visible: root.useVector' \
+    '!root.useVector' \
+    'root.resolvedGlyph.length > 0'
+do
+    if grep -Fq -- "$contract" "$holo_vector_icon"; then
+        ok "JcIcon vector renderer contract: $contract"
+    else
+        fail "JcIcon vector renderer contract missing: $contract"
+    fi
+done
+
+for semantic_name in \
+    close refresh apply reset save keep revert \
+    fit fill stretch center left right above below \
+    display wallpaper theme settings performance media network \
+    notifications favorite power
+do
+    if grep -Fq -- "\"$semantic_name\"" "$holo_vector_icon"; then
+        ok "JcIcon vector semantic: $semantic_name"
+    else
+        fail "JcIcon vector semantic missing: $semantic_name"
+    fi
+done
+
+for contract in \
+    'readonly property real iconStrokeRatio: 0.072' \
+    'readonly property real iconEmphasisStrokeScale: 1.12'
+do
+    if grep -Fq -- "$contract" "$holo_vector_theme"; then
+        ok "JC Holo vector icon theme token: $contract"
+    else
+        fail "JC Holo vector icon theme token missing: $contract"
+    fi
+done
+
+if grep -Eq \
+    '/usr/share/icons|Font Awesome|Nerd Font|Symbols Nerd' \
+    "$holo_vector_icon"
+then
+    fail "JcIcon vector renderer must not depend on system icon/font paths"
+else
+    ok "JcIcon vector renderer is self-contained"
+fi
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

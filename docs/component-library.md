@@ -68,14 +68,14 @@ Components must not execute shell commands or mutate Hyprland directly.
 | `JcSurface` | Semantic container / depth | `surfaceRole`, `selected`, `focused`, `bordered` |
 | `JcDivider` | Separator | `orientation`, `dividerColor`, `thickness` |
 | `JcSectionHeader` | Section title/subtitle | `title`, `subtitle` |
-| `JcButton` | Text action | `text`, `controlEnabled`, `checked`, `compact`, `clicked()` |
-| `JcIconButton` | Compact icon action | `icon`, `accessibleName`, `controlEnabled`, `checked`, `compact`, `clicked()` |
-| `JcChip` | Discrete selection | `text`, `checked`, `controlEnabled`, `clicked()` |
+| `JcButton` | Text action | `text`, `iconName`, `icon` fallback, `controlEnabled`, `checked`, `compact`, `clicked()` |
+| `JcIconButton` | Compact icon action | `iconName`, `icon` fallback, `accessibleName`, `controlEnabled`, `checked`, `compact`, `clicked()` |
+| `JcChip` | Discrete selection | `text`, `iconName`, `icon` fallback, `checked`, `controlEnabled`, `clicked()` |
 | `JcToggle` | Boolean selection | `text`, `checked`, `controlEnabled`, `toggled(value)` |
 | `JcChoiceGroup` | Visible discrete option set | `options`, `selectedValue`, `emptyText`, `controlEnabled`, `valueSelected(value)` |
 | `JcSlider` | Numeric range input | Slider `from`, `to`, `value`, `stepSize`, `moved()` plus `controlEnabled` |
 | `JcComboBox` | Compact list selection | `options`, `selectedValue`, `placeholder`, `controlEnabled`, `valueSelected(value)` |
-| `JcNavItem` | Control Center navigation | `icon`, `text`, `selected`, `controlEnabled`, `clicked()` |
+| `JcNavItem` | Control Center navigation | `iconName`, `icon` fallback, `text`, `selected`, `controlEnabled`, `clicked()` |
 | `JcTooltip` | Contextual help | ToolTip `text`, `visible` plus `controlEnabled` |
 | `JcPopup` | Contained overlay | Popup API plus `showScrim`, `dismissOnOutside` |
 | `JcMetricRing` | Semantic metric visualization | `value`, `minimum`, `maximum`, `label`, `unit`, `status`, `decimals` |
