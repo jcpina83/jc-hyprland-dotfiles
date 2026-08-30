@@ -23,9 +23,22 @@ Scope {
         || monitorApplyService.pendingConfirmation
         || displayPersistenceService.saving
         || wallpaperApplyService.busy
+        || wallpaperRotationApplyService.busy
 
     readonly property string controlCenterStatusText: {
         if (root.activeModuleId === "wallpapers") {
+            if (wallpaperRotationApplyService.applying)
+                return "Applying rotation changes…";
+
+            if (wallpaperRotationApplyService.awaitingRefresh)
+                return "Reconciling rotation state…";
+
+            if (wallpaperRotationApplyService.rollbackRecoveryRequired)
+                return "Rotation recovery required";
+
+            if (wallpaperRotationApplyService.errorMessage.length > 0)
+                return "Rotation Apply error";
+
             if (wallpaperApplyService.applying)
                 return "Applying wallpaper changes…";
 
@@ -74,6 +87,17 @@ Scope {
 
     readonly property string controlCenterStatusDetail: {
         if (root.activeModuleId === "wallpapers") {
+            if (wallpaperRotationApplyService.busy)
+                return wallpaperRotationApplyService.statusMessage;
+
+            if (wallpaperRotationApplyService.rollbackRecoveryRequired) {
+                return "Rotation configuration was restored, but runtime "
+                    + "rollback could not be verified. Review observed state.";
+            }
+
+            if (wallpaperRotationApplyService.errorMessage.length > 0)
+                return wallpaperRotationApplyService.errorMessage;
+
             if (wallpaperApplyService.busy)
                 return wallpaperApplyService.statusMessage;
 
@@ -119,6 +143,8 @@ Scope {
     readonly property var monitorServiceHandle: monitorService
     readonly property var wallpaperServiceHandle: wallpaperService
     readonly property var wallpaperApplyServiceHandle: wallpaperApplyService
+    readonly property var wallpaperRotationApplyServiceHandle:
+        wallpaperRotationApplyService
     readonly property var themeHandle: theme
 
     function resolveScreen(outputName) {
@@ -298,6 +324,13 @@ Scope {
 
     Services.WallpaperApplyService {
         id: wallpaperApplyService
+
+        wallpaperService: wallpaperService
+        draftStore: wallpaperDraftStore
+    }
+
+    Services.WallpaperRotationApplyService {
+        id: wallpaperRotationApplyService
 
         wallpaperService: wallpaperService
         draftStore: wallpaperDraftStore

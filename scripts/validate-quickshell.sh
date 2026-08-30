@@ -59,6 +59,7 @@ required_files=(
     "services/WallpaperService.qml"
     "services/WallpaperDraftStore.qml"
     "services/WallpaperApplyService.qml"
+    "services/WallpaperRotationApplyService.qml"
     "modules/wallpapers/WallpaperView.qml"
     "modules/wallpapers/WallpaperPreviewCard.qml"
     "modules/wallpapers/WallpaperTile.qml"
@@ -4752,7 +4753,8 @@ for contract in \
     'root.mainWallpaperDirty || root.mainFitDirty' \
     'root.secondaryWallpaperDirty || root.secondaryFitDirty' \
     'function setFit(target, fit): void {' \
-    'observedMainFit !== root.baselineMainFit'
+    'String(root.wallpaperService.mainFit || "cover")' \
+    '!== root.baselineMainFit'
 do
     if grep -Fq -- "$contract" "$wallpaper_fit_draft"; then
         ok "Wallpaper fit draft contract: $contract"
@@ -5522,6 +5524,193 @@ do
         ok "Rotation architecture contract: $contract"
     else
         fail "Rotation architecture contract missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.6.4a rotation observed + draft foundation\n'
+
+rotation_service="$config_dir/services/WallpaperService.qml"
+rotation_draft="$config_dir/services/WallpaperDraftStore.qml"
+wallpaper_apply="$config_dir/services/WallpaperApplyService.qml"
+rotation_docs="$repo_root/docs/wallpaper-control.md"
+rotation_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'property bool rotationRuntimeSynchronized: false' \
+    'property bool rotationIntervalSynchronized: false' \
+    'property bool rotationLifecycleSynchronized: false' \
+    'status.rotation.runtime.timer' \
+    'status.rotation.runtime.synchronized'
+do
+    if grep -Fq -- "$contract" "$rotation_service"; then
+        ok "Rotation observed-state contract: $contract"
+    else
+        fail "Rotation observed-state contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool draftRotationEnabled: false' \
+    'property string draftRotationMode: "next"' \
+    'property string draftRotationTarget: "both"' \
+    'property string draftRotationInterval: "30m"' \
+    'readonly property bool rotationDirty:' \
+    'readonly property bool hasWallpaperDirty:' \
+    'function setRotationEnabled(enabled): void {' \
+    'function setRotationMode(mode): void {' \
+    'function setRotationTarget(target): void {' \
+    'function setRotationInterval(interval): void {' \
+    'function prepareForRefreshAfterRotationApply(): void {' \
+    'function resetRotation(): void {' \
+    'property string syncAfterApplyDomain: ""'
+do
+    if grep -Fq -- "$contract" "$rotation_draft"; then
+        ok "Rotation draft contract: $contract"
+    else
+        fail "Rotation draft contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'root.draftStore.hasWallpaperDirty' \
+    'There are no wallpaper or fit changes to apply.'
+do
+    if grep -Fq -- "$contract" "$wallpaper_apply"; then
+        ok "Wallpaper Apply domain isolation: $contract"
+    else
+        fail "Wallpaper Apply domain isolation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Rotation observed and draft foundation' \
+    'hasWallpaperDirty' \
+    'rotationDirty' \
+    'prepareForRefreshAfterRotationApply()'
+do
+    if grep -Fq -- "$contract" "$rotation_docs"; then
+        ok "Rotation draft documentation: $contract"
+    else
+        fail "Rotation draft documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.6.4a Rotation observed and draft foundation' \
+    'Domain-aware reconciliation' \
+    'jc-wallpaperctl rotation apply'
+do
+    if grep -Fq -- "$contract" "$rotation_arch"; then
+        ok "Rotation draft architecture: $contract"
+    else
+        fail "Rotation draft architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.6.4b rotation Apply service\n'
+
+rotation_apply="$config_dir/services/WallpaperRotationApplyService.qml"
+rotation_main="$config_dir/Main.qml"
+rotation_docs="$repo_root/docs/wallpaper-control.md"
+rotation_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'Scope {' \
+    'property var wallpaperService' \
+    'property var draftStore' \
+    'property bool applying: false' \
+    'property bool awaitingRefresh: false' \
+    'property bool recoveryResetPending: false' \
+    'property bool rollbackRecoveryRequired: false' \
+    'readonly property bool busy:' \
+    'readonly property bool canApply:' \
+    'root.draftStore.rotationDirty' \
+    'signal applied()' \
+    'signal rolledBack(string message)' \
+    'signal rollbackFailed(string message)' \
+    'function wallpaperctlPath() {' \
+    'function validAppliedResponse(payload) {' \
+    'payload.status === "reconciled"' \
+    'Boolean(payload.configurationRestored)' \
+    'Boolean(payload.runtimeRollbackVerified)' \
+    'function buildApplyArguments() {' \
+    '"rotation",' \
+    '"apply"' \
+    'args.push("--enabled")' \
+    'args.push("--mode")' \
+    'args.push("--target")' \
+    'args.push("--interval")' \
+    'function applyDirty(): void {' \
+    'function resetDraft(): void {' \
+    'root.draftStore.prepareForRefreshAfterRotationApply();' \
+    'root.wallpaperService.rotationRuntimeSynchronized' \
+    'Process {' \
+    'StdioCollector {' \
+    'Connections {'
+do
+    if grep -Fq -- "$contract" "$rotation_apply"; then
+        ok "Rotation Apply service contract: $contract"
+    else
+        fail "Rotation Apply service contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'systemctl' \
+    'wallpaper.env' \
+    'configure-wallpaper-rotation' \
+    'wallpaper-rotation-manager'
+do
+    if grep -Fq -- "$forbidden" "$rotation_apply"; then
+        fail "Rotation Apply service bypasses stable CLI boundary: $forbidden"
+    else
+        ok "Rotation Apply service excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    '|| wallpaperRotationApplyService.busy' \
+    'wallpaperRotationApplyService.applying' \
+    'wallpaperRotationApplyService.awaitingRefresh' \
+    'wallpaperRotationApplyService.rollbackRecoveryRequired' \
+    'wallpaperRotationApplyServiceHandle:' \
+    'Services.WallpaperRotationApplyService {' \
+    'id: wallpaperRotationApplyService' \
+    'wallpaperService: wallpaperService' \
+    'draftStore: wallpaperDraftStore'
+do
+    if grep -Fq -- "$contract" "$rotation_main"; then
+        ok "Main rotation Apply wiring: $contract"
+    else
+        fail "Main rotation Apply wiring missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Rotation Apply service' \
+    'WallpaperRotationApplyService.qml' \
+    'jc-wallpaperctl rotation apply' \
+    'rotationRuntimeSynchronized' \
+    'Phase 2B.6.5'
+do
+    if grep -Fq -- "$contract" "$rotation_docs"; then
+        ok "Rotation Apply documentation: $contract"
+    else
+        fail "Rotation Apply documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.6.4b Rotation Apply service boundary' \
+    'dedicated mutation owner' \
+    'syncAfterApplyDomain'
+do
+    if grep -Fq -- "$contract" "$rotation_arch"; then
+        ok "Rotation Apply architecture: $contract"
+    else
+        fail "Rotation Apply architecture missing: $contract"
     fi
 done
 

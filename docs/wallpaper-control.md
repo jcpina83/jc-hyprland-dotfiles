@@ -528,3 +528,75 @@ restored but runtime rollback could not be verified.
 
 QML does not call systemctl, edit wallpaper.env, or invoke the rotation
 configurator. Future rotation UI uses only the stable jc-wallpaperctl boundary.
+
+
+## Rotation observed and draft foundation
+
+Phase 2B.6.4a extends the existing wallpaper state boundary before exposing
+rotation controls.
+
+`WallpaperService.qml` remains read-only and now retains the complete
+`rotation.runtime` synchronization snapshot returned by
+`jc-wallpaperctl status --json`.
+
+`WallpaperDraftStore.qml` remains the single wallpaper editing store, with two
+explicit draft domains:
+
+```text
+wallpaper: MAIN/SECONDARY path + fit
+rotation:  enabled + mode + target + interval
+```
+
+`hasWallpaperDirty` isolates the existing wallpaper/path-fit Apply path.
+`rotationDirty` aggregates the four rotation draft fields. Aggregate `hasDirty`
+continues to cover the whole Wallpapers module.
+
+Post-Apply reconciliation is domain-aware: a wallpaper Apply refresh updates
+only wallpaper/path-fit baseline state, while
+`prepareForRefreshAfterRotationApply()` reserves the equivalent rotation-only
+reconciliation path for the rotation mutation service.
+
+Phase 2B.6.4a adds no visible rotation controls and performs no rotation
+mutation. The rotation Apply service is introduced in the next 2B.6.4 step.
+
+
+## Rotation Apply service
+
+Phase 2B.6.4b introduces `WallpaperRotationApplyService.qml` as the sole
+Quickshell owner of the stable rotation mutation API.
+
+```text
+WallpaperDraftStore.rotationDirty
+        |
+        v
+WallpaperRotationApplyService.qml
+        |
+        v
+jc-wallpaperctl rotation apply ... --json
+        |
+        v
+transactional rotation backend
+```
+
+Only dirty rotation fields are emitted as CLI arguments: `--enabled`, `--mode`,
+`--target`, and/or `--interval`.
+
+The service accepts successful `applied` and `reconciled` responses only when
+the backend reports `committed=true`, `rolledBack=false`,
+`runtimeVerified=true`, and synchronized rotation runtime state.
+
+`rolled-back` keeps the rotation draft pending and refreshes observed state.
+`rollback-failed` marks rotation recovery as required because configuration was
+restored but runtime rollback could not be verified. Recovery Reset first
+refreshes observed state and accepts it only when
+`WallpaperService.rotationRuntimeSynchronized` is true.
+
+`Main.qml` owns the service instance and includes its busy/recovery state in
+Control Center transition and status orchestration.
+
+The service invokes only the stable `jc-wallpaperctl` command. It contains no
+direct timer lifecycle, persistence-file, configurator, or internal rotation
+manager access.
+
+Phase 2B.6.4b still adds no visible rotation controls. UI routing belongs to
+Phase 2B.6.5.

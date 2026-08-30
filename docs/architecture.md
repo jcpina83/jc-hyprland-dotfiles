@@ -1201,3 +1201,48 @@ settings, and verifies systemd state before reporting success.
 
 Rotation state is not duplicated into the theme wallpaper preference file.
 No QML component owns systemd lifecycle or writes rotation configuration.
+
+
+## Phase 2B.6.4a Rotation observed and draft foundation
+
+The Wallpapers draft store now separates wallpaper/path-fit edits from
+automatic-rotation edits while preserving one observed/draft boundary.
+
+`WallpaperService` observes rotation configuration and runtime synchronization.
+`WallpaperDraftStore` owns both draft domains. The existing
+`WallpaperApplyService` is explicitly restricted to `hasWallpaperDirty`, so a
+future rotation-only draft cannot be sent to `jc-wallpaperctl apply`.
+
+Domain-aware reconciliation prevents a successful wallpaper Apply from
+discarding a pending rotation draft. Rotation mutation remains behind
+`jc-wallpaperctl rotation apply` and is not activated by QML in this step.
+
+
+## Phase 2B.6.4b Rotation Apply service boundary
+
+The rotation draft now has a dedicated mutation owner:
+
+```text
+WallpaperService (observed)
+        |
+WallpaperDraftStore (rotation draft)
+        |
+WallpaperRotationApplyService
+        |
+jc-wallpaperctl rotation apply
+        |
+wallpaper-rotation-manager transaction
+```
+
+`WallpaperRotationApplyService` mirrors the mature wallpaper Apply lifecycle
+without sharing its command surface. Wallpaper/path-fit mutations remain owned
+by `WallpaperApplyService`; rotation mutations remain owned by the rotation
+service.
+
+Both services refresh the same read-only `WallpaperService`, while
+`WallpaperDraftStore.syncAfterApplyDomain` ensures that a successful refresh
+accepts only the domain that just committed.
+
+Neither service exposes backend implementation details to feature views.
+`Main.qml` owns service lifecycle and transition locking; visible rotation
+controls are deferred to Phase 2B.6.5.

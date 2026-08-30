@@ -25,7 +25,7 @@ Scope {
         && !root.wallpaperService.loading
         && root.draftStore
         && root.draftStore.initialized
-        && root.draftStore.hasDirty
+        && root.draftStore.hasWallpaperDirty
         && !root.draftStore.observedChangedWhileDirty
         && !root.rollbackRecoveryRequired
 
@@ -139,8 +139,8 @@ Scope {
                 + "another Apply can be attempted.";
         }
 
-        if (!root.draftStore.hasDirty)
-            return "There are no wallpaper changes to apply.";
+        if (!root.draftStore.hasWallpaperDirty)
+            return "There are no wallpaper or fit changes to apply.";
 
         if (root.draftStore.mainWallpaperDirty
                 && String(root.draftStore.draftMainPath || "").length === 0) {

@@ -13,14 +13,25 @@ Scope {
     property string draftMainFit: "cover"
     property string draftSecondaryFit: "cover"
 
+    property bool draftRotationEnabled: false
+    property string draftRotationMode: "next"
+    property string draftRotationTarget: "both"
+    property string draftRotationInterval: "30m"
+
     property string baselineMainEffective: ""
     property string baselineSecondaryEffective: ""
     property string baselineMainFit: "cover"
     property string baselineSecondaryFit: "cover"
 
+    property bool baselineRotationEnabled: false
+    property string baselineRotationMode: "next"
+    property string baselineRotationTarget: "both"
+    property string baselineRotationInterval: "30m"
+
     property bool initialized: false
     property bool observedChangedWhileDirty: false
     property bool syncAfterApplyPending: false
+    property string syncAfterApplyDomain: ""
 
     readonly property bool mainWallpaperDirty:
         root.initialized
@@ -38,20 +49,48 @@ Scope {
         root.initialized
         && root.draftSecondaryFit !== root.baselineSecondaryFit
 
+    readonly property bool rotationEnabledDirty:
+        root.initialized
+        && root.draftRotationEnabled !== root.baselineRotationEnabled
+
+    readonly property bool rotationModeDirty:
+        root.initialized
+        && root.draftRotationMode !== root.baselineRotationMode
+
+    readonly property bool rotationTargetDirty:
+        root.initialized
+        && root.draftRotationTarget !== root.baselineRotationTarget
+
+    readonly property bool rotationIntervalDirty:
+        root.initialized
+        && root.draftRotationInterval !== root.baselineRotationInterval
+
+    readonly property bool rotationDirty:
+        root.rotationEnabledDirty
+        || root.rotationModeDirty
+        || root.rotationTargetDirty
+        || root.rotationIntervalDirty
+
     readonly property bool mainDirty:
         root.mainWallpaperDirty || root.mainFitDirty
 
     readonly property bool secondaryDirty:
         root.secondaryWallpaperDirty || root.secondaryFitDirty
 
+    readonly property bool hasWallpaperDirty:
+        root.mainDirty || root.secondaryDirty
+
     readonly property int dirtyCount:
         (root.mainDirty ? 1 : 0)
         + (root.secondaryDirty ? 1 : 0)
+        + (root.rotationDirty ? 1 : 0)
 
     readonly property bool hasDirty: root.dirtyCount > 0
 
     signal changed()
+    signal rotationChanged()
     signal resetCompleted()
+    signal rotationResetCompleted()
 
     function validTarget(target) {
         return target === "main" || target === "secondary";
@@ -63,6 +102,21 @@ Scope {
             || fit === "stretch"
             || fit === "center";
     }
+
+    function validRotationMode(mode) {
+        return mode === "next" || mode === "random";
+    }
+
+    function validRotationTarget(target) {
+        return target === "main"
+            || target === "secondary"
+            || target === "both";
+    }
+
+    function validRotationInterval(interval) {
+        return String(interval || "").trim().length > 0;
+    }
+
 
     function draftForTarget(target) {
         return target === "secondary"
@@ -151,51 +205,153 @@ Scope {
         root.setFit(root.selectedTarget, fit);
     }
 
+    function observedDiffersFromBaseline() {
+        if (!root.wallpaperService || !root.wallpaperService.ready)
+            return false;
+
+        return String(root.wallpaperService.mainEffective || "")
+                !== root.baselineMainEffective
+            || String(root.wallpaperService.secondaryEffective || "")
+                !== root.baselineSecondaryEffective
+            || String(root.wallpaperService.mainFit || "cover")
+                !== root.baselineMainFit
+            || String(root.wallpaperService.secondaryFit || "cover")
+                !== root.baselineSecondaryFit
+            || Boolean(root.wallpaperService.rotationEnabled)
+                !== root.baselineRotationEnabled
+            || String(root.wallpaperService.rotationMode || "")
+                !== root.baselineRotationMode
+            || String(root.wallpaperService.rotationTarget || "")
+                !== root.baselineRotationTarget
+            || String(root.wallpaperService.rotationInterval || "")
+                !== root.baselineRotationInterval;
+    }
+
+    function syncWallpaperFromObserved(): void {
+        if (!root.wallpaperService || !root.wallpaperService.ready)
+            return;
+
+        root.baselineMainEffective =
+            String(root.wallpaperService.mainEffective || "");
+        root.baselineSecondaryEffective =
+            String(root.wallpaperService.secondaryEffective || "");
+        root.baselineMainFit =
+            String(root.wallpaperService.mainFit || "cover");
+        root.baselineSecondaryFit =
+            String(root.wallpaperService.secondaryFit || "cover");
+
+        root.draftMainPath = root.baselineMainEffective;
+        root.draftSecondaryPath = root.baselineSecondaryEffective;
+        root.draftMainFit = root.baselineMainFit;
+        root.draftSecondaryFit = root.baselineSecondaryFit;
+    }
+
+    function syncRotationFromObserved(): void {
+        if (!root.wallpaperService || !root.wallpaperService.ready)
+            return;
+
+        root.baselineRotationEnabled =
+            Boolean(root.wallpaperService.rotationEnabled);
+        root.baselineRotationMode =
+            String(root.wallpaperService.rotationMode || "next");
+        root.baselineRotationTarget =
+            String(root.wallpaperService.rotationTarget || "both");
+        root.baselineRotationInterval =
+            String(root.wallpaperService.rotationInterval || "30m");
+
+        root.draftRotationEnabled = root.baselineRotationEnabled;
+        root.draftRotationMode = root.baselineRotationMode;
+        root.draftRotationTarget = root.baselineRotationTarget;
+        root.draftRotationInterval = root.baselineRotationInterval;
+    }
+
+    function refreshObservedConflict(): void {
+        root.observedChangedWhileDirty =
+            root.hasDirty && root.observedDiffersFromBaseline();
+    }
+
     function syncFromObserved(force): void {
         if (!root.wallpaperService || !root.wallpaperService.ready)
             return;
 
-        const observedMain =
-            String(root.wallpaperService.mainEffective || "");
-        const observedSecondary =
-            String(root.wallpaperService.secondaryEffective || "");
-        const observedMainFit =
-            String(root.wallpaperService.mainFit || "cover");
-        const observedSecondaryFit =
-            String(root.wallpaperService.secondaryFit || "cover");
-
         if (root.initialized && root.hasDirty && !force) {
-            if (observedMain !== root.baselineMainEffective
-                    || observedSecondary
-                        !== root.baselineSecondaryEffective
-                    || observedMainFit !== root.baselineMainFit
-                    || observedSecondaryFit !== root.baselineSecondaryFit) {
+            if (root.observedDiffersFromBaseline())
                 root.observedChangedWhileDirty = true;
-            }
 
             return;
         }
 
-        root.baselineMainEffective = observedMain;
-        root.baselineSecondaryEffective = observedSecondary;
-        root.baselineMainFit = observedMainFit;
-        root.baselineSecondaryFit = observedSecondaryFit;
-
-        root.draftMainPath = observedMain;
-        root.draftSecondaryPath = observedSecondary;
-        root.draftMainFit = observedMainFit;
-        root.draftSecondaryFit = observedSecondaryFit;
+        root.syncWallpaperFromObserved();
+        root.syncRotationFromObserved();
 
         root.initialized = true;
         root.observedChangedWhileDirty = false;
     }
 
+    function setRotationEnabled(enabled): void {
+        const normalized = Boolean(enabled);
+        if (root.draftRotationEnabled === normalized)
+            return;
+
+        root.draftRotationEnabled = normalized;
+        root.rotationChanged();
+        root.changed();
+    }
+
+    function setRotationMode(mode): void {
+        const normalized = String(mode || "");
+        if (!root.validRotationMode(normalized)
+                || root.draftRotationMode === normalized)
+            return;
+
+        root.draftRotationMode = normalized;
+        root.rotationChanged();
+        root.changed();
+    }
+
+    function setRotationTarget(target): void {
+        const normalized = String(target || "");
+        if (!root.validRotationTarget(normalized)
+                || root.draftRotationTarget === normalized)
+            return;
+
+        root.draftRotationTarget = normalized;
+        root.rotationChanged();
+        root.changed();
+    }
+
+    function setRotationInterval(interval): void {
+        const normalized = String(interval || "").trim();
+        if (!root.validRotationInterval(normalized)
+                || root.draftRotationInterval === normalized)
+            return;
+
+        root.draftRotationInterval = normalized;
+        root.rotationChanged();
+        root.changed();
+    }
+
     function prepareForRefreshAfterApply(): void {
         root.syncAfterApplyPending = true;
+        root.syncAfterApplyDomain = "wallpaper";
+    }
+
+    function prepareForRefreshAfterRotationApply(): void {
+        root.syncAfterApplyPending = true;
+        root.syncAfterApplyDomain = "rotation";
+    }
+
+    function resetRotation(): void {
+        root.syncAfterApplyPending = false;
+        root.syncAfterApplyDomain = "";
+        root.syncRotationFromObserved();
+        root.refreshObservedConflict();
+        root.rotationResetCompleted();
     }
 
     function reset(): void {
         root.syncAfterApplyPending = false;
+        root.syncAfterApplyDomain = "";
         root.syncFromObserved(true);
         root.selectedTarget = "main";
         root.resetCompleted();
@@ -206,8 +362,18 @@ Scope {
 
         function onRefreshed() {
             if (root.syncAfterApplyPending) {
+                const domain = root.syncAfterApplyDomain;
+
                 root.syncAfterApplyPending = false;
-                root.syncFromObserved(true);
+                root.syncAfterApplyDomain = "";
+
+                if (domain === "rotation")
+                    root.syncRotationFromObserved();
+                else
+                    root.syncWallpaperFromObserved();
+
+                root.initialized = true;
+                root.refreshObservedConflict();
                 return;
             }
 

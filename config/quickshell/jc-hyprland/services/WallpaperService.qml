@@ -23,6 +23,17 @@ Scope {
     property string rotationTarget: ""
     property string rotationInterval: ""
 
+    property string rotationTimerLoadState: ""
+    property string rotationTimerEnableState: ""
+    property string rotationTimerActiveState: ""
+    property string rotationTimerSubState: ""
+    property string rotationServiceLoadState: ""
+    property string rotationServiceActiveState: ""
+    property bool rotationDropInPresent: false
+    property bool rotationIntervalSynchronized: false
+    property bool rotationLifecycleSynchronized: false
+    property bool rotationRuntimeSynchronized: false
+
     property string mainOutput: ""
     property string mainDefault: ""
     property string mainOverride: ""
@@ -100,6 +111,10 @@ Scope {
             && payload.engine
             && payload.transition
             && payload.rotation
+            && payload.rotation.runtime
+            && payload.rotation.runtime.timer
+            && payload.rotation.runtime.service
+            && payload.rotation.runtime.dropIn
             && payload.outputs
             && payload.outputs.main
             && payload.outputs.secondary
@@ -152,6 +167,27 @@ Scope {
             String(status.rotation.target || "");
         root.rotationInterval =
             String(status.rotation.interval || "");
+
+        root.rotationTimerLoadState =
+            String(status.rotation.runtime.timer.loadState || "");
+        root.rotationTimerEnableState =
+            String(status.rotation.runtime.timer.enableState || "");
+        root.rotationTimerActiveState =
+            String(status.rotation.runtime.timer.activeState || "");
+        root.rotationTimerSubState =
+            String(status.rotation.runtime.timer.subState || "");
+        root.rotationServiceLoadState =
+            String(status.rotation.runtime.service.loadState || "");
+        root.rotationServiceActiveState =
+            String(status.rotation.runtime.service.activeState || "");
+        root.rotationDropInPresent =
+            Boolean(status.rotation.runtime.dropIn.present);
+        root.rotationIntervalSynchronized =
+            Boolean(status.rotation.runtime.intervalSynchronized);
+        root.rotationLifecycleSynchronized =
+            Boolean(status.rotation.runtime.lifecycleSynchronized);
+        root.rotationRuntimeSynchronized =
+            Boolean(status.rotation.runtime.synchronized);
 
         root.mainOutput =
             String(status.outputs.main.output || "");
