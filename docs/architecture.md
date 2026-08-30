@@ -1313,3 +1313,80 @@ configuration-file access, service ownership, or draft-store ownership.
 
 Phase 2B.6.5c performs runtime validation of this presentation/draft boundary
 and unified orchestration before closure.
+
+## Phase 2B.6 closure — advanced wallpaper controls
+
+Phase 2B.6 closes with the Wallpapers observed/draft/applied/persistent
+architecture preserved across wallpaper path, fit and automatic rotation.
+
+```text
+Observed runtime/configuration
+          |
+          v
+    WallpaperService
+          |
+          v
+   WallpaperDraftStore
+          |
+          v
+WallpaperMutationCoordinator
+      |               |
+      v               v
+WallpaperApply    RotationApply
+   Service          Service
+      |               |
+      v               v
+jc-wallpaperctl   jc-wallpaperctl
+     apply         rotation apply
+      |               |
+      +-------+-------+
+              |
+              v
+       transactional backends
+```
+
+`WallpaperMutationCoordinator` is an orchestration boundary, not a mutation
+boundary. The feature UI has one Apply/Reset surface while wallpaper/path-fit
+and rotation remain separate mutation domains with domain-aware reconciliation.
+
+Combined Apply sequencing is deterministic:
+
+```text
+wallpaper/path-fit commit
+        |
+        v
+authoritative observed refresh
+        |
+        v
+wallpaper-domain reconciliation
+        |
+        v
+rotation commit
+        |
+        v
+rotation-domain reconciliation
+```
+
+The second transaction is never started when the first one fails, rolls back or
+requires recovery. Unified recovery Reset delegates through the relevant
+service owners before the draft store accepts the final observed baseline.
+
+The Phase 2B.6 closure test validated the real rotation path with a
+`random -> next -> random` round trip. QML reconciliation returned to a clean
+`true / random / both / 15m` draft, systemd timer/service/drop-in state remained
+synchronized, no recovery path was triggered, unrelated persistence bytes were
+preserved, and the current canonical managed-assignment representation was
+byte-stable.
+
+Successful mutation is allowed to canonicalize the four managed
+`WALLPAPER_ROTATION_*` assignment lines. Exact byte restoration applies to
+transactional rollback snapshots. Presentation QML and the coordinator still
+contain no direct systemd lifecycle or machine-local configuration ownership.
+
+```text
+2B.6 Advanced wallpaper controls  ✓ COMPLETE
+2B   Wallpapers                    ACTIVE
+2B.7                               NEXT
+```
+
+Closing 2B.6 does not close Phase 2B as a whole.

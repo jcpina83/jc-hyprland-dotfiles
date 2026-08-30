@@ -684,3 +684,75 @@ controls. Reset remains available through the unified module lifecycle.
 
 Phase 2B.6.5c validates the visible panel and coordinator lifecycle in an
 isolated Quickshell runtime before the phase is staged.
+
+## Phase 2B.6 closure — fit and automatic rotation
+
+Phase 2B.6 is complete. The Wallpapers module now owns transactional wallpaper
+fit plus automatic-rotation editing without moving backend responsibility into
+feature presentation QML.
+
+```text
+2B.6.1 Transactional wallpaper fit API                  ✓
+2B.6.2 Wallpaper fit draft UI                           ✓
+2B.6.3 Transactional automatic-rotation API             ✓
+2B.6.4 Rotation observed state, draft and Apply service ✓
+2B.6.5 Visible rotation controls + unified Apply/Reset  ✓
+2B.6.6 End-to-end validation + documentation            ✓ COMPLETE
+```
+
+The final mutation flow is:
+
+```text
+WallpaperView
+    |
+    v
+WallpaperDraftStore
+    |
+    v
+WallpaperMutationCoordinator
+    |                         |
+    v                         v
+WallpaperApplyService     WallpaperRotationApplyService
+    |                         |
+    v                         v
+jc-wallpaperctl apply     jc-wallpaperctl rotation apply
+```
+
+There is one user-level Apply/Reset workflow for Wallpapers, but two explicit
+mutation domains. Wallpaper/path-fit changes and automatic-rotation changes
+remain independently dirty and independently reconciled.
+
+For a combined draft, the coordinator commits wallpaper/path-fit first. Only
+after its authoritative observed-state refresh has reconciled that domain does
+the rotation transaction start. A failure or rollback in the first domain stops
+the second transaction. Recovery Reset delegates to the mutation owner that
+requires recovery and, when both domains require recovery, visits both owners
+before accepting the final observed draft baseline.
+
+`WallpaperRotationControl.qml` is presentation-only. It exposes Enabled, Mode,
+Target and Interval intent and does not own `Process`, `jc-wallpaperctl`,
+`systemctl`, `wallpaper.env`, the configurator, or an internal manager.
+`WallpaperMutationCoordinator.qml` is orchestration-only and owns none of those
+backend details either.
+
+The Phase 2B.6 end-to-end closure test exercised the real path from the QML
+coordinator through `WallpaperRotationApplyService`, the stable public CLI,
+transactional manager and systemd runtime:
+
+```text
+random -> next -> random
+```
+
+Both mutations committed and reconciled back to a clean observed/draft state at
+`true / random / both / 15m`, with the timer loaded, enabled, active, waiting and
+runtime synchronization true.
+
+Successful rotation mutations may canonicalize the textual representation of
+the four managed `WALLPAPER_ROTATION_*` assignments. All unrelated
+`wallpaper.env` bytes remain preserved. Exact byte restoration remains a
+transactional rollback guarantee because rollback restores the captured file
+snapshot. Once the managed assignments are canonical, the successful
+change-and-restore round trip is byte-stable.
+
+This closes Phase 2B.6 only. Phase 2B Wallpapers remains active; the next
+Wallpapers work continues in Phase 2B.7.

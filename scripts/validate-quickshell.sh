@@ -5936,6 +5936,131 @@ do
     fi
 done
 
+
+printf '\n==> Phase 2B.6.6b advanced wallpaper controls closure\n'
+
+phase_2b6_wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+phase_2b6_architecture="$repo_root/docs/architecture.md"
+phase_2b6_main="$config_dir/Main.qml"
+phase_2b6_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+phase_2b6_rotation_control="$config_dir/modules/wallpapers/WallpaperRotationControl.qml"
+phase_2b6_coordinator="$config_dir/services/WallpaperMutationCoordinator.qml"
+phase_2b6_rotation_apply="$config_dir/services/WallpaperRotationApplyService.qml"
+
+for contract in \
+    '## Phase 2B.6 closure — fit and automatic rotation' \
+    '2B.6.1 Transactional wallpaper fit API                  ✓' \
+    '2B.6.2 Wallpaper fit draft UI                           ✓' \
+    '2B.6.3 Transactional automatic-rotation API             ✓' \
+    '2B.6.4 Rotation observed state, draft and Apply service ✓' \
+    '2B.6.5 Visible rotation controls + unified Apply/Reset  ✓' \
+    '2B.6.6 End-to-end validation + documentation            ✓ COMPLETE' \
+    'random -> next -> random' \
+    'Successful rotation mutations may canonicalize' \
+    'Exact byte restoration remains a' \
+    'Phase 2B Wallpapers remains active' \
+    'continues in Phase 2B.7'
+do
+    if grep -Fq -- "$contract" "$phase_2b6_wallpaper_doc"; then
+        ok "Phase 2B.6 wallpaper closure: $contract"
+    else
+        fail "Phase 2B.6 wallpaper closure missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.6 closure — advanced wallpaper controls' \
+    '2B.6 Advanced wallpaper controls  ✓ COMPLETE' \
+    '2B   Wallpapers                    ACTIVE' \
+    '2B.7                               NEXT' \
+    'orchestration boundary, not a mutation' \
+    'wallpaper-domain reconciliation' \
+    'rotation-domain reconciliation' \
+    'random -> next -> random' \
+    'Closing 2B.6 does not close Phase 2B as a whole.'
+do
+    if grep -Fq -- "$contract" "$phase_2b6_architecture"; then
+        ok "Phase 2B.6 architecture closure: $contract"
+    else
+        fail "Phase 2B.6 architecture closure missing: $contract"
+    fi
+done
+
+for contract in \
+    'applyService: root.wallpaperMutationCoordinatorHandle' \
+    'onApplyRequested: wallpaperMutationCoordinator.applyDirty()' \
+    'onResetRequested: wallpaperMutationCoordinator.resetDraft()'
+do
+    if grep -Fq -- "$contract" "$phase_2b6_main"; then
+        ok "Phase 2B.6 unified Main routing: $contract"
+    else
+        fail "Phase 2B.6 unified Main routing missing: $contract"
+    fi
+done
+
+for contract in \
+    'root.draftStore.setRotationEnabled(value);' \
+    'root.draftStore.setRotationMode(value);' \
+    'root.draftStore.setRotationTarget(value);' \
+    'root.draftStore.setRotationInterval(value);'
+do
+    if grep -Fq -- "$contract" "$phase_2b6_view"; then
+        ok "Phase 2B.6 rotation draft UI: $contract"
+    else
+        fail "Phase 2B.6 rotation draft UI missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-wallpaperctl' \
+    'systemctl' \
+    'wallpaper.env' \
+    'wallpaper-manager' \
+    'wallpaper-rotation-manager'
+do
+    if grep -Fq -- "$forbidden" "$phase_2b6_rotation_control"; then
+        fail "Phase 2B.6 presentation owns backend detail: $forbidden"
+    else
+        ok "Phase 2B.6 presentation excludes backend detail: $forbidden"
+    fi
+
+    if grep -Fq -- "$forbidden" "$phase_2b6_coordinator"; then
+        fail "Phase 2B.6 coordinator owns backend detail: $forbidden"
+    else
+        ok "Phase 2B.6 coordinator excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'root.draftStore.hasWallpaperDirty' \
+    'root.draftStore.rotationDirty' \
+    'function startRotationAfterWallpaper(): void {' \
+    'root.wallpaperApplyService.applyDirty();' \
+    'root.rotationApplyService.applyDirty();' \
+    'function continueRecoveryResetAfterWallpaper(): void {' \
+    'function continueRecoveryResetAfterRotation(): void {'
+do
+    if grep -Fq -- "$contract" "$phase_2b6_coordinator"; then
+        ok "Phase 2B.6 coordinator closure: $contract"
+    else
+        fail "Phase 2B.6 coordinator closure missing: $contract"
+    fi
+done
+
+for contract in \
+    '"rotation",' \
+    '"apply"' \
+    'root.draftStore.prepareForRefreshAfterRotationApply();' \
+    'root.wallpaperService.rotationRuntimeSynchronized'
+do
+    if grep -Fq -- "$contract" "$phase_2b6_rotation_apply"; then
+        ok "Phase 2B.6 rotation Apply boundary: $contract"
+    else
+        fail "Phase 2B.6 rotation Apply boundary missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then
