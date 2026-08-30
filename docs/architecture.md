@@ -1246,3 +1246,70 @@ accepts only the domain that just committed.
 Neither service exposes backend implementation details to feature views.
 `Main.qml` owns service lifecycle and transition locking; visible rotation
 controls are deferred to Phase 2B.6.5.
+
+
+## Phase 2B.6.5a Unified wallpaper mutation orchestration
+
+The Wallpapers feature keeps one user-level Apply/Reset surface while
+preserving separate mutation owners internally:
+
+```text
+                       +-> WallpaperApplyService
+WallpaperView
+    |
+WallpaperMutationCoordinator
+    |
+                       +-> WallpaperRotationApplyService
+```
+
+The coordinator is an orchestration boundary, not a mutation boundary. It
+contains no process execution and delegates every write to the existing
+transactional services.
+
+For a combined draft, wallpaper/path-fit commits first because its
+post-transaction observed refresh can safely preserve the independent rotation
+draft. Only after that refresh is reconciled does the coordinator start the
+rotation transaction. A failure in the first transaction stops the sequence.
+
+Unified Reset delegates recovery verification to the service that owns the
+recovery sentinel before accepting the complete observed wallpaper-module
+baseline.
+
+This prepares Phase 2B.6.5b to expose automatic-rotation controls without
+creating a second top-level Apply/Reset workflow.
+
+
+## Phase 2B.6.5b Automatic rotation presentation boundary
+
+Automatic rotation is now visible, but the feature view still owns no backend
+mutation logic:
+
+```text
+WallpaperRotationControl
+        |
+        | intent signals
+        v
+WallpaperView
+        |
+        | draft setters
+        v
+WallpaperDraftStore
+        |
+        | module-level Apply
+        v
+WallpaperMutationCoordinator
+```
+
+`WallpaperRotationControl.qml` is a presentation primitive composed from JC
+Holo components (`JcHudFrame`, `JcToggle`, `JcChoiceGroup`, `JcChip`).
+Observed runtime status is read-only presentation data.
+
+The rotation panel deliberately shares the existing Wallpapers Apply/Reset
+surface. It does not introduce a rotation-specific commit button and therefore
+cannot bypass combined-domain sequencing or recovery handling.
+
+The component contains no `Process`, stable CLI invocation, systemd operation,
+configuration-file access, service ownership, or draft-store ownership.
+
+Phase 2B.6.5c performs runtime validation of this presentation/draft boundary
+and unified orchestration before closure.

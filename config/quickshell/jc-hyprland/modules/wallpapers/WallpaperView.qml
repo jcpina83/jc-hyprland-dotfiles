@@ -441,6 +441,91 @@ Item {
             }
         }
 
+        WallpaperRotationControl {
+            Layout.fillWidth: true
+
+            theme: root.theme
+
+            controlEnabled:
+                !root.interactionLocked
+                && root.wallpaperService
+                && root.wallpaperService.ready
+                && root.draftStore
+                && root.draftStore.initialized
+                && !root.draftStore.observedChangedWhileDirty
+
+            enabledValue:
+                root.draftStore
+                    ? root.draftStore.draftRotationEnabled
+                    : false
+
+            modeValue:
+                root.draftStore
+                    ? root.draftStore.draftRotationMode
+                    : "next"
+
+            targetValue:
+                root.draftStore
+                    ? root.draftStore.draftRotationTarget
+                    : "both"
+
+            intervalValue:
+                root.draftStore
+                    ? root.draftStore.draftRotationInterval
+                    : "30m"
+
+            draftDirty:
+                root.draftStore
+                && root.draftStore.rotationDirty
+
+            observedReady:
+                root.wallpaperService
+                && root.wallpaperService.ready
+
+            observedEnabled:
+                root.wallpaperService
+                && root.wallpaperService.rotationEnabled
+
+            observedMode:
+                root.wallpaperService
+                    ? root.wallpaperService.rotationMode
+                    : ""
+
+            observedTarget:
+                root.wallpaperService
+                    ? root.wallpaperService.rotationTarget
+                    : ""
+
+            observedInterval:
+                root.wallpaperService
+                    ? root.wallpaperService.rotationInterval
+                    : ""
+
+            runtimeSynchronized:
+                root.wallpaperService
+                && root.wallpaperService.rotationRuntimeSynchronized
+
+            onEnabledSelected: value => {
+                if (root.draftStore)
+                    root.draftStore.setRotationEnabled(value);
+            }
+
+            onModeSelected: value => {
+                if (root.draftStore)
+                    root.draftStore.setRotationMode(value);
+            }
+
+            onTargetSelected: value => {
+                if (root.draftStore)
+                    root.draftStore.setRotationTarget(value);
+            }
+
+            onIntervalSelected: value => {
+                if (root.draftStore)
+                    root.draftStore.setRotationInterval(value);
+            }
+        }
+
         Components.JcDivider {
             Layout.fillWidth: true
             theme: root.theme

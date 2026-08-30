@@ -145,6 +145,8 @@ Scope {
     readonly property var wallpaperApplyServiceHandle: wallpaperApplyService
     readonly property var wallpaperRotationApplyServiceHandle:
         wallpaperRotationApplyService
+    readonly property var wallpaperMutationCoordinatorHandle:
+        wallpaperMutationCoordinator
     readonly property var themeHandle: theme
 
     function resolveScreen(outputName) {
@@ -336,6 +338,15 @@ Scope {
         draftStore: wallpaperDraftStore
     }
 
+    Services.WallpaperMutationCoordinator {
+        id: wallpaperMutationCoordinator
+
+        wallpaperService: wallpaperService
+        draftStore: wallpaperDraftStore
+        wallpaperApplyService: wallpaperApplyService
+        rotationApplyService: wallpaperRotationApplyService
+    }
+
     Services.DisplayDraftStore {
         id: displayDraftStore
 
@@ -369,12 +380,12 @@ Scope {
         Wallpapers.WallpaperView {
             wallpaperService: root.wallpaperServiceHandle
             draftStore: wallpaperDraftStore
-            applyService: root.wallpaperApplyServiceHandle
+            applyService: root.wallpaperMutationCoordinatorHandle
             theme: root.themeHandle
 
             onRefreshRequested: wallpaperService.refresh()
-            onApplyRequested: wallpaperApplyService.applyDirty()
-            onResetRequested: wallpaperApplyService.resetDraft()
+            onApplyRequested: wallpaperMutationCoordinator.applyDirty()
+            onResetRequested: wallpaperMutationCoordinator.resetDraft()
         }
     }
 

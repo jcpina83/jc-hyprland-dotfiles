@@ -60,7 +60,9 @@ required_files=(
     "services/WallpaperDraftStore.qml"
     "services/WallpaperApplyService.qml"
     "services/WallpaperRotationApplyService.qml"
+    "services/WallpaperMutationCoordinator.qml"
     "modules/wallpapers/WallpaperView.qml"
+    "modules/wallpapers/WallpaperRotationControl.qml"
     "modules/wallpapers/WallpaperPreviewCard.qml"
     "modules/wallpapers/WallpaperTile.qml"
     "modules/displays/DisplayView.qml"
@@ -126,9 +128,16 @@ do
     fi
 done
 
+reset_control_context="$(
+    grep -B 24 -F \
+        'onClicked: root.resetRequested()' \
+        "$wallpaper_view" \
+        || true
+)"
+
 if grep -Fq \
     '&& !root.draftStore.observedChangedWhileDirty' \
-    "$wallpaper_view"
+    <<< "$reset_control_context"
 then
     fail "Reset remains disabled during observed-state conflict"
 else
@@ -145,7 +154,7 @@ else
 fi
 
 if grep -Fq \
-    'onResetRequested: wallpaperApplyService.resetDraft()' \
+    'onResetRequested: wallpaperMutationCoordinator.resetDraft()' \
     "$wallpaper_main"
 then
     ok "Main owns Wallpaper Reset orchestration"
@@ -306,8 +315,8 @@ for contract in \
     'return wallpaperApplyService.statusMessage;' \
     'return wallpaperApplyService.errorMessage;' \
     'return "Review the draft, then choose Apply or Reset.";' \
-    'applyService: root.wallpaperApplyServiceHandle' \
-    'onApplyRequested: wallpaperApplyService.applyDirty()'
+    'applyService: root.wallpaperMutationCoordinatorHandle' \
+    'onApplyRequested: wallpaperMutationCoordinator.applyDirty()'
 do
     if grep -Fq "$contract" "$wallpaper_main"; then
         ok "Main wallpaper Apply UI wiring: $contract"
@@ -5711,6 +5720,219 @@ do
         ok "Rotation Apply architecture: $contract"
     else
         fail "Rotation Apply architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.6.5a unified wallpaper mutation coordinator\n'
+
+wallpaper_coordinator="$config_dir/services/WallpaperMutationCoordinator.qml"
+wallpaper_main="$config_dir/Main.qml"
+wallpaper_doc="$repo_root/docs/wallpaper-control.md"
+wallpaper_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'Scope {' \
+    'property var wallpaperApplyService' \
+    'property var rotationApplyService' \
+    'property bool sequenceRotationPending: false' \
+    'property string recoveryResetOwner: ""' \
+    'readonly property bool applying:' \
+    'readonly property bool awaitingRefresh:' \
+    'readonly property bool busy:' \
+    'readonly property bool rollbackRecoveryRequired:' \
+    'readonly property bool canApply:' \
+    'root.draftStore.hasWallpaperDirty' \
+    'root.draftStore.rotationDirty' \
+    'function applyDirty(): void {' \
+    'function resetDraft(): void {' \
+    'function startRotationAfterWallpaper(): void {' \
+    'root.wallpaperApplyService.applyDirty();' \
+    'root.rotationApplyService.applyDirty();' \
+    'function continueRecoveryResetAfterWallpaper(): void {' \
+    'function continueRecoveryResetAfterRotation(): void {' \
+    'function onApplied() {' \
+    'function onResetCompleted() {' \
+    'function onRotationResetCompleted() {'
+do
+    if grep -Fq -- "$contract" "$wallpaper_coordinator"; then
+        ok "Wallpaper coordinator contract: $contract"
+    else
+        fail "Wallpaper coordinator contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-wallpaperctl' \
+    'systemctl' \
+    'wallpaper.env' \
+    'wallpaper-manager' \
+    'wallpaper-rotation-manager'
+do
+    if grep -Fq -- "$forbidden" "$wallpaper_coordinator"; then
+        fail "Wallpaper coordinator bypasses service boundary: $forbidden"
+    else
+        ok "Wallpaper coordinator excludes mutation detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'wallpaperMutationCoordinatorHandle:' \
+    'Services.WallpaperMutationCoordinator {' \
+    'id: wallpaperMutationCoordinator' \
+    'wallpaperApplyService: wallpaperApplyService' \
+    'rotationApplyService: wallpaperRotationApplyService' \
+    'applyService: root.wallpaperMutationCoordinatorHandle' \
+    'onApplyRequested: wallpaperMutationCoordinator.applyDirty()' \
+    'onResetRequested: wallpaperMutationCoordinator.resetDraft()'
+do
+    if grep -Fq -- "$contract" "$wallpaper_main"; then
+        ok "Main unified wallpaper routing: $contract"
+    else
+        fail "Main unified wallpaper routing missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Unified wallpaper mutation coordinator' \
+    'wallpaper/path-fit first' \
+    'second domain is not started' \
+    'Visible automatic-rotation controls remain deferred to Phase 2B.6.5b.'
+do
+    if grep -Fq -- "$contract" "$wallpaper_doc"; then
+        ok "Wallpaper coordinator documentation: $contract"
+    else
+        fail "Wallpaper coordinator documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.6.5a Unified wallpaper mutation orchestration' \
+    'orchestration boundary, not a mutation boundary' \
+    'This prepares Phase 2B.6.5b to expose automatic-rotation controls without' \
+    'creating a second top-level Apply/Reset workflow.'
+do
+    if grep -Fq -- "$contract" "$wallpaper_arch"; then
+        ok "Wallpaper coordinator architecture: $contract"
+    else
+        fail "Wallpaper coordinator architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.6.5b automatic rotation JC Holo controls\n'
+
+rotation_control="$config_dir/modules/wallpapers/WallpaperRotationControl.qml"
+rotation_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+rotation_doc="$repo_root/docs/wallpaper-control.md"
+rotation_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'Item {' \
+    'required property var theme' \
+    'property bool controlEnabled: true' \
+    'property bool enabledValue: false' \
+    'property string modeValue: "next"' \
+    'property string targetValue: "both"' \
+    'property string intervalValue: "30m"' \
+    'property bool draftDirty: false' \
+    'property bool runtimeSynchronized: false' \
+    'signal enabledSelected(bool value)' \
+    'signal modeSelected(string value)' \
+    'signal targetSelected(string value)' \
+    'signal intervalSelected(string value)' \
+    'Components.JcHudFrame {' \
+    'Components.JcToggle {' \
+    'Components.JcChoiceGroup {' \
+    'Components.JcChip {' \
+    'title: "Automatic rotation"' \
+    'text: "Mode"' \
+    'text: "Target"' \
+    'text: "Interval"' \
+    'root.runtimeSynchronized' \
+    'root.draftDirty'
+do
+    if grep -Fq -- "$contract" "$rotation_control"; then
+        ok "Rotation presentation contract: $contract"
+    else
+        fail "Rotation presentation contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'property var draftStore' \
+    'property var wallpaperService' \
+    'property var applyService' \
+    'Process {' \
+    'jc-wallpaperctl' \
+    'systemctl' \
+    'wallpaper.env' \
+    'wallpaper-manager' \
+    'wallpaper-rotation-manager'
+do
+    if grep -Fq -- "$forbidden" "$rotation_control"; then
+        fail "Rotation presentation owns forbidden dependency: $forbidden"
+    else
+        ok "Rotation presentation excludes ownership detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'WallpaperRotationControl {' \
+    'root.draftStore.draftRotationEnabled' \
+    'root.draftStore.draftRotationMode' \
+    'root.draftStore.draftRotationTarget' \
+    'root.draftStore.draftRotationInterval' \
+    'root.draftStore.rotationDirty' \
+    'root.wallpaperService.rotationRuntimeSynchronized' \
+    'root.draftStore.setRotationEnabled(value);' \
+    'root.draftStore.setRotationMode(value);' \
+    'root.draftStore.setRotationTarget(value);' \
+    'root.draftStore.setRotationInterval(value);'
+do
+    if grep -Fq -- "$contract" "$rotation_view"; then
+        ok "WallpaperView rotation draft wiring: $contract"
+    else
+        fail "WallpaperView rotation draft wiring missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'jc-wallpaperctl' \
+    '"systemctl"' \
+    'wallpaper.env' \
+    'wallpaper-rotation-manager'
+do
+    if grep -Fq -- "$forbidden" "$rotation_view"; then
+        fail "WallpaperView rotation UI bypasses service boundary: $forbidden"
+    else
+        ok "WallpaperView rotation UI preserves service boundary: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Automatic rotation JC Holo controls' \
+    'presentation-only' \
+    'WallpaperMutationCoordinator' \
+    'Phase 2B.6.5c'
+do
+    if grep -Fq -- "$contract" "$rotation_doc"; then
+        ok "Rotation UI documentation: $contract"
+    else
+        fail "Rotation UI documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.6.5b Automatic rotation presentation boundary' \
+    'does not introduce a rotation-specific commit button' \
+    'presentation/draft boundary'
+do
+    if grep -Fq -- "$contract" "$rotation_arch"; then
+        ok "Rotation UI architecture: $contract"
+    else
+        fail "Rotation UI architecture missing: $contract"
     fi
 done
 

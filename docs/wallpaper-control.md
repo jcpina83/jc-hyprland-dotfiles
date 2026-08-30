@@ -600,3 +600,87 @@ manager access.
 
 Phase 2B.6.4b still adds no visible rotation controls. UI routing belongs to
 Phase 2B.6.5.
+
+
+## Unified wallpaper mutation coordinator
+
+Phase 2B.6.5a introduces `WallpaperMutationCoordinator.qml` before the visible
+rotation controls are activated.
+
+`WallpaperView.qml` keeps one Apply/Reset interaction surface. That surface no
+longer points directly at `WallpaperApplyService`; it points at the coordinator:
+
+```text
+WallpaperView
+    |
+    | Apply / Reset
+    v
+WallpaperMutationCoordinator
+    |                     |
+    v                     v
+WallpaperApplyService     WallpaperRotationApplyService
+    |                     |
+    v                     v
+jc-wallpaperctl apply     jc-wallpaperctl rotation apply
+```
+
+A wallpaper-only draft uses only `WallpaperApplyService`. A rotation-only draft
+uses only `WallpaperRotationApplyService`. When both domains are dirty, the
+coordinator applies wallpaper/path-fit first. After its authoritative observed
+refresh completes, the still-pending rotation draft is applied second.
+
+If the first domain rolls back, fails, or enters recovery-required state, the
+second domain is not started and remains pending for review.
+
+Reset is also unified. Without a recovery sentinel it accepts the current
+observed state for both draft domains. If a service reports rollback recovery
+required, that service performs its verified refresh/reset lifecycle first;
+the coordinator then completes the module-level Reset without bypassing either
+service's recovery semantics.
+
+The coordinator owns orchestration only. It has no `Process`, does not invoke
+`jc-wallpaperctl`, does not edit wallpaper configuration, and does not manage
+systemd units.
+
+Visible automatic-rotation controls remain deferred to Phase 2B.6.5b.
+
+
+## Automatic rotation JC Holo controls
+
+Phase 2B.6.5b makes the rotation draft visible inside `WallpaperView.qml`
+without adding another Apply/Reset workflow.
+
+`WallpaperRotationControl.qml` is presentation-only. It receives values and
+emits intent signals; it does not own `WallpaperDraftStore`,
+`WallpaperService`, an Apply service, a process, or a backend command.
+
+The JC Holo panel exposes:
+
+```text
+Automatic rotation
+  Enabled   on/off
+  Mode      next | random
+  Target    main | secondary | both
+  Interval  5m | 15m | 30m | 1h | current custom value
+```
+
+The interval selector preserves an already-observed custom interval by adding
+that value to the local choice model when it is not one of the standard
+presets.
+
+`WallpaperView.qml` maps these presentation signals only to
+`WallpaperDraftStore.setRotationEnabled()`, `setRotationMode()`,
+`setRotationTarget()`, and `setRotationInterval()`. No runtime change happens
+until the existing top-level Apply button invokes
+`WallpaperMutationCoordinator`.
+
+The panel displays both draft intent and observed runtime health:
+`Draft` appears while `rotationDirty=true`, while the runtime chip reflects
+`WallpaperService.rotationRuntimeSynchronized`.
+
+During Apply/reconciliation, or while an observed-state conflict is pending,
+the rotation controls are locked consistently with wallpaper selection and fit
+controls. Reset remains available through the unified module lifecycle.
+
+Phase 2B.6.5c validates the visible panel and coordinator lifecycle in an
+isolated Quickshell runtime before the phase is staged.
