@@ -13,6 +13,7 @@ base="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles"
 host_env="$base/local/host.env"
 manager="$base/bin/wallpaper-manager.sh"
 rotation_manager="$base/bin/wallpaper-rotation-manager.sh"
+transition_manager="$base/bin/wallpaper-transition-manager.sh"
 
 die() {
     printf 'ERROR: %s\n' "$*" >&2
@@ -32,6 +33,8 @@ Usage:
   jc-wallpaperctl apply --secondary-fit <cover|contain|stretch|center> [--main-fit <mode>] [--json]
   jc-wallpaperctl rotation status [--json]
   jc-wallpaperctl rotation apply [--enabled true|false] [--mode next|random] [--target main|secondary|both] [--interval <timespan>] [--json]
+  jc-wallpaperctl transition status [--json]
+  jc-wallpaperctl transition apply [--preset theme|default|fade|cyber-noir|odyssey-glass] [--type inherit|none|simple|fade|left|right|top|bottom|wipe|wave|grow|center|any|outer|random] [--duration inherit|<seconds>] [--fps inherit|<integer>] [--json]
 EOF
 }
 
@@ -825,6 +828,164 @@ rotation_apply() {
 }
 
 
+
+transition_apply() {
+    local requested_preset="__KEEP__"
+    local requested_type="__KEEP__"
+    local requested_duration="__KEEP__"
+    local requested_fps="__KEEP__"
+
+    local json_output=false
+    local changed=false
+
+    local transaction_log
+    local transaction_rc
+
+    shift
+
+    while (($# > 0)); do
+        case "$1" in
+            --preset)
+                [[ $# -ge 2 ]] || die "--preset requires a value"
+                requested_preset="$2"
+                changed=true
+                shift 2
+                ;;
+
+            --type)
+                [[ $# -ge 2 ]] || die "--type requires a value"
+
+                if [[ "$2" == inherit ]]; then
+                    requested_type="__INHERIT__"
+                else
+                    requested_type="$2"
+                fi
+
+                changed=true
+                shift 2
+                ;;
+
+            --duration)
+                [[ $# -ge 2 ]] || die "--duration requires a value"
+
+                if [[ "$2" == inherit ]]; then
+                    requested_duration="__INHERIT__"
+                else
+                    requested_duration="$2"
+                fi
+
+                changed=true
+                shift 2
+                ;;
+
+            --fps)
+                [[ $# -ge 2 ]] || die "--fps requires a value"
+
+                if [[ "$2" == inherit ]]; then
+                    requested_fps="__INHERIT__"
+                else
+                    requested_fps="$2"
+                fi
+
+                changed=true
+                shift 2
+                ;;
+
+            --json)
+                json_output=true
+                shift
+                ;;
+
+            *)
+                die "unsupported transition apply argument: $1"
+                ;;
+        esac
+    done
+
+    [[ "$changed" == true ]] \
+        || die "transition apply requires at least one change"
+
+    if [[ "$json_output" == false ]]; then
+        "$transition_manager" \
+            transactional-set \
+            "$requested_preset" \
+            "$requested_type" \
+            "$requested_duration" \
+            "$requested_fps"
+
+        printf '\n'
+        "$transition_manager" current
+        return 0
+    fi
+
+    transaction_log="$(
+        mktemp \
+            "${XDG_RUNTIME_DIR:-/tmp}/jc-wallpaper-transition.XXXXXX"
+    )"
+
+    cleanup_transition_log() {
+        rm -f -- "$transaction_log"
+    }
+
+    trap cleanup_transition_log RETURN
+
+    set +e
+    "$transition_manager" \
+        transactional-set \
+        "$requested_preset" \
+        "$requested_type" \
+        "$requested_duration" \
+        "$requested_fps" \
+        >"$transaction_log" \
+        2>&1
+    transaction_rc=$?
+    set -e
+
+    if [[ "$transaction_rc" -ne 0 ]]; then
+        cat "$transaction_log" >&2
+
+        trap - RETURN
+        cleanup_transition_log
+        return "$transaction_rc"
+    fi
+
+    trap - RETURN
+    cleanup_transition_log
+
+    exec "$transition_manager" current --json
+}
+
+
+transition_command() {
+    local action="${2:-}"
+
+    [[ -x "$transition_manager" ]] \
+        || die "wallpaper transition manager not found: $transition_manager"
+
+    case "$action" in
+        status)
+            if [[ "$#" -eq 2 ]]; then
+                exec "$transition_manager" current
+            elif [[ "$#" -eq 3 && "$3" == "--json" ]]; then
+                exec "$transition_manager" current --json
+            else
+                usage >&2
+                exit 2
+            fi
+            ;;
+
+        apply)
+            transition_apply "${@:2}"
+            ;;
+
+        *)
+            usage >&2
+            exit 2
+            ;;
+    esac
+}
+
+
 rotation_command() {
     local action="${2:-}"
 
@@ -892,6 +1053,10 @@ case "$command_name" in
 
     apply)
         apply_transaction "$@"
+        ;;
+
+    transition)
+        transition_command "$@"
         ;;
 
     rotation)

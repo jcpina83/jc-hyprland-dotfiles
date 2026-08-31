@@ -24,7 +24,7 @@ script_real="$(readlink -f -- "$0")"
 runtime_dir="$(dirname "$script_real")"
 configurator="$runtime_dir/../configure-wallpaper-rotation.sh"
 
-lock_file="$local_dir/.wallpaper-rotation.mutation.lock"
+lock_file="$local_dir/.wallpaper-env.mutation.lock"
 
 
 die() {

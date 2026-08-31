@@ -34,6 +34,7 @@ wallpaper_rotation_service="$repo_root/config/systemd/user/jc-wallpaper-rotation
 wallpaper_rotation_timer="$repo_root/config/systemd/user/jc-wallpaper-rotation.timer"
 wallpaper_rotation_configurator="$repo_root/scripts/configure-wallpaper-rotation.sh"
 wallpaper_rotation_manager="$repo_root/scripts/runtime/wallpaper-rotation-manager.sh"
+wallpaper_transition_manager="$repo_root/scripts/runtime/wallpaper-transition-manager.sh"
 
 hypr_dir="$config_home/hypr"
 
@@ -330,6 +331,10 @@ ensure_symlink \
 ensure_symlink \
     "$repo_root/scripts/runtime/wallpaper-rotation-manager.sh" \
     "$bin_dir/wallpaper-rotation-manager.sh"
+
+ensure_symlink \
+    "$wallpaper_transition_manager" \
+    "$bin_dir/wallpaper-transition-manager.sh"
 
 ensure_symlink \
     "$repo_root/scripts/runtime/rotate-wallpaper.sh" \

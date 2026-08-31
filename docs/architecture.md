@@ -1390,3 +1390,65 @@ contain no direct systemd lifecycle or machine-local configuration ownership.
 ```
 
 Closing 2B.6 does not close Phase 2B as a whole.
+
+## Phase 2B.7.1b Transition mutation ownership
+
+Transition persistence is a machine-local mutation domain separate from
+wallpaper path/fit and automatic rotation:
+
+```text
+wallpaper-transition-manager.sh
+        |
+        +--> global `wallpaper.env` mutation lock
+        |
+        +--> active per-theme wallpaper mutation lock
+        |
+        +--> canonical transition assignment rewrite
+        |
+        +--> apply-wallpaper.sh
+        |
+        +--> verify / exact snapshot rollback
+```
+
+Because transition and rotation both mutate `local/wallpaper.env`, both
+managers use the same global `wallpaper.env` mutation lock. This prevents two
+read-modify-write transactions from committing stale copies of the shared
+configuration file.
+
+The additional per-theme wallpaper mutation lock serializes transition runtime
+verification against gallery Apply and timer-driven wallpaper selection.
+
+The transition manager remains an internal backend. Phase 2B.7.1c adds the
+stable `jc-wallpaperctl transition status/apply` boundary. QML transition
+draft and Apply integration remain deferred until that public boundary is
+validated.
+
+## Phase 2B.7.1c Stable transition API boundary
+
+The public transition control path is:
+
+```text
+user / future QML
+        |
+        v
+jc-wallpaperctl transition status/apply
+        |
+        v
+wallpaper-transition-manager.sh
+        |
+        +--> shared wallpaper.env lock
+        +--> per-theme wallpaper mutation lock
+        +--> apply-wallpaper.sh
+```
+
+`wallpaper-transition-manager.sh` remains internal under
+`~/.config/jc-hyprland-dotfiles/bin`. It is not promoted to
+`~/.local/bin`; all external callers use the stable `jc-wallpaperctl`
+surface.
+
+The public wrapper owns argument parsing and the friendly `inherit` vocabulary.
+It does not own persistence, locking, rollback or wallpaper runtime commands.
+
+Phase 2B.7.2 may consume `jc-wallpaperctl transition status --json` for
+observed transition state and use the same public boundary for future Apply
+integration.

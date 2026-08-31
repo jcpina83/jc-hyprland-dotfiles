@@ -393,6 +393,7 @@ runtime_links=(
     "apply-wallpaper.sh:scripts/runtime/apply-wallpaper.sh"
     "wallpaper-manager.sh:scripts/runtime/wallpaper-manager.sh"
     "wallpaper-rotation-manager.sh:scripts/runtime/wallpaper-rotation-manager.sh"
+    "wallpaper-transition-manager.sh:scripts/runtime/wallpaper-transition-manager.sh"
     "rotate-wallpaper.sh:scripts/runtime/rotate-wallpaper.sh"
     "jc-theme:scripts/theme.sh"
 )

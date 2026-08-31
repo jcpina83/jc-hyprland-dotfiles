@@ -5462,7 +5462,7 @@ for contract in \
     'wallpaper-rotation-manager.sh current --json' \
     'wallpaper-rotation-manager.sh transactional-set' \
     'acquire_mutation_lock() {' \
-    '.wallpaper-rotation.mutation.lock' \
+    '.wallpaper-env.mutation.lock' \
     'write_rotation_configuration() {' \
     'shell_assignment_value() {' \
     'configure-wallpaper-rotation.sh' \
@@ -6406,6 +6406,219 @@ do
         fail "Rotation HUD breathing-room documentation missing: $contract"
     fi
 done
+
+
+printf '\n==> Phase 2B.7.1b transactional transition backend\n'
+
+transition_manager="$repo_root/scripts/runtime/wallpaper-transition-manager.sh"
+rotation_manager="$repo_root/scripts/runtime/wallpaper-rotation-manager.sh"
+transition_apply_runtime="$repo_root/scripts/runtime/apply-wallpaper.sh"
+transition_docs="$repo_root/docs/wallpaper-control.md"
+transition_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'wallpaper-transition-manager.sh current --json' \
+    'wallpaper-transition-manager.sh transactional-set' \
+    "wallpaper_env_lock=\"\$local_dir/.wallpaper-env.mutation.lock\"" \
+    'acquire_wallpaper_env_lock() {' \
+    'acquire_theme_mutation_lock() {' \
+    'write_transition_configuration() {' \
+    'verify_expected_state() {' \
+    'WALLPAPER_TRANSITION_PRESET' \
+    'WALLPAPER_TRANSITION_TYPE' \
+    'WALLPAPER_TRANSITION_DURATION' \
+    'WALLPAPER_TRANSITION_FPS' \
+    '__INHERIT__' \
+    'return 6' \
+    'return 7'
+do
+    if grep -Fq -- "$contract" "$transition_manager"; then
+        ok "Transition manager contract: $contract"
+    else
+        fail "Transition manager contract missing: $contract"
+    fi
+done
+
+for contract in \
+    "lock_file=\"\$local_dir/.wallpaper-env.mutation.lock\"" \
+    'write_rotation_configuration() {' \
+    'verify_expected_state() {'
+do
+    if grep -Fq -- "$contract" "$rotation_manager"; then
+        ok "Shared wallpaper.env rotation contract: $contract"
+    else
+        fail "Shared wallpaper.env rotation contract missing: $contract"
+    fi
+done
+
+if grep -Fq '.wallpaper-rotation.mutation.lock' "$rotation_manager"; then
+    fail "Rotation manager still uses legacy private wallpaper.env lock"
+else
+    ok "Rotation manager uses shared wallpaper.env lock"
+fi
+
+for forbidden in \
+    'WALLPAPER_ROTATION_ENABLED' \
+    'WALLPAPER_ROTATION_MODE' \
+    'WALLPAPER_ROTATION_TARGET' \
+    'WALLPAPER_ROTATION_INTERVAL'
+do
+    if grep -Fq -- "$forbidden" "$transition_manager"; then
+        fail "Transition manager owns rotation assignment: $forbidden"
+    else
+        ok "Transition manager preserves rotation ownership: $forbidden"
+    fi
+done
+
+for contract in \
+    'THEME_WALLPAPER_TRANSITION_PRESET' \
+    'TRANSITION_PRESET_TYPE=wipe' \
+    'TRANSITION_PRESET_DURATION=1.6' \
+    'TRANSITION_PRESET_TYPE=fade' \
+    'TRANSITION_PRESET_DURATION=1.8' \
+    'TRANSITION_PRESET_DURATION=1.2' \
+    'TRANSITION_PRESET_FPS=60'
+do
+    if grep -Fq -- "$contract" "$transition_manager" \
+        && grep -Fq -- "$contract" "$transition_apply_runtime"
+    then
+        ok "Transition preset resolution aligned: $contract"
+    else
+        fail "Transition preset resolution drift: $contract"
+    fi
+done
+
+for contract in \
+    '## Transactional transition backend' \
+    'wallpaper-transition-manager.sh' \
+    '.wallpaper-env.mutation.lock' \
+    'active theme wallpaper mutation' \
+    "Exit code \`6\`" \
+    "Exit code \`7\`" \
+    'Phase 2B.7.1c'
+do
+    if grep -Fq -- "$contract" "$transition_docs"; then
+        ok "Transition backend documentation: $contract"
+    else
+        fail "Transition backend documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.1b Transition mutation ownership' \
+    "global \`wallpaper.env\` mutation lock" \
+    'per-theme wallpaper mutation lock' \
+    '2B.7.1c'
+do
+    if grep -Fq -- "$contract" "$transition_arch"; then
+        ok "Transition backend architecture: $contract"
+    else
+        fail "Transition backend architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.7.1c stable transition CLI API\n'
+
+transition_cli="$repo_root/scripts/runtime/jc-wallpaperctl.sh"
+transition_install="$repo_root/scripts/install.sh"
+transition_doctor="$repo_root/scripts/doctor.sh"
+transition_docs="$repo_root/docs/wallpaper-control.md"
+transition_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'jc-wallpaperctl transition status [--json]' \
+    'jc-wallpaperctl transition apply' \
+    "transition_manager=\"\$base/bin/wallpaper-transition-manager.sh\"" \
+    'transition_apply() {' \
+    'transition_command() {' \
+    'requested_preset="__KEEP__"' \
+    'requested_type="__KEEP__"' \
+    'requested_duration="__KEEP__"' \
+    'requested_fps="__KEEP__"' \
+    'requested_type="__INHERIT__"' \
+    'requested_duration="__INHERIT__"' \
+    'requested_fps="__INHERIT__"' \
+    'transition)' \
+    'transition_command "$@"'
+do
+    if grep -Fq -- "$contract" "$transition_cli"; then
+        ok "Stable transition CLI contract: $contract"
+    else
+        fail "Stable transition CLI contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'wallpaper.env' \
+    'flock -x' \
+    'WALLPAPER_TRANSITION_PRESET=' \
+    'WALLPAPER_TRANSITION_TYPE='
+do
+    if grep -Fq -- "$forbidden" "$transition_cli"; then
+        fail "Stable CLI crossed transition persistence boundary: $forbidden"
+    else
+        ok "Stable CLI excludes transition persistence detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'wallpaper-transition-manager.sh' \
+    "\"\$bin_dir/wallpaper-transition-manager.sh\""
+do
+    if grep -Fq -- "$contract" "$transition_install"; then
+        ok "Installer transition runtime-link contract: $contract"
+    else
+        fail "Installer transition runtime-link contract missing: $contract"
+    fi
+done
+
+if grep -Fq \
+    '"wallpaper-transition-manager.sh:scripts/runtime/wallpaper-transition-manager.sh"' \
+    "$transition_doctor"
+then
+    ok "Doctor validates internal transition manager runtime link"
+else
+    fail "Doctor transition manager runtime-link contract missing"
+fi
+
+for contract in \
+    '## Stable transition CLI API' \
+    'jc-wallpaperctl transition status' \
+    'jc-wallpaperctl transition apply' \
+    "friendly \`inherit\`" \
+    "verified rollback code \`6\`" \
+    'Phase 2B.7.2'
+do
+    if grep -Fq -- "$contract" "$transition_docs"; then
+        ok "Stable transition CLI documentation: $contract"
+    else
+        fail "Stable transition CLI documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.1c Stable transition API boundary' \
+    'jc-wallpaperctl transition status/apply' \
+    'wallpaper-transition-manager.sh' \
+    'not promoted to' \
+    'Phase 2B.7.2'
+do
+    if grep -Fq -- "$contract" "$transition_arch"; then
+        ok "Stable transition API architecture: $contract"
+    else
+        fail "Stable transition API architecture missing: $contract"
+    fi
+done
+
+if grep -R -Fq \
+    'wallpaper-transition-manager' \
+    "$config_dir"
+then
+    fail "QML references internal transition manager before Phase 2B.7.2"
+else
+    ok "QML remains isolated from internal transition manager"
+fi
 
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 

@@ -838,3 +838,78 @@ The compact Fit/layout pass recovered enough vertical budget to expand the autom
 `WallpaperRotationControl` now uses a 3.70-control-height presentation footprint and reserves `spaceSm` below the Mode / Target / Interval body row. Compact `JcSettingTile` instances remain at 0.98-control-height, so the added space is frame clearance rather than larger controls.
 
 Library, previews, Fit controls, footer clipping, draft, Apply, persistence, and runtime contracts are unchanged by this refinement.
+
+## Transactional transition backend
+
+Phase 2B.7.1b introduces `wallpaper-transition-manager.sh` as the internal
+machine-local owner of wallpaper transition persistence.
+
+The backend owns only the active `WALLPAPER_TRANSITION_PRESET`,
+`WALLPAPER_TRANSITION_TYPE`, `WALLPAPER_TRANSITION_DURATION` and
+`WALLPAPER_TRANSITION_FPS` assignments in
+`~/.config/jc-hyprland-dotfiles/local/wallpaper.env`.
+
+`TYPE`, `DURATION` and `FPS` are optional overrides. Internally,
+`__INHERIT__` removes an explicit override so the selected preset supplies the
+effective value.
+
+Rotation and transition are separate mutation domains but write the same
+machine-local file. `wallpaper-rotation-manager.sh` and
+`wallpaper-transition-manager.sh` therefore share the global
+`.wallpaper-env.mutation.lock`.
+
+A transition transaction also acquires the active theme wallpaper mutation
+lock before re-applying the current wallpaper runtime. This serializes a
+transition change against gallery Apply and automatic wallpaper rotation while
+the transition configuration is being verified.
+
+The transaction takes a byte-for-byte snapshot of `wallpaper.env`, rewrites
+only active transition assignments, preserves unrelated bytes, then invokes
+the existing `apply-wallpaper.sh` runtime. Failure restores the exact snapshot
+and re-applies the previous runtime configuration.
+
+Exit code `6` means rollback was verified. Exit code `7` means the exact
+configuration snapshot was restored but runtime rollback could not be
+verified.
+
+This phase intentionally exposes no new QML mutation path and no public
+transition command. Stable `jc-wallpaperctl transition ...` routing belongs to
+Phase 2B.7.1c.
+
+## Stable transition CLI API
+
+Phase 2B.7.1c exposes transition state and mutation only through the stable
+user-facing wallpaper CLI:
+
+```text
+jc-wallpaperctl transition status [--json]
+
+jc-wallpaperctl transition apply
+    [--preset theme|default|fade|cyber-noir|odyssey-glass]
+    [--type inherit|none|simple|fade|left|right|top|bottom|wipe|wave|grow|center|any|outer|random]
+    [--duration inherit|<seconds>]
+    [--fps inherit|<integer>]
+    [--json]
+```
+
+Omitted Apply fields use the backend `__KEEP__` contract. The public
+friendly `inherit` value for type, duration and FPS is translated to the
+internal `__INHERIT__` sentinel, removing that explicit override and returning
+the field to preset ownership.
+
+`transition status --json` returns preset, resolved preset, optional overrides,
+effective type/duration/FPS and the machine-local configuration path.
+
+`transition apply --json` suppresses successful runtime logs and returns the
+same canonical status JSON after commit. Transaction failure preserves the
+backend exit code, including verified rollback code `6` and rollback
+verification failure code `7`.
+
+`jc-wallpaperctl` never edits `wallpaper.env`; mutation remains delegated to
+`wallpaper-transition-manager.sh`.
+
+The transition manager is installed only in the internal runtime bin layer.
+The existing public `jc-wallpaperctl` entry point remains the sole public
+wallpaper mutation CLI.
+
+QML integration remains deferred to Phase 2B.7.2.
