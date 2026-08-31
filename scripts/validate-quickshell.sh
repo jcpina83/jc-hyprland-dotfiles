@@ -6620,6 +6620,209 @@ else
     ok "QML remains isolated from internal transition manager"
 fi
 
+
+printf '\n==> Phase 2B.7.2b observed transition state\n'
+
+transition_observed_service="$config_dir/services/WallpaperService.qml"
+transition_observed_draft="$config_dir/services/WallpaperDraftStore.qml"
+transition_observed_docs="$repo_root/docs/wallpaper-control.md"
+transition_observed_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'property string transitionPreset: ""' \
+    'property string transitionResolvedPreset: ""' \
+    'property var transitionTypeOverride: null' \
+    'property var transitionDurationOverride: null' \
+    'property var transitionFpsOverride: null' \
+    'property string transitionEffectiveType: ""' \
+    'property real transitionEffectiveDuration: 0' \
+    'property int transitionEffectiveFps: 0' \
+    'property var pendingTransitionStatus: null' \
+    'function validTransitionStatus(payload) {' \
+    'function commitSnapshot(status, transition, catalog): void {' \
+    'id: transitionStatusProcess' \
+    '"transition",' \
+    '"status",' \
+    'root.pendingTransitionStatus = response;' \
+    'Wallpaper transition changed during refresh; retry.'
+do
+    if grep -Fq -- "$contract" "$transition_observed_service"; then
+        ok "Observed transition service contract: $contract"
+    else
+        fail "Observed transition service contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'wallpaper-transition-manager' \
+    'wallpaper.env' \
+    'WALLPAPER_TRANSITION_PRESET' \
+    'WALLPAPER_TRANSITION_TYPE' \
+    'WALLPAPER_TRANSITION_DURATION' \
+    'WALLPAPER_TRANSITION_FPS'
+do
+    if grep -Fq -- "$forbidden" "$transition_observed_service"; then
+        fail "WallpaperService crossed transition backend boundary: $forbidden"
+    else
+        ok "WallpaperService excludes backend detail: $forbidden"
+    fi
+done
+
+for forbidden in \
+    'wallpaper-transition-manager' \
+    'wallpaper.env' \
+    'WALLPAPER_TRANSITION_PRESET'
+do
+    if grep -Fq -- "$forbidden" "$transition_observed_draft"; then
+        fail "WallpaperDraftStore crossed backend boundary: $forbidden"
+    else
+        ok "WallpaperDraftStore excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Observed transition state' \
+    'nullable' \
+    'concurrent refresh conflict' \
+    'Draft, Apply, coordinator and visual'
+do
+    if grep -Fq -- "$contract" "$transition_observed_docs"; then
+        ok "Observed transition documentation: $contract"
+    else
+        fail "Observed transition documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.2b Transition observed-state ownership' \
+    'three read' \
+    'Transition override nullability' \
+    'No transition mutation'
+do
+    if grep -Fq -- "$contract" "$transition_observed_arch"; then
+        ok "Observed transition architecture: $contract"
+    else
+        fail "Observed transition architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.7.2c transition draft foundation\n'
+
+transition_draft="$config_dir/services/WallpaperDraftStore.qml"
+transition_service="$config_dir/services/WallpaperService.qml"
+transition_draft_docs="$repo_root/docs/wallpaper-control.md"
+transition_draft_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'property string draftTransitionPreset: "theme"' \
+    'property var draftTransitionTypeOverride: null' \
+    'property var draftTransitionDurationOverride: null' \
+    'property var draftTransitionFpsOverride: null' \
+    'property string baselineTransitionPreset: "theme"' \
+    'property string baselineTransitionResolvedPreset: ""' \
+    'property var baselineTransitionTypeOverride: null' \
+    'property var baselineTransitionDurationOverride: null' \
+    'property var baselineTransitionFpsOverride: null' \
+    'readonly property bool transitionPresetDirty:' \
+    'readonly property bool transitionTypeDirty:' \
+    'readonly property bool transitionDurationDirty:' \
+    'readonly property bool transitionFpsDirty:' \
+    'readonly property bool transitionDirty:' \
+    'readonly property bool hasAnyDraftDirty:' \
+    'signal transitionChanged()' \
+    'signal transitionResetCompleted()' \
+    'function validTransitionPreset(preset) {' \
+    'function validTransitionType(type) {' \
+    'function syncTransitionFromObserved(): void {' \
+    'function setTransitionPreset(preset): void {' \
+    'function setTransitionTypeOverride(value): void {' \
+    'function setTransitionDurationOverride(value): void {' \
+    'function setTransitionFpsOverride(value): void {' \
+    'function prepareForRefreshAfterTransitionApply(): void {' \
+    'function resetTransition(): void {' \
+    'root.syncAfterApplyDomain = "transition";' \
+    'else if (domain === "transition")'
+do
+    if grep -Fq -- "$contract" "$transition_draft"; then
+        ok "Transition draft contract: $contract"
+    else
+        fail "Transition draft contract missing: $contract"
+    fi
+done
+
+if grep -Fq \
+    '+ (root.transitionDirty ? 1 : 0)' \
+    "$transition_draft"
+then
+    fail "Transition draft joined global dirtyCount before Apply ownership"
+else
+    ok "Transition draft remains outside global Apply dirtyCount in 2B.7.2c"
+fi
+
+for contract in \
+    'root.hasAnyDraftDirty' \
+    'root.observedDiffersFromBaseline()' \
+    'root.syncTransitionFromObserved();'
+do
+    if grep -Fq -- "$contract" "$transition_draft"; then
+        ok "Transition reconcile contract: $contract"
+    else
+        fail "Transition reconcile contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'wallpaper-transition-manager' \
+    'wallpaper.env' \
+    'WALLPAPER_TRANSITION_PRESET' \
+    'jc-wallpaperctl transition apply'
+do
+    if grep -Fq -- "$forbidden" "$transition_draft"; then
+        fail "Transition DraftStore crossed backend/Apply boundary: $forbidden"
+    else
+        ok "Transition DraftStore excludes backend/Apply detail: $forbidden"
+    fi
+done
+
+for observed_contract in \
+    'property var transitionTypeOverride: null' \
+    'property var transitionDurationOverride: null' \
+    'property var transitionFpsOverride: null'
+do
+    if grep -Fq -- "$observed_contract" "$transition_service"; then
+        ok "Draft source observed contract: $observed_contract"
+    else
+        fail "Draft source observed contract missing: $observed_contract"
+    fi
+done
+
+for contract in \
+    '## Transition draft and reconcile foundation' \
+    'hasAnyDraftDirty' \
+    "not folded into the existing \`dirtyCount\`" \
+    'Phase 2B.7.3'
+do
+    if grep -Fq -- "$contract" "$transition_draft_docs"; then
+        ok "Transition draft documentation: $contract"
+    else
+        fail "Transition draft documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.2c Transition draft ownership' \
+    'nullable override semantics' \
+    'hasAnyDraftDirty' \
+    'Phase 2B.7.3'
+do
+    if grep -Fq -- "$contract" "$transition_draft_arch"; then
+        ok "Transition draft architecture: $contract"
+    else
+        fail "Transition draft architecture missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

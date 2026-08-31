@@ -913,3 +913,66 @@ The existing public `jc-wallpaperctl` entry point remains the sole public
 wallpaper mutation CLI.
 
 QML integration remains deferred to Phase 2B.7.2.
+
+## Observed transition state
+
+Phase 2B.7.2b extends `WallpaperService` with canonical read-only transition
+state sourced exclusively through the stable public API.
+
+The refresh chain is:
+
+```text
+jc-wallpaperctl status --json
+        |
+        v
+jc-wallpaperctl transition status --json
+        |
+        v
+jc-wallpaperctl catalog --json
+        |
+        v
+WallpaperService.commitSnapshot(...)
+```
+
+The service now observes the selected preset, resolved preset, nullable
+type/duration/FPS overrides, and effective type/duration/FPS values.
+
+A nullable override is intentionally preserved as `null`; QML does not
+collapse inherited state into the effective value. This distinction is needed
+by the next Draft phase so `inherit` remains a first-class user choice.
+
+The general wallpaper status and dedicated transition status must report the
+same transition preset during one refresh. A mismatch is treated as a
+concurrent refresh conflict and the snapshot is not committed.
+
+`WallpaperService` remains read-only and references neither `wallpaper.env`
+nor the internal transition manager. Draft, Apply, coordinator and visual
+transition controls remain unchanged in this subphase.
+
+## Transition draft and reconcile foundation
+
+Phase 2B.7.2c adds transition draft ownership to `WallpaperDraftStore` while
+keeping transition mutation unavailable to the existing Apply coordinator.
+
+The draft stores the selected preset plus nullable type, duration and FPS
+overrides. `null` remains the canonical draft representation of inherited
+preset ownership; setters also accept the presentation-friendly `inherit`
+value and normalize it back to `null`.
+
+The store tracks baseline transition configuration separately from derived
+observed values. Resolved preset and effective type/duration/FPS are retained
+in the baseline so an external theme or transition-resolution change can be
+detected while any draft is dirty.
+
+`transitionDirty` is intentionally not folded into the existing `dirtyCount`
+or `hasDirty` yet. Those properties currently describe domains with an Apply
+owner. `hasAnyDraftDirty` includes transition state and is used by refresh
+conflict/reconciliation logic so a pending transition draft cannot be silently
+overwritten by an observed refresh.
+
+A dedicated transition refresh domain and `resetTransition()` lifecycle are
+prepared for the future Apply service, but no process, CLI mutation or
+coordinator sequencing is introduced here.
+
+Phase 2B.7.3 will add the transition Apply owner and then promote
+`transitionDirty` into the single global Apply/Reset workflow.

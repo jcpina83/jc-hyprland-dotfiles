@@ -1452,3 +1452,49 @@ It does not own persistence, locking, rollback or wallpaper runtime commands.
 Phase 2B.7.2 may consume `jc-wallpaperctl transition status --json` for
 observed transition state and use the same public boundary for future Apply
 integration.
+
+## Phase 2B.7.2b Transition observed-state ownership
+
+`WallpaperService` owns the canonical read-only transition snapshot for QML.
+It consumes only stable public `jc-wallpaperctl` surfaces.
+
+The existing atomic refresh pipeline is extended from two to three read
+domains: general wallpaper status, dedicated transition status, then catalog.
+The service publishes `refreshed()` only after all three domains validate and
+commit together.
+
+Transition override nullability is retained in the observed model. Effective
+values are exposed separately so future presentation can show both the active
+effect and whether that value is inherited from the selected preset.
+
+No transition mutation, draft ownership or coordinator sequencing is added in
+Phase 2B.7.2b. Those responsibilities remain separate from observed-state
+collection.
+
+## Phase 2B.7.2c Transition draft ownership
+
+`WallpaperDraftStore` now owns transition draft and baseline state using the
+same observed/draft separation already established for wallpaper and Rotation.
+
+Transition configuration preserves nullable override semantics:
+
+```text
+observed null  <->  baseline null  <->  draft null
+                         |
+                         +--> inherited from selected preset
+```
+
+The store also records resolved/effective transition baseline fields only for
+conflict detection; they are not user-mutable draft fields.
+
+`hasAnyDraftDirty` protects all draft domains during observed refreshes.
+The legacy `dirtyCount` / `hasDirty` surface deliberately remains limited to
+domains that already have mutation owners, preventing the current coordinator
+from advertising an Apply operation it cannot execute.
+
+Transition-specific post-Apply refresh and reset hooks are defined now so the
+future owner can follow the same reconcile protocol as Rotation without
+writing backend details into the DraftStore.
+
+Phase 2B.7.3 introduces that Apply owner, extends coordinator sequencing, and
+promotes transition dirty state into the global Apply contract.

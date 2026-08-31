@@ -18,6 +18,11 @@ Scope {
     property string draftRotationTarget: "both"
     property string draftRotationInterval: "30m"
 
+    property string draftTransitionPreset: "theme"
+    property var draftTransitionTypeOverride: null
+    property var draftTransitionDurationOverride: null
+    property var draftTransitionFpsOverride: null
+
     property string baselineMainEffective: ""
     property string baselineSecondaryEffective: ""
     property string baselineMainFit: "cover"
@@ -27,6 +32,15 @@ Scope {
     property string baselineRotationMode: "next"
     property string baselineRotationTarget: "both"
     property string baselineRotationInterval: "30m"
+
+    property string baselineTransitionPreset: "theme"
+    property string baselineTransitionResolvedPreset: ""
+    property var baselineTransitionTypeOverride: null
+    property var baselineTransitionDurationOverride: null
+    property var baselineTransitionFpsOverride: null
+    property string baselineTransitionEffectiveType: ""
+    property real baselineTransitionEffectiveDuration: 0
+    property int baselineTransitionEffectiveFps: 0
 
     property bool initialized: false
     property bool observedChangedWhileDirty: false
@@ -71,6 +85,31 @@ Scope {
         || root.rotationTargetDirty
         || root.rotationIntervalDirty
 
+    readonly property bool transitionPresetDirty:
+        root.initialized
+        && root.draftTransitionPreset !== root.baselineTransitionPreset
+
+    readonly property bool transitionTypeDirty:
+        root.initialized
+        && root.draftTransitionTypeOverride
+            !== root.baselineTransitionTypeOverride
+
+    readonly property bool transitionDurationDirty:
+        root.initialized
+        && root.draftTransitionDurationOverride
+            !== root.baselineTransitionDurationOverride
+
+    readonly property bool transitionFpsDirty:
+        root.initialized
+        && root.draftTransitionFpsOverride
+            !== root.baselineTransitionFpsOverride
+
+    readonly property bool transitionDirty:
+        root.transitionPresetDirty
+        || root.transitionTypeDirty
+        || root.transitionDurationDirty
+        || root.transitionFpsDirty
+
     readonly property bool mainDirty:
         root.mainWallpaperDirty || root.mainFitDirty
 
@@ -80,17 +119,25 @@ Scope {
     readonly property bool hasWallpaperDirty:
         root.mainDirty || root.secondaryDirty
 
+    // `hasDirty` remains the set of domains already owned by the current
+    // Apply coordinator. Transition joins it in Phase 2B.7.3 when its Apply
+    // owner exists. `hasAnyDraftDirty` still protects transition drafts from
+    // observed refresh reconciliation in this foundation phase.
     readonly property int dirtyCount:
         (root.mainDirty ? 1 : 0)
         + (root.secondaryDirty ? 1 : 0)
         + (root.rotationDirty ? 1 : 0)
 
     readonly property bool hasDirty: root.dirtyCount > 0
+    readonly property bool hasAnyDraftDirty:
+        root.hasDirty || root.transitionDirty
 
     signal changed()
     signal rotationChanged()
+    signal transitionChanged()
     signal resetCompleted()
     signal rotationResetCompleted()
+    signal transitionResetCompleted()
 
     function validTarget(target) {
         return target === "main" || target === "secondary";
@@ -115,6 +162,45 @@ Scope {
 
     function validRotationInterval(interval) {
         return String(interval || "").trim().length > 0;
+    }
+
+    function validTransitionPreset(preset) {
+        return preset === "theme"
+            || preset === "default"
+            || preset === "fade"
+            || preset === "cyber-noir"
+            || preset === "odyssey-glass";
+    }
+
+    function validTransitionType(type) {
+        return type === "none"
+            || type === "simple"
+            || type === "fade"
+            || type === "left"
+            || type === "right"
+            || type === "top"
+            || type === "bottom"
+            || type === "wipe"
+            || type === "wave"
+            || type === "grow"
+            || type === "center"
+            || type === "any"
+            || type === "outer"
+            || type === "random";
+    }
+
+    function optionalString(value) {
+        if (value === null || value === undefined)
+            return null;
+
+        return String(value);
+    }
+
+    function optionalNumber(value) {
+        if (value === null || value === undefined)
+            return null;
+
+        return Number(value);
     }
 
 
@@ -224,7 +310,28 @@ Scope {
             || String(root.wallpaperService.rotationTarget || "")
                 !== root.baselineRotationTarget
             || String(root.wallpaperService.rotationInterval || "")
-                !== root.baselineRotationInterval;
+                !== root.baselineRotationInterval
+            || String(root.wallpaperService.transitionPreset || "")
+                !== root.baselineTransitionPreset
+            || String(root.wallpaperService.transitionResolvedPreset || "")
+                !== root.baselineTransitionResolvedPreset
+            || root.optionalString(
+                    root.wallpaperService.transitionTypeOverride
+                ) !== root.baselineTransitionTypeOverride
+            || root.optionalNumber(
+                    root.wallpaperService.transitionDurationOverride
+                ) !== root.baselineTransitionDurationOverride
+            || root.optionalNumber(
+                    root.wallpaperService.transitionFpsOverride
+                ) !== root.baselineTransitionFpsOverride
+            || String(root.wallpaperService.transitionEffectiveType || "")
+                !== root.baselineTransitionEffectiveType
+            || Number(
+                    root.wallpaperService.transitionEffectiveDuration || 0
+                ) !== root.baselineTransitionEffectiveDuration
+            || Number(
+                    root.wallpaperService.transitionEffectiveFps || 0
+                ) !== root.baselineTransitionEffectiveFps;
     }
 
     function syncWallpaperFromObserved(): void {
@@ -265,16 +372,54 @@ Scope {
         root.draftRotationInterval = root.baselineRotationInterval;
     }
 
+    function syncTransitionFromObserved(): void {
+        if (!root.wallpaperService || !root.wallpaperService.ready)
+            return;
+
+        root.baselineTransitionPreset =
+            String(root.wallpaperService.transitionPreset || "theme");
+        root.baselineTransitionResolvedPreset =
+            String(root.wallpaperService.transitionResolvedPreset || "");
+        root.baselineTransitionTypeOverride =
+            root.optionalString(
+                root.wallpaperService.transitionTypeOverride
+            );
+        root.baselineTransitionDurationOverride =
+            root.optionalNumber(
+                root.wallpaperService.transitionDurationOverride
+            );
+        root.baselineTransitionFpsOverride =
+            root.optionalNumber(
+                root.wallpaperService.transitionFpsOverride
+            );
+        root.baselineTransitionEffectiveType =
+            String(root.wallpaperService.transitionEffectiveType || "");
+        root.baselineTransitionEffectiveDuration =
+            Number(root.wallpaperService.transitionEffectiveDuration || 0);
+        root.baselineTransitionEffectiveFps =
+            Number(root.wallpaperService.transitionEffectiveFps || 0);
+
+        root.draftTransitionPreset = root.baselineTransitionPreset;
+        root.draftTransitionTypeOverride =
+            root.baselineTransitionTypeOverride;
+        root.draftTransitionDurationOverride =
+            root.baselineTransitionDurationOverride;
+        root.draftTransitionFpsOverride =
+            root.baselineTransitionFpsOverride;
+    }
+
+
     function refreshObservedConflict(): void {
         root.observedChangedWhileDirty =
-            root.hasDirty && root.observedDiffersFromBaseline();
+            root.hasAnyDraftDirty
+            && root.observedDiffersFromBaseline();
     }
 
     function syncFromObserved(force): void {
         if (!root.wallpaperService || !root.wallpaperService.ready)
             return;
 
-        if (root.initialized && root.hasDirty && !force) {
+        if (root.initialized && root.hasAnyDraftDirty && !force) {
             if (root.observedDiffersFromBaseline())
                 root.observedChangedWhileDirty = true;
 
@@ -283,6 +428,7 @@ Scope {
 
         root.syncWallpaperFromObserved();
         root.syncRotationFromObserved();
+        root.syncTransitionFromObserved();
 
         root.initialized = true;
         root.observedChangedWhileDirty = false;
@@ -331,6 +477,83 @@ Scope {
         root.changed();
     }
 
+    function setTransitionPreset(preset): void {
+        const normalized = String(preset || "");
+
+        if (!root.validTransitionPreset(normalized)
+                || root.draftTransitionPreset === normalized) {
+            return;
+        }
+
+        root.draftTransitionPreset = normalized;
+        root.transitionChanged();
+        root.changed();
+    }
+
+    function setTransitionTypeOverride(value): void {
+        let normalized = null;
+
+        if (value !== null
+                && value !== undefined
+                && String(value) !== "inherit") {
+            normalized = String(value);
+
+            if (!root.validTransitionType(normalized))
+                return;
+        }
+
+        if (root.draftTransitionTypeOverride === normalized)
+            return;
+
+        root.draftTransitionTypeOverride = normalized;
+        root.transitionChanged();
+        root.changed();
+    }
+
+    function setTransitionDurationOverride(value): void {
+        let normalized = null;
+
+        if (value !== null
+                && value !== undefined
+                && String(value) !== "inherit") {
+            normalized = Number(value);
+
+            if (!isFinite(normalized) || normalized <= 0)
+                return;
+        }
+
+        if (root.draftTransitionDurationOverride === normalized)
+            return;
+
+        root.draftTransitionDurationOverride = normalized;
+        root.transitionChanged();
+        root.changed();
+    }
+
+    function setTransitionFpsOverride(value): void {
+        let normalized = null;
+
+        if (value !== null
+                && value !== undefined
+                && String(value) !== "inherit") {
+            normalized = Number(value);
+
+            if (!isFinite(normalized)
+                    || normalized <= 0
+                    || Math.floor(normalized) !== normalized) {
+                return;
+            }
+        }
+
+        if (root.draftTransitionFpsOverride === normalized)
+            return;
+
+        root.draftTransitionFpsOverride = normalized;
+        root.transitionChanged();
+        root.changed();
+    }
+
+
     function prepareForRefreshAfterApply(): void {
         root.syncAfterApplyPending = true;
         root.syncAfterApplyDomain = "wallpaper";
@@ -341,12 +564,25 @@ Scope {
         root.syncAfterApplyDomain = "rotation";
     }
 
+    function prepareForRefreshAfterTransitionApply(): void {
+        root.syncAfterApplyPending = true;
+        root.syncAfterApplyDomain = "transition";
+    }
+
     function resetRotation(): void {
         root.syncAfterApplyPending = false;
         root.syncAfterApplyDomain = "";
         root.syncRotationFromObserved();
         root.refreshObservedConflict();
         root.rotationResetCompleted();
+    }
+
+    function resetTransition(): void {
+        root.syncAfterApplyPending = false;
+        root.syncAfterApplyDomain = "";
+        root.syncTransitionFromObserved();
+        root.refreshObservedConflict();
+        root.transitionResetCompleted();
     }
 
     function reset(): void {
@@ -369,6 +605,8 @@ Scope {
 
                 if (domain === "rotation")
                     root.syncRotationFromObserved();
+                else if (domain === "transition")
+                    root.syncTransitionFromObserved();
                 else
                     root.syncWallpaperFromObserved();
 

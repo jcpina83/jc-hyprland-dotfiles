@@ -16,7 +16,16 @@ Scope {
 
     property string configuredEngine: ""
     property string runtimeEngine: ""
+
+    // Canonical transition state comes from the stable public transition API.
     property string transitionPreset: ""
+    property string transitionResolvedPreset: ""
+    property var transitionTypeOverride: null
+    property var transitionDurationOverride: null
+    property var transitionFpsOverride: null
+    property string transitionEffectiveType: ""
+    property real transitionEffectiveDuration: 0
+    property int transitionEffectiveFps: 0
 
     property bool rotationEnabled: false
     property string rotationMode: ""
@@ -61,9 +70,10 @@ Scope {
     property string errorMessage: ""
     property string lastRefresh: ""
 
-    // Hold status until catalog also succeeds so consumers receive an atomic
-    // snapshot instead of new status paired with an old catalog.
+    // Hold all read domains until catalog also succeeds so consumers receive
+    // one coherent observed snapshot instead of mixed refresh generations.
     property var pendingStatus: null
+    property var pendingTransitionStatus: null
 
     signal refreshed()
     signal failed(string message)
@@ -100,6 +110,7 @@ Scope {
     function fail(message) {
         root.loading = false;
         root.pendingStatus = null;
+        root.pendingTransitionStatus = null;
         root.errorMessage = String(message || "Wallpaper refresh failed.");
         root.failed(root.errorMessage);
     }
@@ -124,6 +135,29 @@ Scope {
             && payload.runtime.outputs.secondary;
     }
 
+    function validTransitionStatus(payload) {
+        return payload
+            && typeof payload.preset === "string"
+            && typeof payload.resolvedPreset === "string"
+            && payload.overrides
+            && (
+                payload.overrides.type === null
+                || typeof payload.overrides.type === "string"
+            )
+            && (
+                payload.overrides.duration === null
+                || typeof payload.overrides.duration === "number"
+            )
+            && (
+                payload.overrides.fps === null
+                || typeof payload.overrides.fps === "number"
+            )
+            && payload.effective
+            && typeof payload.effective.type === "string"
+            && typeof payload.effective.duration === "number"
+            && typeof payload.effective.fps === "number";
+    }
+
     function validCatalog(payload) {
         return payload
             && Array.isArray(payload.items)
@@ -137,6 +171,7 @@ Scope {
         root.loading = true;
         root.errorMessage = "";
         root.pendingStatus = null;
+        root.pendingTransitionStatus = null;
 
         statusProcess.exec([
             root.wallpaperctlPath(),
@@ -145,7 +180,7 @@ Scope {
         ]);
     }
 
-    function commitSnapshot(status, catalog): void {
+    function commitSnapshot(status, transition, catalog): void {
         root.themeId = String(status.theme.id || "");
         root.themeRoot = String(status.theme.root || "");
         root.preferencesFile =
@@ -156,8 +191,29 @@ Scope {
             String(status.engine.configured || "");
         root.runtimeEngine =
             String(status.runtime.engine || "");
+
         root.transitionPreset =
-            String(status.transition.preset || "");
+            String(transition.preset || "");
+        root.transitionResolvedPreset =
+            String(transition.resolvedPreset || "");
+        root.transitionTypeOverride =
+            transition.overrides.type === null
+                ? null
+                : String(transition.overrides.type);
+        root.transitionDurationOverride =
+            transition.overrides.duration === null
+                ? null
+                : Number(transition.overrides.duration);
+        root.transitionFpsOverride =
+            transition.overrides.fps === null
+                ? null
+                : Number(transition.overrides.fps);
+        root.transitionEffectiveType =
+            String(transition.effective.type || "");
+        root.transitionEffectiveDuration =
+            Number(transition.effective.duration || 0);
+        root.transitionEffectiveFps =
+            Number(transition.effective.fps || 0);
 
         root.rotationEnabled =
             Boolean(status.rotation.enabled);
@@ -223,6 +279,7 @@ Scope {
         root.wallpapers = catalog.items.slice(0);
 
         root.pendingStatus = null;
+        root.pendingTransitionStatus = null;
         root.loading = false;
         root.ready = true;
         root.errorMessage = "";
@@ -267,6 +324,73 @@ Scope {
             }
 
             root.pendingStatus = response;
+
+            transitionStatusProcess.exec([
+                root.wallpaperctlPath(),
+                "transition",
+                "status",
+                "--json"
+            ]);
+        }
+    }
+
+    Process {
+        id: transitionStatusProcess
+
+        stdout: StdioCollector {
+            id: transitionStatusStdout
+        }
+
+        stderr: StdioCollector {
+            id: transitionStatusStderr
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const stdoutText = transitionStatusStdout.text.trim();
+            const stderrText = transitionStatusStderr.text.trim();
+
+            if (exitCode !== 0) {
+                const details = stderrText.length > 0
+                    ? stderrText
+                    : stdoutText;
+
+                root.fail(
+                    "Unable to inspect wallpaper transition state"
+                    + (details.length > 0 ? ": " + details : "")
+                );
+                return;
+            }
+
+            const response = root.parseResponse(stdoutText);
+
+            if (!root.validTransitionStatus(response)) {
+                root.fail(
+                    "Unexpected jc-wallpaperctl transition status response."
+                );
+                return;
+            }
+
+            if (!root.pendingStatus) {
+                root.fail(
+                    "Wallpaper status snapshot was lost before "
+                    + "transition reconciliation."
+                );
+                return;
+            }
+
+            const statusPreset =
+                String(root.pendingStatus.transition.preset || "");
+            const transitionPreset =
+                String(response.preset || "");
+
+            if (statusPreset !== transitionPreset) {
+                root.fail(
+                    "Wallpaper transition changed during refresh; retry."
+                );
+                return;
+            }
+
+            root.pendingTransitionStatus = response;
 
             catalogProcess.exec([
                 root.wallpaperctlPath(),
@@ -319,7 +443,19 @@ Scope {
                 return;
             }
 
-            root.commitSnapshot(root.pendingStatus, response);
+            if (!root.pendingTransitionStatus) {
+                root.fail(
+                    "Wallpaper transition snapshot was lost before "
+                    + "catalog commit."
+                );
+                return;
+            }
+
+            root.commitSnapshot(
+                root.pendingStatus,
+                root.pendingTransitionStatus,
+                response
+            );
         }
     }
 
