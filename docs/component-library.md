@@ -244,3 +244,26 @@ Phase 2A.3 composed the reusable vocabulary into the production Control Center s
 
 Phase 2A.4 is next and migrates Displays visually while preserving the observed /
 draft / runtime / persistent architecture.
+
+### JcSettingTile
+
+`JcSettingTile.qml` is the JC Holo icon-over-label selection primitive for
+compact setting groups.
+
+Its API is intentionally presentation-only:
+
+- `text`, `iconName`, and optional fallback `icon`;
+- `selected`, `controlEnabled`, and `compact`;
+- `clicked()` intent.
+
+It composes `JcInteractiveFrame` and `JcIcon`, retains keyboard activation and
+semantic focus treatment, and does not own feature state. Wallpapers first uses
+it for automatic-rotation Mode and Target choices; the same primitive can be
+reused by Themes, Quick Settings, Performance, Media, Network, and
+Notifications where an icon-first tile is preferable to a horizontal button.
+
+#### JcSettingTile compact geometry
+
+The compact tile variant uses a 0.98-control-height body and a
+1.12-control-height preferred width. This keeps icon-over-label controls
+visually distinct while fitting safely inside dense HUD setting groups.

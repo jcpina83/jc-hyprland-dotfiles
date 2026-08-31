@@ -756,3 +756,85 @@ change-and-restore round trip is byte-stable.
 
 This closes Phase 2B.6 only. Phase 2B Wallpapers remains active; the next
 Wallpapers work continues in Phase 2B.7.
+
+## Automatic rotation visual refinement
+
+The post-2B.6 presentation refinement keeps the established rotation
+draft/Apply contract unchanged while making the automatic-rotation panel more
+compact and legible.
+
+Mode and Target options now carry semantic JC Holo icons through
+`JcChoiceGroup`. Mode uses the existing refresh/all vocabulary for sequential
+and random behavior. MAIN and SECONDARY use the display semantic; BOTH uses the
+all-target semantic.
+
+Interval editing uses the shared `JcSlider` instead of a row of preset buttons.
+The slider covers 5–60 minutes in five-minute steps and exposes reference marks
+for `5m`, `15m`, `30m`, and `1h`. The exact existing draft value remains visible
+above the slider. A non-preset value such as `45m` remains intact until the user
+actually moves the slider; values outside the visual 5–60 minute range are also
+shown as custom instead of being silently rewritten.
+
+The Control Center shell owns the content viewport boundary and clips hosted
+module rendering before the footer. The wallpaper gallery therefore does not
+use a child-level footer margin. Its minimum height and grid-cell height adapt
+to the remaining content space so the visible first row stays above the shell
+footer instead of forcing the feature view through it.
+
+This refinement is presentation-only. It does not change
+`WallpaperDraftStore`, `WallpaperMutationCoordinator`, either Apply service,
+`jc-wallpaperctl`, persistence, rotation systemd state, or the single
+Wallpapers Apply/Reset workflow.
+
+## Automatic rotation tile layout
+
+The approved JC Holo rotation composition uses a compact three-zone panel:
+
+```text
+Mode            | Target                    | Interval
+Next / Random   | MAIN / SECONDARY / BOTH  | 5m ... 1h slider
+```
+
+Mode and Target use the shared `JcSettingTile` presentation primitive with a
+semantic icon above the label. The rotation component still emits only the
+existing `modeSelected(...)`, `targetSelected(...)`, `enabledSelected(...)`,
+and `intervalSelected(...)` intent signals; no backend ownership moved into
+presentation.
+
+The panel height is intentionally compact so Library keeps enough of the shell
+content viewport for a complete first wallpaper row. Target previews use a
+slightly shorter fixed presentation row, the fit row is reduced to its actual
+control content height, and the Library gallery regains a 2.95-control-height
+minimum with 2.55–3.05 adaptive cells.
+
+The shell clipping invariant remains the final safety boundary, but normal
+Wallpapers layout is expected to fit above the footer without depending on
+clipping to hide content.
+
+## Rotation inner-clearance and Fit proximity refinement
+
+The final tile-panel geometry keeps the approved icon-over-label composition
+while reserving explicit clearance between the Mode/Target controls and the
+lower JC Holo frame edge.
+
+Compact `JcSettingTile` instances use a 0.98-control-height body and the
+rotation content row reserves an additional `spaceXs` bottom margin inside the
+HUD. The panel external height is unchanged, so Library keeps the vertical
+space recovered by the previous layout pass.
+
+The Wallpapers main content spacing uses `spaceSm`. The Fit row uses one
+control-height and both `WallpaperFitControl` instances keep their natural
+height aligned to the top of that row. This moves Fit / Fill / Stretch / Center
+closer to the monitor previews without changing their interaction contract.
+
+Library remains at the accepted 2.95-control-height minimum with adaptive
+2.55–3.05 cells, and `ControlCenterShell.contentHost` remains the footer
+clipping safety boundary.
+
+## Rotation HUD final breathing room
+
+The compact Fit/layout pass recovered enough vertical budget to expand the automatic-rotation HUD instead of shrinking its controls further.
+
+`WallpaperRotationControl` now uses a 3.70-control-height presentation footprint and reserves `spaceSm` below the Mode / Target / Interval body row. Compact `JcSettingTile` instances remain at 0.98-control-height, so the added space is frame clearance rather than larger controls.
+
+Library, previews, Fit controls, footer clipping, draft, Apply, persistence, and runtime contracts are unchanged by this refinement.

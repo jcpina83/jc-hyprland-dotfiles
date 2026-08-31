@@ -109,7 +109,7 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: root.theme.spaceMd
+        spacing: root.theme.spaceSm
 
         RowLayout {
             Layout.fillWidth: true
@@ -292,11 +292,11 @@ Item {
             Layout.fillHeight: false
 
             Layout.minimumHeight:
-                root.theme.controlHeightLarge * 3
+                root.theme.controlHeightLarge * 2.72
             Layout.preferredHeight:
-                root.theme.controlHeightLarge * 3
+                root.theme.controlHeightLarge * 2.72
             Layout.maximumHeight:
-                root.theme.controlHeightLarge * 3
+                root.theme.controlHeightLarge * 2.72
 
             spacing: root.theme.spaceMd
 
@@ -374,17 +374,17 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Layout.minimumHeight:
-                root.theme.controlHeightLarge * 1.30
+                root.theme.controlHeightLarge * 1.00
             Layout.preferredHeight:
-                root.theme.controlHeightLarge * 1.30
+                root.theme.controlHeightLarge * 1.00
             Layout.maximumHeight:
-                root.theme.controlHeightLarge * 1.30
+                root.theme.controlHeightLarge * 1.00
 
             spacing: root.theme.spaceMd
 
             WallpaperFitControl {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.alignment: Qt.AlignTop
 
                 theme: root.theme
                 targetId: "main"
@@ -413,7 +413,7 @@ Item {
 
             WallpaperFitControl {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.alignment: Qt.AlignTop
 
                 theme: root.theme
                 targetId: "secondary"
@@ -585,7 +585,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight:
-                root.theme.controlHeightLarge * 4
+                root.theme.controlHeightLarge * 2.95
 
             theme: root.theme
             surfaceRole: "glass"
@@ -638,8 +638,17 @@ Item {
                         Math.floor(width / columnCount)
                     )
 
+                // Keep one useful row visible inside a shorter content
+                // viewport, but retain the original upper card size when
+                // more vertical space is available.
                 cellHeight:
-                    root.theme.controlHeightLarge * 3.05
+                    Math.min(
+                        root.theme.controlHeightLarge * 3.05,
+                        Math.max(
+                            root.theme.controlHeightLarge * 2.55,
+                            height
+                        )
+                    )
 
                 cacheBuffer: cellHeight * 2
 

@@ -493,3 +493,17 @@ between outputs while disappearing.
 The centered presentation intentionally retires the old top/right anchoring and
 the shell-level `Translate` slide. Hosted module motion and all display runtime,
 Safe Apply, rollback, and persistence ownership remain unchanged.
+
+### Content viewport ownership
+
+The production `ControlCenterShell.qml` owns the geometric boundary between
+hosted module content and the footer/status area.
+
+`contentHost` clips hosted rendering to the space allocated by the shell
+layout. Feature modules may use internal scrolling or flexible children, but
+they must not extend their drawing underneath the footer divider or status row.
+
+This keeps footer separation a shell invariant instead of requiring each
+feature view to add compensating bottom margins. Wallpapers uses that contract
+by allowing its gallery surface and first-row tile height to shrink with the
+available viewport while retaining the existing `GridView` scrolling behavior.

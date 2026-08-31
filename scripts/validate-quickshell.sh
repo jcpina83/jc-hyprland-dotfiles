@@ -5844,9 +5844,9 @@ for contract in \
     'signal intervalSelected(string value)' \
     'Components.JcHudFrame {' \
     'Components.JcToggle {' \
-    'Components.JcChoiceGroup {' \
+    'Components.JcSettingTile {' \
     'Components.JcChip {' \
-    'title: "Automatic rotation"' \
+    'text: "Automatic rotation"' \
     'text: "Mode"' \
     'text: "Target"' \
     'text: "Interval"' \
@@ -6058,6 +6058,352 @@ do
         ok "Phase 2B.6 rotation Apply boundary: $contract"
     else
         fail "Phase 2B.6 rotation Apply boundary missing: $contract"
+    fi
+done
+
+
+printf '\n==> Wallpapers rotation visual polish\n'
+
+rotation_polish="$config_dir/modules/wallpapers/WallpaperRotationControl.qml"
+rotation_polish_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+rotation_polish_doc="$repo_root/docs/wallpaper-control.md"
+
+for contract in \
+    'iconName: "refresh"' \
+    'iconName: "all"' \
+    'iconName: "display"' \
+    'function parseIntervalMinutes(value) {' \
+    'function intervalFromMinutes(minutes) {' \
+    'readonly property real intervalSliderValue:' \
+    'readonly property bool intervalIsPreset:' \
+    'Components.JcSlider {' \
+    'id: intervalSlider' \
+    'from: 5' \
+    'to: 60' \
+    'stepSize: 5' \
+    'value: root.intervalSliderValue' \
+    'onMoved:' \
+    'root.intervalSelected(' \
+    'model: root.intervalOptions.slice(0, 4)'
+do
+    if grep -Fq -- "$contract" "$rotation_polish"; then
+        ok "Rotation visual polish: $contract"
+    else
+        fail "Rotation visual polish missing: $contract"
+    fi
+done
+
+rotation_polish_shell="$config_dir/modules/controlcenter/ControlCenterShell.qml"
+rotation_polish_shell_doc="$repo_root/docs/control-center-shell.md"
+
+if grep -A 14 -F \
+    'id: contentHost' \
+    "$rotation_polish_shell" \
+    | grep -Fq 'clip: true'
+then
+    ok "Control Center content host clips before footer"
+else
+    fail "Control Center content host viewport clipping missing"
+fi
+
+if grep -Fq \
+    'Layout.bottomMargin: root.theme.spaceLg' \
+    "$rotation_polish_view"
+then
+    fail "Wallpaper gallery still carries retired footer compensation margin"
+else
+    ok "Wallpaper gallery no longer compensates for shell footer"
+fi
+
+for contract in \
+    'root.theme.controlHeightLarge * 2.95' \
+    'root.theme.controlHeightLarge * 3.05' \
+    'root.theme.controlHeightLarge * 2.55' \
+    'Math.min(' \
+    'Math.max('
+do
+    if grep -Fq -- "$contract" "$rotation_polish_view"; then
+        ok "Wallpaper adaptive gallery contract: $contract"
+    else
+        fail "Wallpaper adaptive gallery contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '### Content viewport ownership' \
+    "\`contentHost\` clips hosted rendering" \
+    'must not extend their drawing underneath the footer'
+do
+    if grep -Fq -- "$contract" "$rotation_polish_shell_doc"; then
+        ok "Control Center viewport documentation: $contract"
+    else
+        fail "Control Center viewport documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Automatic rotation visual refinement' \
+    "Interval editing uses the shared \`JcSlider\`" \
+    "A non-preset value such as \`45m\` remains intact" \
+    'The Control Center shell owns the content viewport boundary and clips hosted' \
+    'This refinement is presentation-only.'
+do
+    if grep -Fq -- "$contract" "$rotation_polish_doc"; then
+        ok "Rotation visual polish documentation: $contract"
+    else
+        fail "Rotation visual polish documentation missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'property var draftStore' \
+    'property var wallpaperService' \
+    'property var applyService' \
+    'Process {' \
+    'jc-wallpaperctl' \
+    'systemctl' \
+    'wallpaper.env' \
+    'wallpaper-manager' \
+    'wallpaper-rotation-manager'
+do
+    if grep -Fq -- "$forbidden" "$rotation_polish"; then
+        fail "Rotation visual polish crossed presentation boundary: $forbidden"
+    else
+        ok "Rotation visual polish preserves presentation boundary: $forbidden"
+    fi
+done
+
+
+printf '\n==> JC Holo setting tiles + rotation panel composition\n'
+
+setting_tile="$config_dir/components/JcSettingTile.qml"
+rotation_tile_panel="$config_dir/modules/wallpapers/WallpaperRotationControl.qml"
+rotation_tile_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+rotation_tile_doc="$repo_root/docs/wallpaper-control.md"
+setting_tile_doc="$repo_root/docs/component-library.md"
+
+for contract in \
+    'required property var theme' \
+    'property string text: ""' \
+    'property string iconName: ""' \
+    'property bool selected: false' \
+    'property bool controlEnabled: true' \
+    'signal clicked()' \
+    'activeFocusOnTab: root.controlEnabled' \
+    'JcInteractiveFrame {' \
+    'JcIcon {' \
+    'onPressed: root.forceActiveFocus()' \
+    'onClicked: root.clicked()'
+do
+    if grep -Fq -- "$contract" "$setting_tile"; then
+        ok "JcSettingTile contract: $contract"
+    else
+        fail "JcSettingTile contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'Components.JcSettingTile {' \
+    'model: root.modeOptions' \
+    'model: root.targetOptions' \
+    'orientation: Qt.Vertical' \
+    'root.theme.controlHeightLarge * 3.70' \
+    'Components.JcSlider {' \
+    'id: intervalSlider' \
+    'from: 5' \
+    'to: 60' \
+    'stepSize: 5' \
+    'model: root.intervalOptions.slice(0, 4)'
+do
+    if grep -Fq -- "$contract" "$rotation_tile_panel"; then
+        ok "Rotation tile-panel contract: $contract"
+    else
+        fail "Rotation tile-panel contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'root.theme.controlHeightLarge * 2.72' \
+    'root.theme.controlHeightLarge * 1.00' \
+    'root.theme.controlHeightLarge * 2.95' \
+    'root.theme.controlHeightLarge * 2.55' \
+    'root.theme.controlHeightLarge * 3.05'
+do
+    if grep -Fq -- "$contract" "$rotation_tile_view"; then
+        ok "Wallpaper vertical-budget contract: $contract"
+    else
+        fail "Wallpaper vertical-budget contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-wallpaperctl' \
+    'systemctl' \
+    'wallpaper.env' \
+    'wallpaper-manager' \
+    'wallpaper-rotation-manager'
+do
+    if grep -Fq -- "$forbidden" "$setting_tile"; then
+        fail "JcSettingTile crossed presentation boundary: $forbidden"
+    else
+        ok "JcSettingTile excludes backend detail: $forbidden"
+    fi
+
+    if grep -Fq -- "$forbidden" "$rotation_tile_panel"; then
+        fail "Rotation tile panel crossed presentation boundary: $forbidden"
+    else
+        ok "Rotation tile panel excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Automatic rotation tile layout' \
+    "shared \`JcSettingTile\` presentation primitive" \
+    'complete first wallpaper row' \
+    'Library gallery regains a 2.95-control-height'
+do
+    if grep -Fq -- "$contract" "$rotation_tile_doc"; then
+        ok "Rotation tile-layout documentation: $contract"
+    else
+        fail "Rotation tile-layout documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '### JcSettingTile' \
+    'icon-over-label selection primitive' \
+    'presentation-only' \
+    'Themes, Quick Settings, Performance'
+do
+    if grep -Fq -- "$contract" "$setting_tile_doc"; then
+        ok "JcSettingTile documentation: $contract"
+    else
+        fail "JcSettingTile documentation missing: $contract"
+    fi
+done
+
+
+printf '\n==> Rotation tile inner-clearance + Fit proximity\n'
+
+rotation_clearance_tile="$config_dir/components/JcSettingTile.qml"
+rotation_clearance_panel="$config_dir/modules/wallpapers/WallpaperRotationControl.qml"
+rotation_clearance_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+rotation_clearance_doc="$repo_root/docs/wallpaper-control.md"
+rotation_clearance_component_doc="$repo_root/docs/component-library.md"
+
+for contract in \
+    'root.theme.controlHeightLarge * 0.98' \
+    'root.theme.controlHeightLarge * 1.12'
+do
+    if grep -Fq -- "$contract" "$rotation_clearance_tile"; then
+        ok "Compact JcSettingTile geometry: $contract"
+    else
+        fail "Compact JcSettingTile geometry missing: $contract"
+    fi
+done
+
+if grep -Fq \
+    'Layout.bottomMargin: root.theme.spaceSm' \
+    "$rotation_clearance_panel"
+then
+    ok "Rotation body reserves lower HUD clearance"
+else
+    fail "Rotation body lower HUD clearance missing"
+fi
+
+for contract in \
+    'spacing: root.theme.spaceSm' \
+    'root.theme.controlHeightLarge * 1.00' \
+    'Layout.alignment: Qt.AlignTop' \
+    'root.theme.controlHeightLarge * 2.95' \
+    'root.theme.controlHeightLarge * 2.55' \
+    'root.theme.controlHeightLarge * 3.05'
+do
+    if grep -Fq -- "$contract" "$rotation_clearance_view"; then
+        ok "Wallpaper compact vertical-budget contract: $contract"
+    else
+        fail "Wallpaper compact vertical-budget contract missing: $contract"
+    fi
+done
+
+fit_align_count="$(
+    grep -Fc \
+        'Layout.alignment: Qt.AlignTop' \
+        "$rotation_clearance_view" \
+        || true
+)"
+
+if [[ "$fit_align_count" -eq 2 ]]; then
+    ok "Both WallpaperFitControl instances align toward previews"
+else
+    fail "Expected 2 top-aligned WallpaperFitControl instances, got $fit_align_count"
+fi
+
+for contract in \
+    '## Rotation inner-clearance and Fit proximity refinement' \
+    '0.98-control-height body' \
+    'Fit / Fill / Stretch / Center' \
+    'Library remains at the accepted 2.95-control-height minimum'
+do
+    if grep -Fq -- "$contract" "$rotation_clearance_doc"; then
+        ok "Rotation/Fit refinement documentation: $contract"
+    else
+        fail "Rotation/Fit refinement documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '#### JcSettingTile compact geometry' \
+    '0.98-control-height body' \
+    '1.12-control-height preferred width'
+do
+    if grep -Fq -- "$contract" "$rotation_clearance_component_doc"; then
+        ok "JcSettingTile compact documentation: $contract"
+    else
+        fail "JcSettingTile compact documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Rotation HUD final breathing room\n'
+
+rotation_breathing_panel="$config_dir/modules/wallpapers/WallpaperRotationControl.qml"
+rotation_breathing_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+rotation_breathing_doc="$repo_root/docs/wallpaper-control.md"
+
+for contract in \
+    'root.theme.controlHeightLarge * 3.70' \
+    'Layout.bottomMargin: root.theme.spaceSm'
+do
+    if grep -Fq -- "$contract" "$rotation_breathing_panel"; then
+        ok "Rotation HUD breathing-room contract: $contract"
+    else
+        fail "Rotation HUD breathing-room contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'root.theme.controlHeightLarge * 1.00' \
+    'root.theme.controlHeightLarge * 2.95' \
+    'root.theme.controlHeightLarge * 2.55' \
+    'root.theme.controlHeightLarge * 3.05'
+do
+    if grep -Fq -- "$contract" "$rotation_breathing_view"; then
+        ok "Preserved Wallpapers vertical-budget contract: $contract"
+    else
+        fail "Preserved Wallpapers vertical-budget contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Rotation HUD final breathing room' \
+    '3.70-control-height presentation footprint' \
+    'frame clearance rather than larger controls'
+do
+    if grep -Fq -- "$contract" "$rotation_breathing_doc"; then
+        ok "Rotation HUD breathing-room documentation: $contract"
+    else
+        fail "Rotation HUD breathing-room documentation missing: $contract"
     fi
 done
 

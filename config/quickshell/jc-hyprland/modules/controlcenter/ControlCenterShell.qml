@@ -399,6 +399,11 @@ PanelWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
+                    // The shell owns this viewport boundary. Hosted feature
+                    // content may be larger internally, but it must never
+                    // paint through the footer divider/status row.
+                    clip: true
+
                     Loader {
                         id: contentLoader
 
