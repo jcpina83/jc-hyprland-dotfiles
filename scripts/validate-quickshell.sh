@@ -58,6 +58,7 @@ required_files=(
     "services/DisplayPersistenceService.qml"
     "services/WallpaperService.qml"
     "services/ThemeService.qml"
+    "services/ThemeDraftStore.qml"
     "services/WallpaperDraftStore.qml"
     "services/WallpaperApplyService.qml"
     "services/WallpaperRotationApplyService.qml"
@@ -7708,6 +7709,126 @@ do
         fail "ThemeService architecture missing: $contract"
     fi
 done
+
+
+printf '\n==> Phase 2C.1d ThemeDraftStore foundation\n'
+
+phase_2c_theme_draft="$config_dir/services/ThemeDraftStore.qml"
+phase_2c_theme_service="$config_dir/services/ThemeService.qml"
+phase_2c_main="$config_dir/Main.qml"
+phase_2c_theme_qml="$config_dir/theme/Theme.qml"
+phase_2c_nav="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+phase_2c_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'Scope {' \
+    'property var themeService' \
+    'property string draftThemeId: ""' \
+    'property string baselineThemeId: ""' \
+    'property bool initialized: false' \
+    'property bool observedChangedWhileDirty: false' \
+    'readonly property bool dirty:' \
+    'readonly property bool hasDirty: root.dirty' \
+    'readonly property int dirtyCount:' \
+    'readonly property var draftTheme:' \
+    'readonly property var baselineTheme:' \
+    'readonly property bool draftValid:' \
+    'function validThemeId(themeId) {' \
+    'function setTheme(themeId) {' \
+    'function syncFromObserved(force) {' \
+    'function reset() {' \
+    'Connections {' \
+    'function onRefreshed() {' \
+    'Component.onCompleted: root.syncFromObserved(true)'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_draft"; then
+        ok "ThemeDraftStore contract: $contract"
+    else
+        fail "ThemeDraftStore contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-theme' \
+    '"apply"' \
+    'local/active-theme' \
+    'hyprctl' \
+    'systemctl' \
+    'start-waybar' \
+    'start-swaync' \
+    'apply-wallpaper' \
+    'sddm'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_draft"; then
+        fail "ThemeDraftStore mutation/backend leakage: $forbidden"
+    else
+        ok "ThemeDraftStore excludes mutation/backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'readonly property var themeDraftStoreHandle: themeDraftStore' \
+    'Services.ThemeDraftStore {' \
+    'id: themeDraftStore' \
+    'themeService: themeService'
+do
+    if grep -Fq -- "$contract" "$phase_2c_main"; then
+        ok "Main ThemeDraftStore wiring: $contract"
+    else
+        fail "Main ThemeDraftStore wiring missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.1d — ThemeDraftStore selection/baseline foundation' \
+    'observedChangedWhileDirty' \
+    'setTheme(id)' \
+    'reset()' \
+    'themeDraftStoreHandle' \
+    'does not enable Themes navigation'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "ThemeDraftStore documentation: $contract"
+    else
+        fail "ThemeDraftStore documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.1d theme draft-state architecture' \
+    'ThemeService' \
+    'ThemeDraftStore' \
+    'observedChangedWhileDirty' \
+    'No Theme Apply backend/service is introduced'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "ThemeDraftStore architecture: $contract"
+    else
+        fail "ThemeDraftStore architecture missing: $contract"
+    fi
+done
+
+if grep -A 5 -F 'id: "themes"' "$phase_2c_nav" \
+    | grep -Fq 'enabled: false'
+then
+    ok "Themes navigation remains disabled"
+else
+    fail "Themes navigation must remain disabled in Phase 2C.1d"
+fi
+
+if grep -Fq 'Process {' "$phase_2c_theme_qml"; then
+    fail "Theme.qml gained Process ownership"
+else
+    ok "Theme.qml remains independent semantic FileView API"
+fi
+
+if grep -Fq '"apply"' "$phase_2c_theme_service"; then
+    fail "ThemeService gained mutation ownership"
+else
+    ok "ThemeService remains read-only"
+fi
 
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 

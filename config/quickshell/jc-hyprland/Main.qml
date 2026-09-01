@@ -151,6 +151,7 @@ Scope {
         wallpaperMutationCoordinator
     readonly property var themeHandle: theme
     readonly property var themeServiceHandle: themeService
+    readonly property var themeDraftStoreHandle: themeDraftStore
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -312,6 +313,12 @@ Scope {
 
     Services.ThemeService {
         id: themeService
+    }
+
+
+    Services.ThemeDraftStore {
+        id: themeDraftStore
+        themeService: themeService
     }
 
 

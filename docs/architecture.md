@@ -1831,3 +1831,36 @@ becoming a second Theme API.
 snapshot when the active theme changes between reads. It performs one bounded retry before surfacing a refresh error.
 
 No mutation owner is introduced in Phase 2C.1c.
+
+## Phase 2C.1d theme draft-state architecture
+
+Phase 2C now separates observed state from user intent:
+
+```text
+jc-theme status/catalog --json
+            |
+            v
+      ThemeService
+            |
+            v
+   ThemeDraftStore
+      |         |
+      |         +--> baselineThemeId
+      |
+      +------------> draftThemeId
+                         |
+                         +--> dirty
+                         +--> future live preview selection
+```
+
+`ThemeDraftStore` owns only feature-level selection state. It does not own
+theme metadata, semantic color resolution or runtime mutation.
+
+A clean draft follows `ThemeService.activeThemeId`. A dirty draft is preserved
+when observed state refreshes; if the active theme changes externally while
+dirty, `observedChangedWhileDirty` records the conflict.
+
+The store's `reset()` adopts current observed state rather than assuming its
+older baseline is still authoritative.
+
+No Theme Apply backend/service is introduced in Phase 2C.1d.

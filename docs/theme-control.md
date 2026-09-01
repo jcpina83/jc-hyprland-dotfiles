@@ -251,3 +251,69 @@ synchronize SDDM
 
 Phase 2C.1c still does not enable Themes navigation and introduces no draft or
 Apply behavior.
+
+## Phase 2C.1d — ThemeDraftStore selection/baseline foundation
+
+`ThemeDraftStore.qml` introduces the draft state required by the future Themes
+module without enabling mutation.
+
+The state model is deliberately small because theme selection is one atomic
+choice:
+
+```text
+ThemeService.activeThemeId
+        |
+        v
+baselineThemeId
+        |
+        +-----------------------+
+        |                       |
+        v                       v
+draftThemeId                dirty
+                                |
+                                v
+                  future ThemeApplyService
+```
+
+The store exposes:
+
+```text
+draftThemeId
+baselineThemeId
+initialized
+dirty
+hasDirty
+dirtyCount
+draftTheme
+baselineTheme
+draftValid
+observedChangedWhileDirty
+```
+
+`setTheme(id)` accepts only IDs present in the observed `ThemeService` catalog.
+It changes draft state only.
+
+`reset()` discards the draft and adopts the current observed active theme as
+both baseline and draft. It does not invoke the backend.
+
+### External observed changes
+
+When `ThemeService` refreshes:
+
+- a clean store follows the newly observed active theme;
+- a dirty store preserves the user's draft;
+- if the observed active theme changed away from the draft baseline,
+  `observedChangedWhileDirty` becomes true.
+
+This preserves user intent while making external runtime changes visible.
+
+No Apply reconciliation is introduced yet. That lifecycle belongs to the
+future mutation service after the public theme Apply contract is hardened.
+
+### Production ownership
+
+`Main.qml` owns one `ThemeDraftStore` and injects the production
+`ThemeService`. It also exposes `themeDraftStoreHandle` for the future Themes
+view.
+
+Phase 2C.1d does not enable Themes navigation and does not create a Theme view.
