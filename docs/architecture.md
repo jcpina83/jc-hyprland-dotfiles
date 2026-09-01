@@ -2039,3 +2039,22 @@ Recovery does not discard a pending draft.
 `Main.qml` owns the production ThemeApplyService and includes its busy state in
 the Control Center transition lock.
 Theme navigation and ThemeView remain deferred.
+
+## Phase 2C.2.1 ThemeView foundation
+
+ThemeView is introduced as a read-only visual consumer inside the existing
+Control Center content host.
+
+Current state flow:
+
+```text
+ThemeService -> ThemeView
+ThemeDraftStore -> ThemeView
+Theme.qml -> ThemeView visual tokens
+```
+
+`Main.qml` remains the composition/orchestration root and routes the enabled
+`themes` module to `ThemeView.qml`.
+
+No mutation boundary moves into ThemeView. Theme application remains owned by
+`ThemeApplyService` and the already validated public `jc-theme` backend path.

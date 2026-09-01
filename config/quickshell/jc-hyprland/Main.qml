@@ -6,6 +6,7 @@ import qs.services as Services
 import qs.theme as Theme
 import qs.modules.displays as Displays
 import qs.modules.wallpapers as Wallpapers
+import qs.modules.themes as Themes
 import qs.modules.dev as Dev
 import qs.modules.controlcenter as ControlCenter
 
@@ -182,6 +183,9 @@ Scope {
     }
 
     function moduleIsAvailable(moduleId) {
+        if (moduleId === "themes")
+            return true;
+
         return moduleId === "displays"
             || moduleId === "wallpapers";
     }
@@ -423,6 +427,17 @@ Scope {
     }
 
     Component {
+        id: shellThemesComponent
+
+        Themes.ThemeView {
+            theme: root.themeHandle
+            themeService: root.themeServiceHandle
+            draftStore: root.themeDraftStoreHandle
+        }
+    }
+
+
+    Component {
         id: shellDisplaysComponent
 
         Displays.DisplayView {
@@ -475,7 +490,9 @@ Scope {
                 ? shellDisplaysComponent
                 : root.activeModuleId === "wallpapers"
                     ? shellWallpapersComponent
-                    : null
+                    : root.activeModuleId === "themes"
+                        ? shellThemesComponent
+                        : null
 
         onCloseRequested: root.hideControlCenter()
 

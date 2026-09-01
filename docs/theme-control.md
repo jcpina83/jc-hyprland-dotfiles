@@ -738,3 +738,23 @@ state in the global Control Center transition lock.
 
 This phase intentionally does not create `ThemeView.qml` and does not enable
 Themes navigation.
+
+## Phase 2C.2.1 — ThemeView foundation
+
+`modules/themes/ThemeView.qml` is now the first visual consumer of the Phase 2C
+theme state model.
+
+The Themes Control Center navigation entry is enabled and routes to ThemeView.
+This foundation reads observed state from `ThemeService` and draft state from
+`ThemeDraftStore`.
+
+At this stage ThemeView is intentionally read-only:
+
+- it displays the observed active theme,
+- it exposes the installed-theme count,
+- it reflects whether a draft is pending,
+- it does not invoke Apply,
+- it does not own runtime mutation or backend commands.
+
+Theme preview cards, draft selection controls, Apply/Reset UI, and the final
+visual treatment remain subsequent Phase 2C.2 work.

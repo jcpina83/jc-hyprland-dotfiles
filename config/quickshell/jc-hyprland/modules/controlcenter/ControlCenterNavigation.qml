@@ -107,7 +107,7 @@ Item {
             id: "themes",
             label: "Themes",
             iconName: "theme",
-            enabled: false
+            enabled: true
         },
         {
             id: "quick-settings",

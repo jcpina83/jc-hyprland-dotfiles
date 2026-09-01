@@ -1169,6 +1169,9 @@ for future_module in \
     network \
     notifications
 do
+    if [[ "$future_module" == "themes" ]]; then
+        continue
+    fi
     if grep -A4 -F "id: \"$future_module\"" "$control_center_navigation" \
         | grep -Fq 'enabled: false'
     then
@@ -7517,7 +7520,6 @@ phase_2c_theme_script="$repo_root/scripts/theme.sh"
 phase_2c_theme_doc="$repo_root/docs/theme-control.md"
 phase_2c_arch="$repo_root/docs/architecture.md"
 phase_2c_readme="$repo_root/README.md"
-phase_2c_nav="$repo_root/config/quickshell/jc-hyprland/modules/controlcenter/ControlCenterNavigation.qml"
 phase_2c_theme_qml="$repo_root/config/quickshell/jc-hyprland/theme/Theme.qml"
 
 for contract in \
@@ -7584,12 +7586,11 @@ do
     fi
 done
 
-if grep -A 5 -F 'id: "themes"' "$phase_2c_nav" \
-    | grep -Fq 'enabled: false'
-then
-    ok "Themes navigation remains disabled"
+# Historical phase guard: navigation enablement may evolve later.
+if [[ -f "$config_dir/modules/controlcenter/ControlCenterNavigation.qml" ]]; then
+    ok "Themes navigation entry remains structurally present"
 else
-    fail "Themes navigation must remain disabled in Phase 2C.1b"
+    fail "Themes navigation file is missing"
 fi
 
 if grep -Fq 'Process {' "$phase_2c_theme_qml"; then
@@ -7604,7 +7605,6 @@ printf '\n==> Phase 2C.1c ThemeService observed state\n'
 phase_2c_theme_service="$config_dir/services/ThemeService.qml"
 phase_2c_main="$config_dir/Main.qml"
 phase_2c_theme_qml="$config_dir/theme/Theme.qml"
-phase_2c_nav="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
 phase_2c_theme_doc="$repo_root/docs/theme-control.md"
 phase_2c_arch="$repo_root/docs/architecture.md"
 
@@ -7676,12 +7676,11 @@ else
     ok "Theme.qml remains independent semantic FileView API"
 fi
 
-if grep -A 5 -F 'id: "themes"' "$phase_2c_nav" \
-    | grep -Fq 'enabled: false'
-then
-    ok "Themes navigation remains disabled"
+# Historical phase guard: navigation enablement may evolve later.
+if [[ -f "$config_dir/modules/controlcenter/ControlCenterNavigation.qml" ]]; then
+    ok "Themes navigation entry remains structurally present"
 else
-    fail "Themes navigation must remain disabled in Phase 2C.1c"
+    fail "Themes navigation file is missing"
 fi
 
 for contract in \
@@ -7718,7 +7717,6 @@ phase_2c_theme_draft="$config_dir/services/ThemeDraftStore.qml"
 phase_2c_theme_service="$config_dir/services/ThemeService.qml"
 phase_2c_main="$config_dir/Main.qml"
 phase_2c_theme_qml="$config_dir/theme/Theme.qml"
-phase_2c_nav="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
 phase_2c_theme_doc="$repo_root/docs/theme-control.md"
 phase_2c_arch="$repo_root/docs/architecture.md"
 
@@ -7811,12 +7809,11 @@ do
     fi
 done
 
-if grep -A 5 -F 'id: "themes"' "$phase_2c_nav" \
-    | grep -Fq 'enabled: false'
-then
-    ok "Themes navigation remains disabled"
+# Historical phase guard: navigation enablement may evolve later.
+if [[ -f "$config_dir/modules/controlcenter/ControlCenterNavigation.qml" ]]; then
+    ok "Themes navigation entry remains structurally present"
 else
-    fail "Themes navigation must remain disabled in Phase 2C.1d"
+    fail "Themes navigation file is missing"
 fi
 
 if grep -Fq 'Process {' "$phase_2c_theme_qml"; then
@@ -8089,7 +8086,6 @@ printf '\n==> Phase 2C ThemeApplyService foundation\n'
 phase_2c_theme_apply="$config_dir/services/ThemeApplyService.qml"
 phase_2c_theme_draft="$config_dir/services/ThemeDraftStore.qml"
 phase_2c_main="$config_dir/Main.qml"
-phase_2c_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
 phase_2c_theme_qml="$config_dir/theme/Theme.qml"
 phase_2c_theme_service="$config_dir/services/ThemeService.qml"
 phase_2c_theme_doc="$repo_root/docs/theme-control.md"
@@ -8169,12 +8165,11 @@ do
     fi
 done
 
-if grep -Fq 'enabled: false' "$phase_2c_navigation" \
-    && grep -Fq 'id: "themes"' "$phase_2c_navigation"
-then
-    ok "Themes navigation remains deferred/disabled"
+# Historical phase guard: navigation enablement may evolve later.
+if [[ -f "$config_dir/modules/controlcenter/ControlCenterNavigation.qml" ]]; then
+    ok "Themes navigation entry remains structurally present"
 else
-    fail "Themes navigation deferment changed unexpectedly"
+    fail "Themes navigation file is missing"
 fi
 
 if git diff --quiet HEAD -- "$phase_2c_theme_qml"; then
@@ -8220,6 +8215,104 @@ do
         fail "ThemeApplyService architecture missing: $contract"
     fi
 done
+
+
+printf '\n==> Phase 2C.2.1 ThemeView foundation\n'
+
+phase_2c_theme_view="$config_dir/modules/themes/ThemeView.qml"
+phase_2c_theme_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+
+if [[ -f "$phase_2c_theme_view" ]]; then
+    ok "ThemeView foundation file"
+else
+    fail "ThemeView.qml missing"
+fi
+
+for contract in \
+    'Item {' \
+    'required property var theme' \
+    'property var themeService' \
+    'property var draftStore' \
+    'readonly property string activeThemeId:' \
+    'readonly property int installedThemeCount:' \
+    'readonly property string draftThemeId:' \
+    'readonly property bool draftDirty:' \
+    'Observed theme:' \
+    'Draft synchronized with observed state'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_view"; then
+        ok "ThemeView foundation contract: $contract"
+    else
+        fail "ThemeView foundation contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-theme' \
+    '"apply"' \
+    'hyprctl' \
+    'systemctl' \
+    'active-theme' \
+    'theme-transaction-manager'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_view"; then
+        fail "ThemeView mutation/backend leakage: $forbidden"
+    else
+        ok "ThemeView excludes mutation/backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'import qs.modules.themes as Themes' \
+    'moduleId === "themes"' \
+    'id: shellThemesComponent' \
+    'Themes.ThemeView {' \
+    'themeService: root.themeServiceHandle' \
+    'draftStore: root.themeDraftStoreHandle' \
+    '? shellThemesComponent'
+do
+    if grep -Fq -- "$contract" "$phase_2c_main"; then
+        ok "Main ThemeView wiring: $contract"
+    else
+        fail "Main ThemeView wiring missing: $contract"
+    fi
+done
+
+if grep -A 8 -F 'id: "themes"' "$phase_2c_theme_navigation" \
+    | grep -Fq 'enabled: true'
+then
+    ok "Themes navigation entry is enabled"
+else
+    fail "Themes navigation entry must be enabled in Phase 2C.2.1"
+fi
+
+for contract in \
+    '## Phase 2C.2.1 — ThemeView foundation' \
+    'ThemeView.qml' \
+    'navigation entry is enabled' \
+    'does not invoke Apply'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "ThemeView documentation: $contract"
+    else
+        fail "ThemeView documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.1 ThemeView foundation' \
+    'read-only visual consumer' \
+    'ThemeService -> ThemeView' \
+    'ThemeDraftStore -> ThemeView'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "ThemeView architecture: $contract"
+    else
+        fail "ThemeView architecture missing: $contract"
+    fi
+done
+
 
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
