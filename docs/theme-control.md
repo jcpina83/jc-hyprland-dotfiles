@@ -462,3 +462,127 @@ extending mutation-lock lifetime beyond the transaction.
 A post-Apply lock-leak sentinel is required after every successful Apply.
 It must verify that no resident process retains any theme/wallpaper mutation
 lock before the next transaction starts.
+
+## Phase 2C — explicit Theme runtime recovery API
+
+The QML recovery audit identified one backend gap before `ThemeApplyService`
+can safely model `rollback-failed`.
+
+A `rollback-failed` Apply may have restored the persistent active-theme
+identity while one or more critical runtime consumers remain unverified.
+`ThemeService.refresh()` cannot repair that condition because it observes
+theme identity and catalog state, not the runtime state of Hyprland, wallpaper,
+Waybar or SwayNC.
+
+The stable public recovery boundary is therefore:
+
+```text
+jc-theme recover [--json]
+```
+
+Recovery is deliberately separate from same-theme Apply.
+
+```text
+jc-theme apply CURRENT_THEME --json
+        -> existing no-op contract remains unchanged
+
+jc-theme recover --json
+        -> re-apply and verify current active theme runtime
+```
+
+This distinction prevents an ordinary no-change Apply from unexpectedly
+restarting desktop consumers and gives QML an explicit recovery operation.
+
+### Recovery preconditions and ownership
+
+Recovery requires the current active file and active symlink to be synchronized
+and the current theme to satisfy the normal theme validity contract.
+
+It acquires the same theme and wallpaper coordination locks as Apply, but does
+not rewrite either active identity representation.
+
+The current active theme becomes both the previous and target runtime identity,
+and the existing critical runtime boundary is executed:
+
+```text
+Hyprland reload + configerrors
+        |
+        v
+wallpaper runtime Apply + verification
+        |
+        v
+Waybar restart + verification
+        |
+        v
+SwayNC restart when it was running
+        |
+        v
+active identity verification
+```
+
+SDDM remains auxiliary and is synchronized only after critical desktop
+recovery succeeds.
+
+### Recovery result contract
+
+Successful recovery:
+
+```text
+rc=0
+status=recovered
+committed=true
+changed=false
+rolledBack=false
+identityRestored=false
+runtimeVerified=true
+runtimeRollbackVerified=false
+```
+
+Failed critical recovery:
+
+```text
+rc=7
+status=recovery-failed
+committed=false
+changed=false
+rolledBack=false
+identityRestored=false
+runtimeVerified=false
+runtimeRollbackVerified=false
+```
+
+`invalid-request` with `rc=2` remains the pre-operation rejection for malformed
+options or an unhealthy active identity.
+
+A failed recovery does not attempt a second rollback transaction: the recovery
+target is already the current persistent identity. The caller must keep
+recovery mode active and allow another explicit recovery attempt after the
+underlying runtime problem is corrected.
+
+### Future ThemeApplyService recovery rule
+
+After an Apply returns `rollback-failed`, QML must:
+
+```text
+rollbackRecoveryRequired = true
+        |
+        +--> block normal Apply
+        +--> preserve draft
+        +--> ThemeService.refresh() for inspection
+        |
+        +--> explicit Recovery action
+                 |
+                 v
+           jc-theme recover --json
+                 |
+                 +--> recovered
+                 |      -> ThemeService.refresh()
+                 |      -> verify observed healthy current identity
+                 |      -> clear recovery mode
+                 |
+                 +--> recovery-failed
+                        -> keep recovery mode
+```
+
+A successful Recovery does not discard the user's pending draft. Reset remains
+a separate user decision.

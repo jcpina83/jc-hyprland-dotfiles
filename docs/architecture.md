@@ -1925,3 +1925,43 @@ from inheriting and retaining the locks after Apply completes.
 
 A post-Apply lock-leak sentinel is required by the controlled theme E2E before
 a second theme transaction may begin.
+
+## Phase 2C explicit Theme runtime recovery boundary
+
+Theme Apply and Theme recovery are distinct public operations:
+
+```text
+ThemeApplyService
+      |
+      +--> normal Apply
+      |       |
+      |       v
+      |   jc-theme apply THEME --json
+      |
+      +--> recovery
+              |
+              v
+          jc-theme recover --json
+              |
+              v
+      theme-transaction-manager.sh
+              |
+              +--> current synchronized identity
+              +--> critical desktop runtime re-apply
+              +--> runtime verification
+              +--> auxiliary SDDM synchronization
+```
+
+`recover` never changes the selected theme. It exists specifically for the
+state where persistent identity is healthy but runtime rollback could not be
+verified.
+
+Same-theme `apply` remains a no-op; it is not a recovery alias.
+
+The recovery operation reuses the existing mutation locks and child lock-FD
+boundary, so resident Waybar/SwayNC processes cannot retain transaction locks.
+
+This closes the backend recovery prerequisite for a future
+`ThemeApplyService.rollbackRecoveryRequired` lifecycle without giving QML
+knowledge of Hyprland, wallpaper, Waybar, SwayNC, SDDM, active files, symlinks
+or internal manager commands.

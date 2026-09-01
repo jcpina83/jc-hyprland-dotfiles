@@ -8005,6 +8005,97 @@ do
     fi
 done
 
+
+printf '\n==> Phase 2C explicit Theme runtime recovery API\n'
+
+phase_2c_theme_public="$repo_root/scripts/theme.sh"
+phase_2c_theme_manager="$repo_root/scripts/runtime/theme-transaction-manager.sh"
+phase_2c_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c_arch="$repo_root/docs/architecture.md"
+phase_2c_theme_apply_qml="$config_dir/services/ThemeApplyService.qml"
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'theme.sh recover [--json]' \
+    'recover_theme() {' \
+    '"$transaction_manager" recover "$@"'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_public"; then
+        ok "Public Theme recovery API: $contract"
+    else
+        fail "Public Theme recovery API missing: $contract"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'theme-transaction-manager.sh recover [--json]' \
+    'recover_runtime() {' \
+    'target_theme="$previous_theme"' \
+    '"recovered" 0 true false false false true false' \
+    '"recovery-failed" 7 false false false false false false' \
+    'Theme runtime recovered and verified.' \
+    'Theme runtime recovery could not be verified.'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_manager"; then
+        ok "Theme recovery manager: $contract"
+    else
+        fail "Theme recovery manager missing: $contract"
+    fi
+done
+
+# Same-theme Apply must stay a no-op; recovery is a separate operation.
+# shellcheck disable=SC2016
+for contract in \
+    'if [[ "$target_theme" == "$previous_theme" ]]; then' \
+    '"Theme is already active."'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_manager"; then
+        ok "Same-theme Apply no-op preserved: $contract"
+    else
+        fail "Same-theme Apply no-op contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C — explicit Theme runtime recovery API' \
+    'jc-theme recover [--json]' \
+    'status=recovered' \
+    'status=recovery-failed' \
+    'same-theme Apply' \
+    'rollbackRecoveryRequired = true' \
+    'A successful Recovery does not discard'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "Theme recovery documentation: $contract"
+    else
+        fail "Theme recovery documentation missing: $contract"
+    fi
+done
+
+# Literal grep -F architecture contracts include Markdown backticks.
+# shellcheck disable=SC2016
+for contract in \
+    '## Phase 2C explicit Theme runtime recovery boundary' \
+    'jc-theme recover --json' \
+    'Same-theme `apply` remains a no-op' \
+    'ThemeApplyService.rollbackRecoveryRequired'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "Theme recovery architecture: $contract"
+    else
+        fail "Theme recovery architecture missing: $contract"
+    fi
+done
+
+if [[ -e "$phase_2c_theme_apply_qml" ]]; then
+    fail "ThemeApplyService must remain deferred until recovery API is green"
+else
+    ok "ThemeApplyService remains deferred during recovery backend phase"
+fi
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

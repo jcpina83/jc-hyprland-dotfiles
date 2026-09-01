@@ -42,6 +42,7 @@ usage() {
     cat <<'USAGE'
 Usage:
   theme-transaction-manager.sh apply THEME [--json]
+  theme-transaction-manager.sh recover [--json]
 USAGE
 }
 
@@ -164,8 +165,12 @@ emit_result() {
                 message: $message
             }'
     else
-        if [[ "$status" == "applied" ]]; then
-            printf 'Active theme: %s\n' "$target_theme"
+        if [[ "$status" == "applied" || "$status" == "recovered" ]]; then
+            if [[ "$status" == "recovered" ]]; then
+                printf 'Recovered theme runtime: %s\n' "$target_theme"
+            else
+                printf 'Active theme: %s\n' "$target_theme"
+            fi
 
             if (( ${#warnings[@]} > 0 )); then
                 printf '\nWarnings:\n' >&2
@@ -287,7 +292,7 @@ capture_snapshot() {
 
     [[ "$previous_theme" == "$file_theme" ]] \
         || emit_invalid_request \
-            "Active theme file/link are not synchronized; repair observed state before Apply."
+            "Active theme file/link are not synchronized; repair observed state before mutation or recovery."
 
     theme_complete "$themes_dir/$previous_theme" "$previous_theme" \
         || emit_invalid_request \
@@ -546,12 +551,58 @@ apply_transaction() {
         false false false "$swaync_was_running" false false false
 }
 
+
+recover_runtime() {
+    while (( $# > 0 )); do
+        case "$1" in
+            --json)
+                output_json=true
+                ;;
+            *)
+                emit_invalid_request "Unknown Recover option: $1"
+                ;;
+        esac
+        shift
+    done
+
+    acquire_theme_lock
+    capture_snapshot
+
+    target_theme="$previous_theme"
+
+    acquire_wallpaper_locks
+
+    if pgrep -x swaync >/dev/null 2>&1; then
+        swaync_was_running=true
+    fi
+
+    if apply_critical_runtime; then
+        synchronize_sddm_auxiliary
+
+        emit_result \
+            "recovered" 0 true false false false true false \
+            "Theme runtime recovered and verified." \
+            true true true "$swaync_was_running" true \
+            "$sddm_prepared" "$sddm_synchronized"
+    fi
+
+    emit_result \
+        "recovery-failed" 7 false false false false false false \
+        "$failure_message Theme runtime recovery could not be verified." \
+        false false false "$swaync_was_running" false false false
+}
+
 command_name="${1:-}"
 
 case "$command_name" in
     apply)
         shift
         apply_transaction "$@"
+        ;;
+
+    recover)
+        shift
+        recover_runtime "$@"
         ;;
 
     --help|-h|"")

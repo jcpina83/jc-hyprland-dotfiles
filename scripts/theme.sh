@@ -50,6 +50,7 @@ Usage:
   theme.sh status [--json]
   theme.sh catalog [--json]
   theme.sh apply THEME [--json]
+  theme.sh recover [--json]
 EOF
 }
 
@@ -387,6 +388,17 @@ apply_theme() {
 }
 
 
+recover_theme() {
+    [[ -x "$transaction_manager" ]] || {
+        printf 'ERROR: theme transaction manager is not executable: %s\n' \
+            "$transaction_manager" >&2
+        return 1
+    }
+
+    "$transaction_manager" recover "$@"
+}
+
+
 case "${1:-}" in
 
     list)
@@ -432,6 +444,11 @@ case "${1:-}" in
     apply)
         shift
         apply_theme "$@"
+        ;;
+
+    recover)
+        shift
+        recover_theme "$@"
         ;;
 
     --help|-h|"")
