@@ -1,4 +1,5 @@
 import QtQuick
+import qs.components as Components
 
 Item {
     id: root
@@ -6,6 +7,38 @@ Item {
     required property var theme
     property var themeService
     property var draftStore
+    property var applyService
+
+    readonly property bool interactionLocked:
+        root.applyService
+        && Boolean(root.applyService.busy)
+
+    readonly property bool observedConflict:
+        root.draftStore
+        && Boolean(root.draftStore.observedChangedWhileDirty)
+
+    readonly property bool recoveryRequired:
+        root.applyService
+        && Boolean(root.applyService.rollbackRecoveryRequired)
+
+    readonly property string operationError: {
+        if (root.applyService
+                && root.applyService.errorMessage.length > 0) {
+            return root.applyService.errorMessage;
+        }
+
+        if (root.themeService
+                && root.themeService.errorMessage.length > 0) {
+            return root.themeService.errorMessage;
+        }
+
+        return "";
+    }
+
+    signal refreshRequested()
+    signal applyRequested()
+    signal resetRequested()
+    signal recoverRequested()
 
     readonly property bool serviceReady:
         root.themeService !== null
@@ -41,10 +74,19 @@ Item {
     function selectTheme(themeId): void {
         const candidate = String(themeId || "");
 
-        if (!root.draftStore || candidate.length === 0)
+        if (root.interactionLocked
+                || root.observedConflict
+                || !root.draftStore
+                || candidate.length === 0) {
             return;
+        }
 
-        root.draftStore.setTheme(candidate);
+        if (root.draftStore.setTheme(candidate)
+                && root.applyService
+                && typeof root.applyService.clearTransientFeedback
+                    === "function") {
+            root.applyService.clearTransientFeedback();
+        }
     }
 
     Column {
@@ -71,7 +113,7 @@ Item {
 
             Text {
                 width: parent.width
-                text: "Select a theme to stage a draft · Apply controls arrive next."
+                text: "Preview a theme, stage a draft, then choose Apply or Reset."
                 color: root.theme.textSecondary
                 font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.WordWrap
@@ -98,6 +140,122 @@ Item {
                 color: root.draftDirty
                     ? root.theme.warning
                     : root.theme.success
+                font.pixelSize: root.theme.textSizeBody
+                wrapMode: Text.WordWrap
+            }
+
+            Row {
+                width: parent.width
+                spacing: root.theme.spaceSm
+
+                Components.JcButton {
+                    visible: root.draftDirty
+
+                    theme: root.theme
+                    iconName: "apply"
+
+                    text:
+                        root.applyService
+                        && root.applyService.applying
+                            ? "Applying…"
+                            : root.applyService
+                                && root.applyService.awaitingRefresh
+                                    ? "Reconciling…"
+                                    : "Apply"
+
+                    controlEnabled:
+                        root.applyService
+                        && root.applyService.canApply
+
+                    onClicked: root.applyRequested()
+                }
+
+                Components.JcButton {
+                    visible:
+                        root.draftDirty
+                        || root.observedConflict
+
+                    theme: root.theme
+                    iconName: "reset"
+                    text: "Reset"
+
+                    controlEnabled:
+                        !root.interactionLocked
+                        && root.draftStore
+
+                    onClicked: root.resetRequested()
+                }
+
+                Components.JcButton {
+                    visible: root.recoveryRequired
+
+                    theme: root.theme
+                    iconName: "refresh"
+
+                    text:
+                        root.applyService
+                        && root.applyService.recovering
+                            ? "Recovering…"
+                            : "Recover Runtime"
+
+                    controlEnabled:
+                        root.applyService
+                        && root.applyService.canRecover
+
+                    onClicked: root.recoverRequested()
+                }
+
+                Components.JcButton {
+                    theme: root.theme
+                    iconName: "refresh"
+
+                    text:
+                        root.themeService
+                        && root.themeService.loading
+                            ? "Refreshing…"
+                            : "Refresh"
+
+                    controlEnabled:
+                        !root.interactionLocked
+                        && root.themeService
+                        && !root.themeService.loading
+                        && !root.draftDirty
+                        && !root.observedConflict
+
+                    onClicked: root.refreshRequested()
+                }
+            }
+
+            Text {
+                width: parent.width
+
+                visible: root.operationError.length > 0
+                text: root.operationError
+                color: root.theme.danger
+                font.pixelSize: root.theme.textSizeBody
+                wrapMode: Text.WordWrap
+            }
+
+            Text {
+                width: parent.width
+
+                visible: root.observedConflict
+                text:
+                    "Observed theme state changed while a draft was pending. "
+                    + "Reset the draft before continuing."
+                color: root.theme.warning
+                font.pixelSize: root.theme.textSizeBody
+                wrapMode: Text.WordWrap
+            }
+
+            Text {
+                width: parent.width
+
+                visible: root.recoveryRequired
+                text:
+                    "Theme runtime recovery is required before another Apply. "
+                    + "Recovery preserves the pending draft."
+                color: root.theme.warning
                 font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.WordWrap
             }
@@ -167,6 +325,10 @@ Item {
                     draftSelected:
                         themeId.length > 0
                         && themeId === root.draftThemeId
+
+                    controlEnabled:
+                        !root.interactionLocked
+                        && !root.observedConflict
 
                     onSelected: themeId =>
                         root.selectTheme(themeId)

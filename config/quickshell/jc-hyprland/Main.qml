@@ -28,6 +28,39 @@ Scope {
         || themeApplyService.busy
 
     readonly property string controlCenterStatusText: {
+        if (root.activeModuleId === "themes") {
+            if (themeApplyService.applying)
+                return "Applying theme…";
+
+            if (themeApplyService.recovering)
+                return "Recovering theme runtime…";
+
+            if (themeApplyService.awaitingRefresh)
+                return "Reconciling theme state…";
+
+            if (themeApplyService.rollbackRecoveryRequired)
+                return "Theme recovery required";
+
+            if (themeApplyService.errorMessage.length > 0)
+                return "Theme Apply error";
+
+            if (themeDraftStore.observedChangedWhileDirty)
+                return "Theme state changed";
+
+            if (themeDraftStore.hasDirty)
+                return themeDraftStore.dirtyCount
+                    + " theme draft(s) pending";
+
+            if (themeService.loading)
+                return "Refreshing themes…";
+
+            if (themeService.errorMessage.length > 0)
+                return "Theme service error";
+
+            if (themeService.ready)
+                return themeService.themeCount + " themes available";
+        }
+
         if (root.activeModuleId === "wallpapers") {
             if (wallpaperRotationApplyService.applying)
                 return "Applying rotation changes…";
@@ -88,6 +121,33 @@ Scope {
     }
 
     readonly property string controlCenterStatusDetail: {
+        if (root.activeModuleId === "themes") {
+            if (themeApplyService.busy)
+                return themeApplyService.statusMessage;
+
+            if (themeApplyService.rollbackRecoveryRequired) {
+                return "Recover the active theme runtime before another "
+                    + "Apply. Recovery preserves the pending draft.";
+            }
+
+            if (themeApplyService.errorMessage.length > 0)
+                return themeApplyService.errorMessage;
+
+            if (themeDraftStore.observedChangedWhileDirty)
+                return "Reset the draft before selecting or applying a theme.";
+
+            if (themeDraftStore.hasDirty)
+                return "Review the theme draft, then choose Apply or Reset.";
+
+            if (themeService.errorMessage.length > 0)
+                return themeService.errorMessage;
+
+            if (themeService.ready)
+                return "Select a theme to preview and stage a new draft.";
+
+            return "Waiting for theme observed state.";
+        }
+
         if (root.activeModuleId === "wallpapers") {
             if (wallpaperRotationApplyService.busy)
                 return wallpaperRotationApplyService.statusMessage;
@@ -182,6 +242,13 @@ Scope {
             wallpaperService.refresh();
     }
 
+    function prepareThemes() {
+        if (!themeDraftStore.hasDirty
+                && !themeApplyService.busy) {
+            themeService.refresh();
+        }
+    }
+
     function moduleIsAvailable(moduleId) {
         if (moduleId === "themes")
             return true;
@@ -211,6 +278,9 @@ Scope {
 
         if (moduleId === "wallpapers" && (!wasVisible || moduleChanged))
             root.prepareWallpapers();
+
+        if (moduleId === "themes" && (!wasVisible || moduleChanged))
+            root.prepareThemes();
     }
 
     function showControlCenter() {
@@ -238,6 +308,8 @@ Scope {
         root.activeModuleId = "displays";
         displayDraftStore.reset();
         wallpaperDraftStore.reset();
+        themeDraftStore.reset();
+        themeApplyService.clearTransientFeedback();
     }
 
     function toggleControlCenter() {
@@ -262,6 +334,15 @@ Scope {
     }
 
     function refreshControlCenter() {
+        if (root.activeModuleId === "themes") {
+            if (!themeDraftStore.hasDirty
+                    && !themeApplyService.busy) {
+                themeService.refresh();
+            }
+
+            return;
+        }
+
         if (root.activeModuleId === "wallpapers") {
             if (!wallpaperDraftStore.hasDirty)
                 wallpaperService.refresh();
@@ -433,6 +514,17 @@ Scope {
             theme: root.themeHandle
             themeService: root.themeServiceHandle
             draftStore: root.themeDraftStoreHandle
+            applyService: root.themeApplyServiceHandle
+
+            onRefreshRequested: themeService.refresh()
+            onApplyRequested: themeApplyService.applyDirty()
+
+            onResetRequested: {
+                themeDraftStore.reset();
+                themeApplyService.clearTransientFeedback();
+            }
+
+            onRecoverRequested: themeApplyService.recoverRuntime()
         }
     }
 

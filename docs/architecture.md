@@ -2141,3 +2141,42 @@ theme-variable colors and opacity, not per-theme geometry or motion tokens.
 
 Optional JC Holo HUD opacity extensions remain theme-specific and are not part
 of the generic preview contract.
+
+## Phase 2C.2.5 Theme Apply / Reset wiring architecture
+
+The Theme UI now completes the existing service boundary without moving
+mutation ownership into the view:
+
+```text
+ThemePreviewCard
+      |
+      v
+ThemeView
+  |   |   |   |
+  |   |   |   +------ recoverRequested()
+  |   |   +---------- resetRequested()
+  |   +-------------- applyRequested()
+  +------------------ refreshRequested()
+      |
+      v
+Main.qml
+  |           |               |
+  |           |               +--> ThemeDraftStore.reset()
+  |           +------------------> ThemeApplyService
+  |                                  applyDirty()
+  |                                  recoverRuntime()
+  +-------------------------------> ThemeService.refresh()
+```
+
+`ThemeApplyService` remains the only QML mutation boundary. It alone invokes
+the stable `jc-theme apply THEME --json` and `jc-theme recover --json`
+operations. The view contains no backend commands.
+
+Reset and Recovery are deliberately independent state transitions. Reset
+changes draft/baseline presentation state to the authoritative observed theme;
+Recovery repairs runtime for the already selected persistent theme and keeps
+the pending draft.
+
+The existing `controlCenterTransitionLocked` includes
+`ThemeApplyService.busy`, so navigation/close operations cannot interrupt a
+Theme Apply, Recovery, or observed-state reconciliation.

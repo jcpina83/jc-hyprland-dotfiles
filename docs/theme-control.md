@@ -826,3 +826,40 @@ This remains preview-only behavior. Rendering a candidate theme does not apply
 it, does not change `local/active-theme`, and does not invoke any theme backend.
 ACTIVE/DRAFT chrome around the card continues to represent observed/draft
 state independently from the candidate token rendering.
+
+## Phase 2C.2.5 — Apply / Reset UI wiring
+
+The Themes view now exposes the user-facing transaction controls for the
+existing Theme mutation lifecycle.
+
+The presentation layer emits four intents:
+
+```text
+Refresh  -> ThemeService.refresh()
+Apply    -> ThemeApplyService.applyDirty()
+Reset    -> ThemeDraftStore.reset()
+Recover  -> ThemeApplyService.recoverRuntime()
+```
+
+`Main.qml` owns these routes. `ThemeView.qml` does not execute `jc-theme`,
+manage active-theme files, or call desktop-consumer commands directly.
+
+Apply is enabled only through `ThemeApplyService.canApply`, preserving the
+existing observed-health, draft-validity, conflict, busy, and recovery guards.
+
+Reset is intentionally separate from runtime Recovery. Reset discards the
+pending draft and adopts the currently observed active theme. Recovery repairs
+the active theme runtime after an unverified rollback and preserves the pending
+draft. When recovery is required, normal Apply remains blocked.
+
+Theme cards become non-interactive while Apply/Recovery reconciliation is busy
+and while `ThemeDraftStore.observedChangedWhileDirty` requires an explicit
+Reset.
+
+Closing the Control Center now resets the Theme draft just like the existing
+Displays and Wallpapers draft surfaces. A Theme mutation in progress still
+prevents the Control Center from closing through the existing transition lock.
+
+The Control Center status/footer now reports Theme-specific states including
+Apply, recovery, reconciliation, observed-state conflict, pending draft,
+refresh, and service errors.

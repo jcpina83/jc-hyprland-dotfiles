@@ -9,6 +9,7 @@ Item {
 
     property bool observedActive: false
     property bool draftSelected: false
+    property bool controlEnabled: true
 
     signal selected(string themeId)
 
@@ -109,6 +110,10 @@ Item {
         theme: root.theme
         surfaceRole: "glass-raised"
         selected: root.draftSelected
+        opacity:
+            root.controlEnabled
+                ? 1
+                : root.theme.opacityDisabled
 
         Row {
             anchors {
@@ -357,10 +362,16 @@ Item {
             z: 4
 
             acceptedButtons: Qt.LeftButton
-            cursorShape: Qt.PointingHandCursor
+            enabled: root.controlEnabled
+            hoverEnabled: root.controlEnabled
+
+            cursorShape:
+                root.controlEnabled
+                    ? Qt.PointingHandCursor
+                    : Qt.ArrowCursor
 
             onClicked: {
-                if (root.themeId.length > 0)
+                if (root.controlEnabled && root.themeId.length > 0)
                     root.selected(root.themeId);
             }
         }

@@ -8250,7 +8250,6 @@ done
 for forbidden in \
     'Process {' \
     'jc-theme' \
-    '"apply"' \
     'hyprctl' \
     'systemctl' \
     'active-theme' \
@@ -8390,10 +8389,8 @@ done
 
 for forbidden in \
     'applyDirty' \
-    'onClicked:' \
     'onActivated:' \
-    'signal themeSelected' \
-    'signal applyRequested'
+    'signal themeSelected'
 do
     if grep -Fq -- "$forbidden" "$phase_2c_theme_view"; then
         fail "ThemeView preview phase interaction leakage: $forbidden"
@@ -8476,8 +8473,8 @@ done
 
 for contract in \
     'function selectTheme(themeId): void {' \
-    'root.draftStore.setTheme(candidate);' \
-    'Select a theme to stage a draft · Apply controls arrive next.' \
+    'root.draftStore.setTheme(candidate)' \
+    'Preview a theme, stage a draft, then choose Apply or Reset.' \
     'observedActive:' \
     'themeId === root.activeThemeId' \
     'draftSelected:' \
@@ -8495,7 +8492,6 @@ done
 for forbidden in \
     'Process {' \
     'jc-theme' \
-    '"apply"' \
     'applyDirty' \
     'reset()' \
     'hyprctl' \
@@ -8646,6 +8642,172 @@ do
         ok "Theme token preview architecture: $contract"
     else
         fail "Theme token preview architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2C.2.5 Theme Apply / Reset UI wiring\n'
+
+phase_2c25_theme_view="$config_dir/modules/themes/ThemeView.qml"
+phase_2c25_theme_card="$config_dir/modules/themes/ThemePreviewCard.qml"
+phase_2c25_main="$config_dir/Main.qml"
+phase_2c25_theme_apply="$config_dir/services/ThemeApplyService.qml"
+phase_2c25_theme_draft="$config_dir/services/ThemeDraftStore.qml"
+phase_2c25_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c25_arch="$repo_root/docs/architecture.md"
+
+# Literal grep -F contracts intentionally contain QML syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'property var applyService' \
+    'readonly property bool interactionLocked:' \
+    'readonly property bool observedConflict:' \
+    'readonly property bool recoveryRequired:' \
+    'readonly property string operationError:' \
+    'signal refreshRequested()' \
+    'signal applyRequested()' \
+    'signal resetRequested()' \
+    'signal recoverRequested()' \
+    'Preview a theme, stage a draft, then choose Apply or Reset.' \
+    'root.applyService.canApply' \
+    'root.applyService.canRecover' \
+    'text: "Reset"' \
+    ': "Recover Runtime"' \
+    'onClicked: root.applyRequested()' \
+    'onClicked: root.resetRequested()' \
+    'onClicked: root.recoverRequested()' \
+    'onClicked: root.refreshRequested()' \
+    '!root.interactionLocked' \
+    '!root.observedConflict'
+do
+    if grep -Fq -- "$contract" "$phase_2c25_theme_view"; then
+        ok "Theme Apply/Reset UI contract: $contract"
+    else
+        fail "Theme Apply/Reset UI contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'FileView {' \
+    'jc-theme' \
+    'theme-transaction-manager' \
+    'local/active-theme' \
+    'hyprctl' \
+    'systemctl' \
+    'start-waybar' \
+    'start-swaync' \
+    'apply-wallpaper' \
+    'sddm'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c25_theme_view"; then
+        fail "ThemeView bypasses Theme service boundary: $forbidden"
+    else
+        ok "ThemeView excludes backend/runtime detail: $forbidden"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain QML syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'property bool controlEnabled: true' \
+    'root.theme.opacityDisabled' \
+    'enabled: root.controlEnabled' \
+    'hoverEnabled: root.controlEnabled'
+do
+    if grep -Fq -- "$contract" "$phase_2c25_theme_card"; then
+        ok "Theme card mutation lock contract: $contract"
+    else
+        fail "Theme card mutation lock contract missing: $contract"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain QML syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'if (root.activeModuleId === "themes") {' \
+    'return "Applying theme…";' \
+    'return "Recovering theme runtime…";' \
+    'return "Reconciling theme state…";' \
+    'return "Theme recovery required";' \
+    'return "Theme Apply error";' \
+    'return "Theme state changed";' \
+    '+ " theme draft(s) pending";' \
+    'return "Refreshing themes…";' \
+    'return "Theme service error";' \
+    'return themeService.themeCount + " themes available";' \
+    'return themeApplyService.statusMessage;' \
+    'return "Review the theme draft, then choose Apply or Reset.";' \
+    'function prepareThemes() {' \
+    'root.prepareThemes();' \
+    'themeDraftStore.reset();' \
+    'themeApplyService.clearTransientFeedback();' \
+    'applyService: root.themeApplyServiceHandle' \
+    'onRefreshRequested: themeService.refresh()' \
+    'onApplyRequested: themeApplyService.applyDirty()' \
+    'onRecoverRequested: themeApplyService.recoverRuntime()'
+do
+    if grep -Fq -- "$contract" "$phase_2c25_main"; then
+        ok "Main Theme Apply/Reset orchestration: $contract"
+    else
+        fail "Main Theme Apply/Reset orchestration missing: $contract"
+    fi
+done
+
+for contract in \
+    'readonly property bool canApply:' \
+    'readonly property bool canRecover:' \
+    'function applyDirty()' \
+    'function recoverRuntime()' \
+    'function clearTransientFeedback()' \
+    'root.draftStore.prepareForRefreshAfterApply(' \
+    'root.themeService.refresh();'
+do
+    if grep -Fq -- "$contract" "$phase_2c25_theme_apply"; then
+        ok "ThemeApplyService reused lifecycle: $contract"
+    else
+        fail "ThemeApplyService lifecycle prerequisite missing: $contract"
+    fi
+done
+
+for contract in \
+    'function reset() {' \
+    'root.baselineThemeId = observed;' \
+    'root.draftThemeId = observed;' \
+    'root.resetCompleted();'
+do
+    if grep -Fq -- "$contract" "$phase_2c25_theme_draft"; then
+        ok "ThemeDraftStore Reset lifecycle: $contract"
+    else
+        fail "ThemeDraftStore Reset lifecycle missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.5 — Apply / Reset UI wiring' \
+    'ThemeApplyService.applyDirty()' \
+    'ThemeDraftStore.reset()' \
+    'ThemeApplyService.recoverRuntime()' \
+    'Reset is intentionally separate from runtime Recovery' \
+    'Closing the Control Center now resets the Theme draft'
+do
+    if grep -Fq -- "$contract" "$phase_2c25_theme_doc"; then
+        ok "Theme Apply/Reset documentation: $contract"
+    else
+        fail "Theme Apply/Reset documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.5 Theme Apply / Reset wiring architecture' \
+    'ThemeApplyService` remains the only QML mutation boundary' \
+    'Reset and Recovery are deliberately independent state transitions.' \
+    'controlCenterTransitionLocked'
+do
+    if grep -Fq -- "$contract" "$phase_2c25_arch"; then
+        ok "Theme Apply/Reset architecture: $contract"
+    else
+        fail "Theme Apply/Reset architecture missing: $contract"
     fi
 done
 
