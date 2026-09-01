@@ -8314,6 +8314,125 @@ do
 done
 
 
+
+printf '\n==> Phase 2C.2.2 Theme preview cards\n'
+
+phase_2c_theme_view="$config_dir/modules/themes/ThemeView.qml"
+phase_2c_theme_preview_card="$config_dir/modules/themes/ThemePreviewCard.qml"
+
+if [[ -f "$phase_2c_theme_preview_card" ]]; then
+    ok "ThemePreviewCard file"
+else
+    fail "ThemePreviewCard.qml missing"
+fi
+
+for contract in \
+    'required property var theme' \
+    'property var themeData' \
+    'readonly property var previewData:' \
+    'readonly property var colorData:' \
+    'readonly property string mainWallpaperPath:' \
+    'readonly property string secondaryWallpaperPath:' \
+    'readonly property color previewPrimary:' \
+    'readonly property color previewSecondary:' \
+    'readonly property color previewAccent:' \
+    'function localSource(path)' \
+    'function fileName(path)' \
+    'Components.JcSurface {' \
+    'id: mainPreview' \
+    'root.previewData.mainWallpaper' \
+    'root.previewData.secondaryWallpaper' \
+    'Main · ' \
+    'Secondary · '
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_preview_card"; then
+        ok "ThemePreviewCard contract: $contract"
+    else
+        fail "ThemePreviewCard contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-theme' \
+    '"apply"' \
+    'applyDirty' \
+    'setTheme(' \
+    'reset()' \
+    'hyprctl' \
+    'systemctl' \
+    'theme-transaction-manager'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_preview_card"; then
+        fail "ThemePreviewCard mutation/selection leakage: $forbidden"
+    else
+        ok "ThemePreviewCard excludes mutation/selection detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'readonly property var themes:' \
+    '? root.themeService.themes' \
+    'GridView {' \
+    'id: themeGrid' \
+    'model: root.themes' \
+    'delegate: ThemePreviewCard {' \
+    'required property int index' \
+    'themeData: root.themes[index]' \
+    'cacheBuffer: cellHeight * 2' \
+    'Installed theme previews · selection and Apply controls arrive next.'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_view"; then
+        ok "ThemeView preview-grid contract: $contract"
+    else
+        fail "ThemeView preview-grid contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'setTheme(' \
+    'applyDirty' \
+    'onClicked:' \
+    'onActivated:' \
+    'signal themeSelected' \
+    'signal applyRequested'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_view"; then
+        fail "ThemeView preview phase interaction leakage: $forbidden"
+    else
+        ok "ThemeView preview phase remains read-only: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.2 — Theme preview cards' \
+    'ThemePreviewCard.qml' \
+    'preview.mainWallpaper' \
+    'preview.secondaryWallpaper' \
+    'colors' \
+    'read-only'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "Theme preview documentation: $contract"
+    else
+        fail "Theme preview documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.2 Theme preview-card architecture' \
+    'ThemeService.themes' \
+    'ThemePreviewCard' \
+    'read-only catalog projection' \
+    "nested \`preview\` object"
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "Theme preview architecture: $contract"
+    else
+        fail "Theme preview architecture missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

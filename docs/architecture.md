@@ -2058,3 +2058,31 @@ Theme.qml -> ThemeView visual tokens
 
 No mutation boundary moves into ThemeView. Theme application remains owned by
 `ThemeApplyService` and the already validated public `jc-theme` backend path.
+
+## Phase 2C.2.2 Theme preview-card architecture
+
+The Themes UI now projects the observed catalog through a dedicated visual
+component:
+
+```text
+jc-theme catalog --json
+        ↓
+ThemeService.themes
+        ↓
+ThemeView GridView
+        ↓
+ThemePreviewCard
+```
+
+`ThemePreviewCard` is a read-only catalog projection. It consumes the catalog's
+nested `preview` object for main/secondary wallpapers and the `colors` object
+for palette swatches.
+
+No selection or mutation boundary moves into the card:
+
+- `ThemeDraftStore` remains the owner of draft selection state.
+- `ThemeApplyService` remains the owner of Apply/recovery orchestration.
+- the public `jc-theme` backend remains outside the visual component.
+
+Phase 2C.2.3 adds ACTIVE/DRAFT selection semantics without changing this
+backend ownership model.

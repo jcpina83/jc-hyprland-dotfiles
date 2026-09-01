@@ -758,3 +758,25 @@ At this stage ThemeView is intentionally read-only:
 
 Theme preview cards, draft selection controls, Apply/Reset UI, and the final
 visual treatment remain subsequent Phase 2C.2 work.
+
+## Phase 2C.2.2 — Theme preview cards
+
+The Themes module now renders the installed catalog as read-only preview cards.
+
+`ThemePreviewCard.qml` consumes the real catalog structure already exposed
+through `ThemeService.themes`:
+
+- `id`
+- `name`
+- `colors`
+- `preview.mainWallpaper`
+- `preview.secondaryWallpaper`
+
+The main wallpaper becomes the card's primary visual preview, while the
+secondary wallpaper is shown as a smaller inset preview. Palette swatches are
+derived from the theme's own `colors` object.
+
+This phase remains intentionally read-only. Cards do not call
+`ThemeDraftStore.setTheme()`, do not invoke Apply, and do not own runtime
+mutation. ACTIVE/DRAFT selection semantics are introduced separately in
+Phase 2C.2.3.
