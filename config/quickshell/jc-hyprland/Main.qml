@@ -24,6 +24,7 @@ Scope {
         || displayPersistenceService.saving
         || wallpaperApplyService.busy
         || wallpaperRotationApplyService.busy
+        || themeApplyService.busy
 
     readonly property string controlCenterStatusText: {
         if (root.activeModuleId === "wallpapers") {
@@ -152,6 +153,7 @@ Scope {
     readonly property var themeHandle: theme
     readonly property var themeServiceHandle: themeService
     readonly property var themeDraftStoreHandle: themeDraftStore
+    readonly property var themeApplyServiceHandle: themeApplyService
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -319,6 +321,13 @@ Scope {
     Services.ThemeDraftStore {
         id: themeDraftStore
         themeService: themeService
+    }
+
+
+    Services.ThemeApplyService {
+        id: themeApplyService
+        themeService: themeService
+        draftStore: themeDraftStore
     }
 
 

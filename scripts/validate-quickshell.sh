@@ -59,6 +59,7 @@ required_files=(
     "services/WallpaperService.qml"
     "services/ThemeService.qml"
     "services/ThemeDraftStore.qml"
+    "services/ThemeApplyService.qml"
     "services/WallpaperDraftStore.qml"
     "services/WallpaperApplyService.qml"
     "services/WallpaperRotationApplyService.qml"
@@ -7837,7 +7838,6 @@ phase_2c_theme_public="$repo_root/scripts/theme.sh"
 phase_2c_theme_manager="$repo_root/scripts/runtime/theme-transaction-manager.sh"
 phase_2c_theme_doc="$repo_root/docs/theme-control.md"
 phase_2c_arch="$repo_root/docs/architecture.md"
-phase_2c_theme_apply_qml="$config_dir/services/ThemeApplyService.qml"
 
 # Literal grep -F contracts intentionally contain shell syntax.
 # shellcheck disable=SC2016
@@ -7932,12 +7932,6 @@ do
     fi
 done
 
-if [[ -e "$phase_2c_theme_apply_qml" ]]; then
-    fail "ThemeApplyService must not exist in Phase 2C.2b"
-else
-    ok "ThemeApplyService remains deferred"
-fi
-
 
 printf '\n==> Phase 2C.2b mutation-lock FD inheritance\n'
 
@@ -8012,7 +8006,6 @@ phase_2c_theme_public="$repo_root/scripts/theme.sh"
 phase_2c_theme_manager="$repo_root/scripts/runtime/theme-transaction-manager.sh"
 phase_2c_theme_doc="$repo_root/docs/theme-control.md"
 phase_2c_arch="$repo_root/docs/architecture.md"
-phase_2c_theme_apply_qml="$config_dir/services/ThemeApplyService.qml"
 
 # Literal grep -F contracts intentionally contain shell syntax.
 # shellcheck disable=SC2016
@@ -8090,11 +8083,142 @@ do
     fi
 done
 
-if [[ -e "$phase_2c_theme_apply_qml" ]]; then
-    fail "ThemeApplyService must remain deferred until recovery API is green"
+
+printf '\n==> Phase 2C ThemeApplyService foundation\n'
+
+phase_2c_theme_apply="$config_dir/services/ThemeApplyService.qml"
+phase_2c_theme_draft="$config_dir/services/ThemeDraftStore.qml"
+phase_2c_main="$config_dir/Main.qml"
+phase_2c_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+phase_2c_theme_qml="$config_dir/theme/Theme.qml"
+phase_2c_theme_service="$config_dir/services/ThemeService.qml"
+phase_2c_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c_arch="$repo_root/docs/architecture.md"
+
+# Literal grep -F contracts intentionally contain QML syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'property var themeService' \
+    'property var draftStore' \
+    'property bool rollbackRecoveryRequired: false' \
+    'readonly property bool canApply:' \
+    'readonly property bool canRecover:' \
+    'function applyDirty()' \
+    'function recoverRuntime()' \
+    'validAppliedResponse' \
+    'validRolledBackResponse' \
+    'validRollbackFailedResponse' \
+    'validInvalidRequestResponse' \
+    'validRecoveredResponse' \
+    'validRecoveryFailedResponse' \
+    'Qt.callLater(root.finishObservedRefresh)'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_apply"; then
+        ok "ThemeApplyService contract: $contract"
+    else
+        fail "ThemeApplyService contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'active-theme' \
+    'theme-transaction-manager' \
+    '.mutation.lock' \
+    'hyprctl' \
+    'apply-wallpaper' \
+    'start-waybar' \
+    'start-swaync' \
+    'sddm'
+do
+    if grep -Fiq -- "$forbidden" "$phase_2c_theme_apply"; then
+        fail "ThemeApplyService knows backend detail: $forbidden"
+    else
+        ok "ThemeApplyService excludes backend detail: $forbidden"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain QML syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'property bool syncAfterApplyPending: false' \
+    'property string syncAfterApplyThemeId: ""' \
+    'function prepareForRefreshAfterApply(themeId)' \
+    'if (root.syncAfterApplyPending)' \
+    'root.syncFromObserved(true)'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_draft"; then
+        ok "ThemeDraftStore Apply reconciliation: $contract"
+    else
+        fail "ThemeDraftStore Apply reconciliation missing: $contract"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain QML syntax.
+# shellcheck disable=SC2016
+for contract in \
+    '|| themeApplyService.busy' \
+    'readonly property var themeApplyServiceHandle: themeApplyService' \
+    'Services.ThemeApplyService {' \
+    'themeService: themeService' \
+    'draftStore: themeDraftStore'
+do
+    if grep -Fq -- "$contract" "$phase_2c_main"; then
+        ok "ThemeApplyService composition: $contract"
+    else
+        fail "ThemeApplyService composition missing: $contract"
+    fi
+done
+
+if grep -Fq 'enabled: false' "$phase_2c_navigation" \
+    && grep -Fq 'id: "themes"' "$phase_2c_navigation"
+then
+    ok "Themes navigation remains deferred/disabled"
 else
-    ok "ThemeApplyService remains deferred during recovery backend phase"
+    fail "Themes navigation deferment changed unexpectedly"
 fi
+
+if git diff --quiet HEAD -- "$phase_2c_theme_qml"; then
+    ok "Theme.qml semantic API unchanged by ThemeApplyService foundation"
+else
+    fail "Theme.qml changed during ThemeApplyService foundation"
+fi
+
+if git diff --quiet HEAD -- "$phase_2c_theme_service"; then
+    ok "ThemeService remains unchanged/read-only"
+else
+    fail "ThemeService changed during ThemeApplyService foundation"
+fi
+
+# Literal grep -F documentation contracts include Markdown backticks.
+# shellcheck disable=SC2016
+for contract in \
+    '## Phase 2C — ThemeApplyService mutation foundation' \
+    'jc-theme apply THEME --json' \
+    'jc-theme recover --json' \
+    'rollbackRecoveryRequired=true' \
+    'prepareForRefreshAfterApply(themeId)' \
+    'does not create `ThemeView.qml`'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "ThemeApplyService documentation: $contract"
+    else
+        fail "ThemeApplyService documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C ThemeApplyService architecture' \
+    'public mutation + recovery orchestration' \
+    'rollbackRecoveryRequired' \
+    'Recovery does not discard a pending draft' \
+    'Theme navigation and ThemeView remain deferred'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "ThemeApplyService architecture: $contract"
+    else
+        fail "ThemeApplyService architecture missing: $contract"
+    fi
+done
 
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 

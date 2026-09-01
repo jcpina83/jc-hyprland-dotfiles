@@ -14,6 +14,8 @@ Scope {
 
     property bool initialized: false
     property bool observedChangedWhileDirty: false
+    property bool syncAfterApplyPending: false
+    property string syncAfterApplyThemeId: ""
 
     readonly property bool dirty:
         root.initialized
@@ -99,6 +101,17 @@ Scope {
         return true;
     }
 
+    function prepareForRefreshAfterApply(themeId) {
+        const expected = String(themeId || "");
+
+        if (!root.validThemeId(expected))
+            return false;
+
+        root.syncAfterApplyPending = true;
+        root.syncAfterApplyThemeId = expected;
+        return true;
+    }
+
     function reset() {
         if (!root.themeService || !root.themeService.ready)
             return false;
@@ -108,6 +121,8 @@ Scope {
         if (!observed || !root.validThemeId(observed))
             return false;
 
+        root.syncAfterApplyPending = false;
+        root.syncAfterApplyThemeId = "";
         root.baselineThemeId = observed;
         root.draftThemeId = observed;
         root.initialized = true;
@@ -120,6 +135,22 @@ Scope {
         target: root.themeService
 
         function onRefreshed() {
+            if (root.syncAfterApplyPending) {
+                const expected = root.syncAfterApplyThemeId;
+                const observed =
+                    String(root.themeService.activeThemeId || "");
+
+                root.syncAfterApplyPending = false;
+                root.syncAfterApplyThemeId = "";
+
+                if (observed === expected)
+                    root.syncFromObserved(true);
+                else
+                    root.syncFromObserved(false);
+
+                return;
+            }
+
             root.syncFromObserved(false);
         }
     }

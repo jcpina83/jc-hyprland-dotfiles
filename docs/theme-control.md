@@ -586,3 +586,155 @@ rollbackRecoveryRequired = true
 
 A successful Recovery does not discard the user's pending draft. Reset remains
 a separate user decision.
+
+## Phase 2C — ThemeApplyService mutation foundation
+
+`ThemeApplyService.qml` is the only QML owner of Theme mutation and runtime
+recovery.
+
+Its stable runtime boundary is limited to:
+
+```text
+jc-theme apply THEME --json
+jc-theme recover --json
+```
+
+The service has no knowledge of active-theme files, symlinks, transaction
+locks, Hyprland, wallpaper engines, Waybar, SwayNC, SDDM or the internal
+transaction manager.
+
+It receives two dependencies from `Main.qml`:
+
+```text
+ThemeService     observed authoritative feature state
+ThemeDraftStore  pending user theme selection
+```
+
+### Apply eligibility
+
+Normal Apply is allowed only when:
+
+```text
+ThemeService.ready
+ThemeService.observedHealthy
+!ThemeService.loading
+ThemeDraftStore.initialized
+ThemeDraftStore.dirty
+ThemeDraftStore.draftValid
+!ThemeDraftStore.observedChangedWhileDirty
+!ThemeApplyService.busy
+!ThemeApplyService.rollbackRecoveryRequired
+```
+
+An external observed-state change while the user has a draft therefore blocks
+Apply until the draft is reset.
+
+### Successful Apply reconciliation
+
+A backend `rc=0 / status=applied` is not by itself QML success.
+
+The lifecycle is:
+
+```text
+Apply
+  |
+  v
+jc-theme apply DRAFT --json
+  |
+  v
+backend applied + runtimeVerified
+  |
+  v
+ThemeDraftStore.prepareForRefreshAfterApply(DRAFT)
+  |
+  v
+ThemeService.refresh()
+  |
+  v
+coherent observed active theme == requested theme
+  |
+  v
+ThemeDraftStore adopts observed theme as baseline + draft
+  |
+  v
+dirty=false
+  |
+  v
+ThemeApplyService.applied()
+```
+
+The final success signal is emitted only after the authoritative observed
+snapshot is healthy and the draft is clean against the requested theme.
+
+### Apply failure semantics
+
+`invalid-request` preserves the draft and does not require recovery.
+
+`rolled-back` preserves the draft, refreshes `ThemeService`, requires the
+observed active theme to match `previousTheme`, and reports that the previous
+state was restored. Runtime recovery is not required when that reconciliation
+succeeds.
+
+`rollback-failed` preserves the draft, sets
+`rollbackRecoveryRequired=true`, blocks normal Apply and refreshes observed
+state only for inspection. A synchronized observed identity does not clear
+recovery mode because the backend explicitly reported unverified runtime
+rollback.
+
+Unknown or structurally invalid Apply responses are treated conservatively as
+requiring recovery before another Apply.
+
+### Explicit QML Recovery lifecycle
+
+When `rollbackRecoveryRequired=true`, the service exposes `canRecover` and
+`recoverRuntime()`.
+
+```text
+recoverRuntime()
+      |
+      v
+jc-theme recover --json
+      |
+      +--> recovered
+      |       |
+      |       v
+      |   ThemeService.refresh()
+      |       |
+      |       v
+      |   observed current identity verified
+      |       |
+      |       v
+      |   rollbackRecoveryRequired=false
+      |
+      +--> recovery-failed
+              |
+              v
+          keep recovery mode
+```
+
+A successful Recovery deliberately preserves the user's pending theme draft.
+Recovery repairs runtime; Reset remains a separate future UI action.
+
+### ThemeDraftStore post-Apply state
+
+`ThemeDraftStore` now exposes an internal one-refresh reconciliation marker:
+
+```text
+syncAfterApplyPending
+syncAfterApplyThemeId
+prepareForRefreshAfterApply(themeId)
+```
+
+Only the next `ThemeService.refreshed()` after a successful Apply may consume
+that marker and force the observed requested theme to become the clean
+baseline/draft pair. Ordinary refreshes while dirty continue preserving user
+intent and conflict detection.
+
+### Composition boundary
+
+`Main.qml` owns one `ThemeApplyService`, injects `ThemeService` and
+`ThemeDraftStore`, exposes `themeApplyServiceHandle`, and includes its `busy`
+state in the global Control Center transition lock.
+
+This phase intentionally does not create `ThemeView.qml` and does not enable
+Themes navigation.

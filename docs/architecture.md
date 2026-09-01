@@ -1965,3 +1965,77 @@ This closes the backend recovery prerequisite for a future
 `ThemeApplyService.rollbackRecoveryRequired` lifecycle without giving QML
 knowledge of Hyprland, wallpaper, Waybar, SwayNC, SDDM, active files, symlinks
 or internal manager commands.
+
+## Phase 2C ThemeApplyService architecture
+
+The Theme feature now has four deliberately separate responsibilities:
+
+```text
+Theme.qml
+  semantic visual API
+  watches active-theme directly
+
+ThemeService
+  read-only observed Theme Control state
+  status + catalog
+
+ThemeDraftStore
+  pending user selection
+  baseline/draft reconciliation
+
+ThemeApplyService
+  public mutation + recovery orchestration
+  jc-theme apply / recover only
+```
+
+The mutation flow is:
+
+```text
+ThemeDraftStore
+      |
+      v
+ThemeApplyService
+      |
+      +--> jc-theme apply THEME --json
+      |          |
+      |          v
+      |     transactional backend
+      |
+      +--> ThemeService.refresh()
+                 |
+                 v
+           authoritative snapshot
+                 |
+                 v
+          ThemeDraftStore reconcile
+```
+
+A successful backend Process exit never completes Apply by itself. QML success
+requires the coherent observed snapshot to report the requested active theme
+and the post-Apply draft reconciliation to finish clean.
+
+`rollback-failed` enters an explicit recovery lifecycle:
+
+```text
+rollbackRecoveryRequired
+      |
+      +--> blocks normal Apply
+      |
+      +--> jc-theme recover --json
+                 |
+                 v
+          runtime verification
+                 |
+                 v
+          ThemeService.refresh()
+                 |
+                 v
+          clear recovery only
+          after observed reconciliation
+```
+
+Recovery does not discard a pending draft.
+
+`Main.qml` owns the production ThemeApplyService and includes its busy state in
+the Control Center transition lock.
+Theme navigation and ThemeView remain deferred.
