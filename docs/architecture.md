@@ -2086,3 +2086,29 @@ No selection or mutation boundary moves into the card:
 
 Phase 2C.2.3 adds ACTIVE/DRAFT selection semantics without changing this
 backend ownership model.
+
+## Phase 2C.2.3 ACTIVE / DRAFT architecture
+
+Theme selection introduces a draft-only interaction path:
+
+```text
+ThemePreviewCard.selected(themeId)
+        ↓
+ThemeView.selectTheme(themeId)
+        ↓
+ThemeDraftStore.setTheme(themeId)
+```
+
+The observed and draft states remain independent:
+
+```text
+ThemeService.activeThemeId ──────> ACTIVE badge
+ThemeDraftStore.draftThemeId ────> DRAFT badge
+```
+
+This is a draft-only mutation boundary. `ThemeView` may mutate
+`ThemeDraftStore`, but neither `ThemeView` nor `ThemePreviewCard` owns theme
+application, backend commands, recovery, or runtime mutation.
+
+`ThemeApplyService` remains the exclusive orchestration boundary for actual
+theme application in the later Apply-controls phase.

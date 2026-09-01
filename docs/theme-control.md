@@ -780,3 +780,22 @@ This phase remains intentionally read-only. Cards do not call
 `ThemeDraftStore.setTheme()`, do not invoke Apply, and do not own runtime
 mutation. ACTIVE/DRAFT selection semantics are introduced separately in
 Phase 2C.2.3.
+
+## Phase 2C.2.3 — ACTIVE / DRAFT selection state
+
+Theme preview cards are now selectable, but selection remains draft-only.
+
+A card exposes two independent visual states:
+
+- `ACTIVE` means the theme is the currently observed desktop theme.
+- `DRAFT` means the theme is the current pending selection in
+  `ThemeDraftStore`.
+- a theme may show both `ACTIVE` and `DRAFT` when the draft is synchronized
+  with the observed state.
+
+Selecting a card emits its theme ID to `ThemeView`, which delegates the state
+change to `ThemeDraftStore.setTheme()`.
+
+Selection does not apply the theme, does not call the `jc-theme` backend, and
+does not mutate Hyprland, Waybar, SwayNC, wallpapers, or any runtime theme
+state. Apply and Reset controls remain deferred to Phase 2C.2.5.

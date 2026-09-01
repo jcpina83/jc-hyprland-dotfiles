@@ -7,6 +7,16 @@ Item {
     required property var theme
     property var themeData
 
+    property bool observedActive: false
+    property bool draftSelected: false
+
+    signal selected(string themeId)
+
+    readonly property string selectionStateLabel:
+        root.draftSelected
+        ? (root.observedActive ? "ACTIVE · DRAFT" : "DRAFT")
+        : (root.observedActive ? "ACTIVE" : "")
+
     readonly property string themeId:
         root.themeData
         ? String(root.themeData.id || "")
@@ -98,6 +108,72 @@ Item {
 
         theme: root.theme
         surfaceRole: "glass-raised"
+        selected: root.draftSelected
+
+        Row {
+            anchors {
+                top: parent.top
+                right: parent.right
+                margins: root.theme.spaceMd
+            }
+
+            z: 3
+            spacing: root.theme.spaceXs
+
+            Rectangle {
+                visible: root.observedActive
+
+                width:
+                    activeLabel.implicitWidth
+                    + root.theme.spaceSm * 2
+
+                height: root.theme.controlHeightCompact
+                radius: root.theme.radiusPill
+                color: root.theme.surfaceOverlay
+
+                border {
+                    width: root.theme.borderWidthThin
+                    color: root.theme.success
+                }
+
+                Text {
+                    id: activeLabel
+
+                    anchors.centerIn: parent
+                    text: "ACTIVE"
+                    color: root.theme.success
+                    font.pixelSize: root.theme.textSizeCaption
+                    font.weight: Font.DemiBold
+                }
+            }
+
+            Rectangle {
+                visible: root.draftSelected
+
+                width:
+                    draftLabel.implicitWidth
+                    + root.theme.spaceSm * 2
+
+                height: root.theme.controlHeightCompact
+                radius: root.theme.radiusPill
+                color: root.theme.surfaceOverlay
+
+                border {
+                    width: root.theme.borderWidthThin
+                    color: root.theme.accent
+                }
+
+                Text {
+                    id: draftLabel
+
+                    anchors.centerIn: parent
+                    text: "DRAFT"
+                    color: root.theme.accent
+                    font.pixelSize: root.theme.textSizeCaption
+                    font.weight: Font.DemiBold
+                }
+            }
+        }
 
         Column {
             anchors {
@@ -257,6 +333,19 @@ Item {
                     font.pixelSize: root.theme.textSizeCaption
                     elide: Text.ElideMiddle
                 }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            z: 4
+
+            acceptedButtons: Qt.LeftButton
+            cursorShape: Qt.PointingHandCursor
+
+            onClicked: {
+                if (root.themeId.length > 0)
+                    root.selected(root.themeId);
             }
         }
     }

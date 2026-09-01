@@ -8379,8 +8379,7 @@ for contract in \
     'delegate: ThemePreviewCard {' \
     'required property int index' \
     'themeData: root.themes[index]' \
-    'cacheBuffer: cellHeight * 2' \
-    'Installed theme previews · selection and Apply controls arrive next.'
+    'cacheBuffer: cellHeight * 2'
 do
     if grep -Fq -- "$contract" "$phase_2c_theme_view"; then
         ok "ThemeView preview-grid contract: $contract"
@@ -8390,7 +8389,6 @@ do
 done
 
 for forbidden in \
-    'setTheme(' \
     'applyDirty' \
     'onClicked:' \
     'onActivated:' \
@@ -8430,6 +8428,112 @@ do
         ok "Theme preview architecture: $contract"
     else
         fail "Theme preview architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2C.2.3 ACTIVE / DRAFT selection state\n'
+
+phase_2c_theme_view="$config_dir/modules/themes/ThemeView.qml"
+phase_2c_theme_preview_card="$config_dir/modules/themes/ThemePreviewCard.qml"
+
+for contract in \
+    'property bool observedActive: false' \
+    'property bool draftSelected: false' \
+    'signal selected(string themeId)' \
+    'readonly property string selectionStateLabel:' \
+    '? (root.observedActive ? "ACTIVE · DRAFT" : "DRAFT")' \
+    ': (root.observedActive ? "ACTIVE" : "")' \
+    'selected: root.draftSelected' \
+    'text: "ACTIVE"' \
+    'text: "DRAFT"' \
+    'MouseArea {' \
+    'root.selected(root.themeId);'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_preview_card"; then
+        ok "Theme card ACTIVE/DRAFT contract: $contract"
+    else
+        fail "Theme card ACTIVE/DRAFT contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-theme' \
+    '"apply"' \
+    'applyDirty' \
+    'reset()' \
+    'hyprctl' \
+    'systemctl' \
+    'theme-transaction-manager'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_preview_card"; then
+        fail "Theme card owns forbidden mutation/backend detail: $forbidden"
+    else
+        ok "Theme card excludes mutation/backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'function selectTheme(themeId): void {' \
+    'root.draftStore.setTheme(candidate);' \
+    'Select a theme to stage a draft · Apply controls arrive next.' \
+    'observedActive:' \
+    'themeId === root.activeThemeId' \
+    'draftSelected:' \
+    'themeId === root.draftThemeId' \
+    'onSelected: themeId =>' \
+    'root.selectTheme(themeId)'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_view"; then
+        ok "ThemeView draft-selection contract: $contract"
+    else
+        fail "ThemeView draft-selection contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-theme' \
+    '"apply"' \
+    'applyDirty' \
+    'reset()' \
+    'hyprctl' \
+    'systemctl' \
+    'theme-transaction-manager'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_view"; then
+        fail "ThemeView owns forbidden Apply/backend detail: $forbidden"
+    else
+        ok "ThemeView remains draft-only: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.3 — ACTIVE / DRAFT selection state' \
+    'ThemeDraftStore.setTheme()' \
+    'ACTIVE' \
+    'DRAFT' \
+    'does not apply'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "Theme selection documentation: $contract"
+    else
+        fail "Theme selection documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.3 ACTIVE / DRAFT architecture' \
+    'ThemePreviewCard.selected(themeId)' \
+    'ThemeView.selectTheme(themeId)' \
+    'ThemeDraftStore.setTheme(themeId)' \
+    'draft-only mutation boundary'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "Theme selection architecture: $contract"
+    else
+        fail "Theme selection architecture missing: $contract"
     fi
 done
 

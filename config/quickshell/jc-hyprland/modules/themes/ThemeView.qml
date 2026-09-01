@@ -38,6 +38,15 @@ Item {
         ? Boolean(root.draftStore.dirty)
         : false
 
+    function selectTheme(themeId): void {
+        const candidate = String(themeId || "");
+
+        if (!root.draftStore || candidate.length === 0)
+            return;
+
+        root.draftStore.setTheme(candidate);
+    }
+
     Column {
         anchors {
             fill: parent
@@ -62,7 +71,7 @@ Item {
 
             Text {
                 width: parent.width
-                text: "Installed theme previews · selection and Apply controls arrive next."
+                text: "Select a theme to stage a draft · Apply controls arrive next."
                 color: root.theme.textSecondary
                 font.pixelSize: root.theme.textSizeBody
                 wrapMode: Text.WordWrap
@@ -150,6 +159,17 @@ Item {
 
                     theme: root.theme
                     themeData: root.themes[index]
+
+                    observedActive:
+                        themeId.length > 0
+                        && themeId === root.activeThemeId
+
+                    draftSelected:
+                        themeId.length > 0
+                        && themeId === root.draftThemeId
+
+                    onSelected: themeId =>
+                        root.selectTheme(themeId)
                 }
             }
         }
