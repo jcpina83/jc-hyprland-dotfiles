@@ -1653,3 +1653,60 @@ of their child layout, not separately tuned frame dimensions.
 
 The shell's `contentHost.clip` remains the final viewport boundary. No
 backend, draft, Apply, coordinator or runtime behavior changes in this phase.
+
+## Phase 2B.7 final architecture (CLOSED)
+
+Phase 2B.7 closes with the following ownership graph:
+
+```text
+Presentation
+  WallpaperTransitionControl
+           |
+           v
+  WallpaperView
+           |
+           v
+Draft
+  WallpaperDraftStore
+           |
+           v
+Sequencing
+  WallpaperMutationCoordinator
+           |
+           v
+Mutation owner
+  WallpaperTransitionApplyService
+           |
+           v
+Public API
+  jc-wallpaperctl transition
+           |
+           v
+Backend
+  wallpaper-transition-manager.sh
+```
+
+The layer boundaries are final for this phase:
+
+- presentation edits draft only;
+- DraftStore owns transition baseline/dirty/reconcile state;
+- the coordinator owns sequencing only;
+- TransitionApplyService owns public argument translation and recovery state;
+- `jc-wallpaperctl` is the stable public transition mutation boundary;
+- the internal manager owns persistence, locks, runtime Apply and rollback;
+- Transition and Rotation share the global `wallpaper.env` mutation lock;
+- theme wallpaper mutation remains serialized with the active per-theme lock;
+- the shell exposes one unified Apply/Reset workflow.
+
+The final multi-domain sequence is
+`Wallpaper -> Transition -> Rotation` for both Apply and recovery. Clean
+domains are skipped and the first failing domain stops later mutation owners.
+
+The Wallpapers layout also closes with explicit overflow ownership:
+settings use a hosted Flickable while the Library keeps its own virtualized
+GridView and scrollbar. Transition geometry is content-driven rather than
+state-specific magic sizing.
+
+Phase 2B.7 is **CLOSED** at the architecture level. Future phases may extend
+presentation or wallpaper capabilities only through these established
+ownership boundaries.

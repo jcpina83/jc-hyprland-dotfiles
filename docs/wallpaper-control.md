@@ -1127,3 +1127,66 @@ multipliers. Its root height is now **content-driven** from
 rows and the Advanced FPS row to stay inside the HUD naturally.
 
 No controls were shrunk and no mutation ownership changed.
+
+## Phase 2B.7 closure
+
+Phase 2B.7 is formally **CLOSED**.
+
+The final transition contract is:
+
+```text
+WallpaperTransitionControl
+        |
+        v
+WallpaperView
+        |
+        v
+WallpaperDraftStore
+        |
+        v
+WallpaperMutationCoordinator
+        |
+        v
+WallpaperTransitionApplyService
+        |
+        v
+jc-wallpaperctl transition apply
+        |
+        v
+transactional transition manager
+```
+
+The authoritative unified mutation order is:
+
+```text
+Apply:    Wallpaper -> Transition -> Rotation
+Recovery: Wallpaper -> Transition -> Rotation
+```
+
+Transition configuration supports:
+
+- preset: `theme`, `default`, `fade`, `cyber-noir`, `odyssey-glass`
+- effect override: explicit type or inherited preset value
+- duration override: positive seconds or inherited preset value
+- FPS override: positive integer or inherited preset value
+- canonical observed effective type/duration/FPS
+- transactional rollback with differentiated `rc=6` / `rc=7`
+- UI draft Reset without runtime mutation
+- one global Apply/Reset surface
+- content-driven Transition HUD geometry
+- independently scrollable Wallpapers settings and Library catalog
+
+The closure gate confirmed the expected baseline:
+
+```text
+preset:         theme
+resolvedPreset: default
+effect:         fade
+duration:       1.2 s
+fps:            60
+rotation:       enabled / random / both / 15m / synchronized
+```
+
+No additional Transition mutation owner, second Apply/Reset surface, direct
+QML backend access, or nested Library scroll ownership is part of the closed
+2B.7 architecture.

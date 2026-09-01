@@ -1073,3 +1073,42 @@ This project is licensed under the **MIT License**. See [LICENSE](LICENSE).
     configuration project and is not affiliated with or endorsed by them.
   </sub>
 </p>
+
+## Phase 2B.7 — Wallpaper transitions (CLOSED)
+
+Phase 2B.7 is complete.
+
+The Wallpapers module now owns a full transition lifecycle:
+
+```text
+transactional backend
+    -> stable jc-wallpaperctl transition API
+    -> observed state
+    -> draft/baseline/reconcile state
+    -> dedicated TransitionApplyService
+    -> unified Wallpaper -> Transition -> Rotation coordinator
+    -> JC Holo transition controls
+    -> one global Apply/Reset workflow
+```
+
+Delivered capabilities include preset selection, nullable Effect/Duration/FPS
+overrides with explicit `Inherit preset`, observed effective transition
+feedback, advanced FPS control, verified rollback/recovery semantics, and
+hosted settings overflow while Library retains its independent virtualized
+GridView.
+
+The live UI roundtrip was validated end-to-end: Apply committed and
+reconciled, Reset discarded draft state without mutating runtime, and the
+original transition baseline was restored exactly.
+
+Closure commits:
+
+```text
+cc5587c  transactional transition API
+df5fd2e  observed + draft transition state
+9dca4a7  unified transition Apply workflow
+9aed1fd  JC Holo transition controls + hosted overflow
+```
+
+Phase 2B.7 is **CLOSED**. Further wallpaper work should start from the next
+planned phase rather than extending the 2B.7 contract implicitly.

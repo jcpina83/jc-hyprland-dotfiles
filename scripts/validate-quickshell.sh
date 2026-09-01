@@ -7400,6 +7400,59 @@ do
     fi
 done
 
+
+printf '\n==> Phase 2B.7.5b formal closure\n'
+
+phase_2b7_readme="$repo_root/README.md"
+phase_2b7_docs="$repo_root/docs/wallpaper-control.md"
+phase_2b7_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    '## Phase 2B.7 — Wallpaper transitions (CLOSED)' \
+    'cc5587c  transactional transition API' \
+    'df5fd2e  observed + draft transition state' \
+    '9dca4a7  unified transition Apply workflow' \
+    '9aed1fd  JC Holo transition controls + hosted overflow' \
+    'Phase 2B.7 is **CLOSED**'
+do
+    if grep -Fq -- "$contract" "$phase_2b7_readme"; then
+        ok "2B.7 README closure: $contract"
+    else
+        fail "2B.7 README closure missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7 closure' \
+    'Apply:    Wallpaper -> Transition -> Rotation' \
+    'Recovery: Wallpaper -> Transition -> Rotation' \
+    'content-driven Transition HUD geometry' \
+    'one global Apply/Reset surface' \
+    'Phase 2B.7 is formally **CLOSED**'
+do
+    if grep -Fq -- "$contract" "$phase_2b7_docs"; then
+        ok "2B.7 wallpaper docs closure: $contract"
+    else
+        fail "2B.7 wallpaper docs closure missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7 final architecture (CLOSED)' \
+    'WallpaperTransitionControl' \
+    'WallpaperMutationCoordinator' \
+    'WallpaperTransitionApplyService' \
+    'jc-wallpaperctl transition' \
+    'wallpaper-transition-manager.sh' \
+    'Phase 2B.7 is **CLOSED**'
+do
+    if grep -Fq -- "$contract" "$phase_2b7_arch"; then
+        ok "2B.7 architecture closure: $contract"
+    else
+        fail "2B.7 architecture closure missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then
