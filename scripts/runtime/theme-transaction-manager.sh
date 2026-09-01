@@ -336,6 +336,14 @@ acquire_wallpaper_locks() {
     fi
 }
 
+
+run_without_mutation_locks() {
+    (
+        exec 9>&- 8>&- 7>&- 6>&-
+        "$@"
+    )
+}
+
 apply_identity() {
     atomic_set_link "$themes_dir/$target_theme"
     atomic_set_file_value "$target_theme"
@@ -351,21 +359,25 @@ restore_identity() {
 apply_hyprland() {
     command -v hyprctl >/dev/null 2>&1 || return 1
 
-    hyprctl reload >/dev/null 2>&1 || return 1
+    run_without_mutation_locks \
+        hyprctl reload >/dev/null 2>&1 || return 1
 
     local errors
-    errors="$(hyprctl configerrors 2>/dev/null || true)"
+    errors="$(
+        run_without_mutation_locks \
+            hyprctl configerrors 2>/dev/null || true
+    )"
     [[ -z "${errors//[[:space:]]/}" ]]
 }
 
 apply_wallpaper() {
     [[ -x "$wallpaper_apply" ]] || return 1
-    "$wallpaper_apply" >/dev/null
+    run_without_mutation_locks "$wallpaper_apply" >/dev/null
 }
 
 apply_waybar() {
     [[ -x "$waybar_runtime" ]] || return 1
-    "$waybar_runtime" >/dev/null
+    run_without_mutation_locks "$waybar_runtime" >/dev/null
 }
 
 apply_swaync_if_required() {
@@ -374,7 +386,8 @@ apply_swaync_if_required() {
     fi
 
     [[ -x "$swaync_runtime" ]] || return 1
-    "$swaync_runtime" --restart >/dev/null
+    run_without_mutation_locks \
+        "$swaync_runtime" --restart >/dev/null
 }
 
 apply_critical_runtime() {
@@ -424,7 +437,9 @@ synchronize_sddm_auxiliary() {
     sddm_synchronized=false
 
     if [[ -x "$sddm_prepare" ]]; then
-        if "$sddm_prepare" >/dev/null 2>&1; then
+        if run_without_mutation_locks \
+            "$sddm_prepare" >/dev/null 2>&1
+        then
             sddm_prepared=true
         else
             warnings+=("SDDM theme preparation failed; desktop theme remains committed.")
@@ -434,7 +449,9 @@ synchronize_sddm_auxiliary() {
     fi
 
     if [[ -x "$sddm_switch" ]]; then
-        if sudo -n "$sddm_switch" "$target_theme" >/dev/null 2>&1; then
+        if run_without_mutation_locks \
+            sudo -n "$sddm_switch" "$target_theme" >/dev/null 2>&1
+        then
             sddm_synchronized=true
         else
             warnings+=(

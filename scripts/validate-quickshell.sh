@@ -7938,6 +7938,73 @@ else
     ok "ThemeApplyService remains deferred"
 fi
 
+
+printf '\n==> Phase 2C.2b mutation-lock FD inheritance\n'
+
+phase_2c_theme_manager="$repo_root/scripts/runtime/theme-transaction-manager.sh"
+phase_2c_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c_arch="$repo_root/docs/architecture.md"
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'run_without_mutation_locks() {' \
+    'exec 9>&- 8>&- 7>&- 6>&-' \
+    'run_without_mutation_locks "$wallpaper_apply"' \
+    'run_without_mutation_locks "$waybar_runtime"' \
+    '"$swaync_runtime" --restart' \
+    '"$sddm_prepare"' \
+    'sudo -n "$sddm_switch" "$target_theme"'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_manager"; then
+        ok "Theme child lock-FD boundary: $contract"
+    else
+        fail "Theme child lock-FD boundary missing: $contract"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for forbidden in \
+    '    "$wallpaper_apply" >/dev/null' \
+    '    "$waybar_runtime" >/dev/null' \
+    '    "$swaync_runtime" --restart >/dev/null'
+do
+    if grep -Fxq -- "$forbidden" "$phase_2c_theme_manager"; then
+        fail "Theme consumer bypasses child lock-FD boundary: $forbidden"
+    else
+        ok "Theme consumer uses child lock-FD boundary: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2b hardening — mutation lock FD inheritance' \
+    'close FD 9' \
+    'close FD 8' \
+    'close FD 7' \
+    'close FD 6' \
+    'post-Apply lock-leak sentinel'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "Theme lock inheritance documentation: $contract"
+    else
+        fail "Theme lock inheritance documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2b mutation-lock child boundary' \
+    'close 9/8/7/6' \
+    'preventing long-lived processes' \
+    'post-Apply lock-leak sentinel'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "Theme lock inheritance architecture: $contract"
+    else
+        fail "Theme lock inheritance architecture missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

@@ -428,3 +428,37 @@ jc-theme apply THEME --json
 ```
 
 after a controlled real theme round-trip validates Apply and rollback semantics.
+
+## Phase 2C.2b hardening — mutation lock FD inheritance
+
+The first controlled real Apply exposed an important process-inheritance edge
+case.
+
+The transaction manager correctly held the theme and wallpaper `flock`
+descriptors, but the Waybar and SwayNC launchers inherited those open file
+descriptors. Their resident child processes therefore continued owning the
+locks after the transaction manager exited.
+
+The manager now uses one child execution boundary:
+
+```text
+run_without_mutation_locks
+        |
+        +--> close FD 9  theme mutation lock
+        +--> close FD 8  wallpaper.env mutation lock
+        +--> close FD 7  first per-theme wallpaper lock
+        +--> close FD 6  second per-theme wallpaper lock
+        |
+        +--> exec consumer command
+```
+
+The transaction parent retains the locks for the whole transaction. Only the
+consumer child closes its inherited copies.
+
+This boundary is used for Hyprland commands, wallpaper Apply, Waybar, SwayNC
+and auxiliary SDDM helpers. It prevents resident desktop processes from
+extending mutation-lock lifetime beyond the transaction.
+
+A post-Apply lock-leak sentinel is required after every successful Apply.
+It must verify that no resident process retains any theme/wallpaper mutation
+lock before the next transaction starts.

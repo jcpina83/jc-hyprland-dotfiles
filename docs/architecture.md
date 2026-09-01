@@ -1900,3 +1900,28 @@ failure vocabulary.
 
 No QML mutation service or Themes UI Apply action is introduced by this
 backend phase.
+
+## Phase 2C.2b mutation-lock child boundary
+
+Theme mutation locks are parent-owned capabilities.
+
+```text
+theme-transaction-manager
+        |
+        +-- FD 9 theme lock
+        +-- FD 8 wallpaper.env lock
+        +-- FD 7/6 per-theme locks
+        |
+        +--> child boundary
+                |
+                +--> close 9/8/7/6
+                |
+                +--> Hyprland / wallpaper / Waybar / SwayNC / SDDM
+```
+
+Closing the descriptors only in the child preserves transaction serialization
+in the manager while preventing long-lived processes such as Waybar or SwayNC
+from inheriting and retaining the locks after Apply completes.
+
+A post-Apply lock-leak sentinel is required by the controlled theme E2E before
+a second theme transaction may begin.
