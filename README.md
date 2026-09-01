@@ -277,7 +277,17 @@ validation failure.
 
 # Themes
 
-Two themes are currently included.
+Three themes are currently included.
+
+## JC Holo
+
+The current holographic Control Center theme.
+
+- cyan holographic primary accents
+- warm orange secondary accents
+- deep translucent HUD surfaces
+- high-contrast semantic feedback
+- wallpapers tuned for the dual-monitor desktop
 
 ## Odyssey Glass
 
@@ -333,6 +343,19 @@ which points to the selected theme directory.
 | `hyprlock.env` | Hyprlock |
 | `sddm.env` | SDDM |
 | `theme.env` | Theme metadata and wallpaper configuration |
+
+### Stable Theme Control read API
+
+Phase 2C exposes read-only machine-readable theme discovery/state through:
+
+```bash
+jc-theme status --json
+jc-theme catalog --json
+```
+
+The Control Center will consume these stable surfaces rather than parsing
+human-oriented `jc-theme list` output or reading theme directories directly.
+See `docs/theme-control.md`.
 
 Useful commands:
 

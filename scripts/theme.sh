@@ -45,6 +45,8 @@ Usage:
 
   theme.sh list
   theme.sh current
+  theme.sh status [--json]
+  theme.sh catalog [--json]
   theme.sh apply THEME
 EOF
 }
@@ -118,6 +120,256 @@ current_theme() {
     fi
 
     echo "none"
+}
+
+
+active_link_theme() {
+    local resolved
+
+    if [[ ! -L "$active_link" ]]; then
+        return 0
+    fi
+
+    resolved="$(readlink -f -- "$active_link" 2>/dev/null || true)"
+
+    if [[ -z "$resolved" ]]; then
+        return 0
+    fi
+
+    basename "$resolved"
+}
+
+
+active_file_theme() {
+    if [[ ! -r "$active_file" ]]; then
+        return 0
+    fi
+
+    tr -d '\r\n' < "$active_file"
+}
+
+
+theme_is_complete() {
+    local theme_dir="$1"
+    local required
+
+    for required in \
+        theme.env \
+        colors.conf \
+        colors.css \
+        quickshell.json \
+        foot-colors.ini \
+        hyprlock.env \
+        sddm.env
+    do
+        [[ -r "$theme_dir/$required" ]] || return 1
+    done
+
+    return 0
+}
+
+
+theme_metadata_valid() {
+    local theme_dir="$1"
+    local theme_id="$2"
+    local metadata="$theme_dir/quickshell.json"
+
+    theme_is_complete "$theme_dir" || return 1
+
+    jq -e \
+        --arg id "$theme_id" \
+        '
+        .schemaVersion == 1
+        and .id == $id
+        and ((.name | type) == "string")
+        and ((.name | length) > 0)
+        and ((.colors | type) == "object")
+        and ((.opacity | type) == "object")
+        ' \
+        "$metadata" >/dev/null 2>&1
+}
+
+
+status_json() {
+    local link_theme
+    local file_theme
+    local active
+    local synchronized=false
+    local valid=false
+    local theme_path=""
+    local metadata_file=""
+
+    link_theme="$(active_link_theme)"
+    file_theme="$(active_file_theme)"
+    active="$(current_theme)"
+
+    if [[ -n "$link_theme" \
+        && -n "$file_theme" \
+        && "$link_theme" == "$file_theme" ]]
+    then
+        synchronized=true
+    fi
+
+    if [[ -n "$active" && "$active" != "none" ]]; then
+        local candidate="$themes_dir/$active"
+
+        if [[ -d "$candidate" ]] \
+            && theme_metadata_valid "$candidate" "$active"
+        then
+            valid=true
+            theme_path="$(readlink -f -- "$candidate")"
+            metadata_file="$theme_path/quickshell.json"
+        fi
+    fi
+
+    jq -n \
+        --arg activeTheme "$active" \
+        --arg activeFileTheme "$file_theme" \
+        --arg activeLinkTheme "$link_theme" \
+        --arg themePath "$theme_path" \
+        --arg metadataFile "$metadata_file" \
+        --argjson synchronized "$synchronized" \
+        --argjson valid "$valid" \
+        '{
+            activeTheme: $activeTheme,
+            activeFileTheme: (
+                if $activeFileTheme == "" then null else $activeFileTheme end
+            ),
+            activeLinkTheme: (
+                if $activeLinkTheme == "" then null else $activeLinkTheme end
+            ),
+            synchronized: $synchronized,
+            valid: $valid,
+            themePath: (
+                if $themePath == "" then null else $themePath end
+            ),
+            metadataFile: (
+                if $metadataFile == "" then null else $metadataFile end
+            )
+        }'
+}
+
+
+status_human() {
+    local payload
+
+    payload="$(status_json)"
+
+    printf 'Active theme: %s\n' \
+        "$(jq -r '.activeTheme' <<< "$payload")"
+    printf 'Active file:  %s\n' \
+        "$(jq -r '.activeFileTheme // "missing"' <<< "$payload")"
+    printf 'Active link:  %s\n' \
+        "$(jq -r '.activeLinkTheme // "missing"' <<< "$payload")"
+    printf 'Synchronized: %s\n' \
+        "$(jq -r 'if .synchronized then "yes" else "no" end' <<< "$payload")"
+    printf 'Valid:        %s\n' \
+        "$(jq -r 'if .valid then "yes" else "no" end' <<< "$payload")"
+}
+
+
+catalog_json() {
+    local active
+    local dir
+    local theme_id
+    local metadata
+    local main_wallpaper
+    local secondary_wallpaper
+    local item
+    local items=()
+
+    active="$(current_theme)"
+
+    if [[ ! -d "$themes_dir" ]]; then
+        jq -n \
+            --arg activeTheme "$active" \
+            '{
+                activeTheme: $activeTheme,
+                count: 0,
+                items: []
+            }'
+        return 0
+    fi
+
+    for dir in "$themes_dir"/*; do
+        [[ -d "$dir" ]] || continue
+
+        theme_id="$(basename "$dir")"
+        theme_metadata_valid "$dir" "$theme_id" || continue
+
+        metadata="$dir/quickshell.json"
+
+        main_wallpaper=""
+        secondary_wallpaper=""
+
+        if [[ -r "$dir/wallpapers/main.webp" ]]; then
+            main_wallpaper="$(readlink -f -- "$dir/wallpapers/main.webp")"
+        fi
+
+        if [[ -r "$dir/wallpapers/secondary.webp" ]]; then
+            secondary_wallpaper="$(
+                readlink -f -- "$dir/wallpapers/secondary.webp"
+            )"
+        fi
+
+        item="$(
+            jq -c \
+                --arg id "$theme_id" \
+                --arg activeTheme "$active" \
+                --arg mainWallpaper "$main_wallpaper" \
+                --arg secondaryWallpaper "$secondary_wallpaper" \
+                '{
+                    id: $id,
+                    name: .name,
+                    schemaVersion: .schemaVersion,
+                    active: ($id == $activeTheme),
+                    colors: .colors,
+                    opacity: .opacity,
+                    preview: {
+                        mainWallpaper: (
+                            if $mainWallpaper == ""
+                            then null
+                            else $mainWallpaper
+                            end
+                        ),
+                        secondaryWallpaper: (
+                            if $secondaryWallpaper == ""
+                            then null
+                            else $secondaryWallpaper
+                            end
+                        )
+                    }
+                }' \
+                "$metadata"
+        )"
+
+        items+=("$item")
+    done
+
+    if (( ${#items[@]} == 0 )); then
+        jq -n \
+            --arg activeTheme "$active" \
+            '{
+                activeTheme: $activeTheme,
+                count: 0,
+                items: []
+            }'
+        return 0
+    fi
+
+    printf '%s\n' "${items[@]}" \
+        | jq -s \
+            --arg activeTheme "$active" \
+            '{
+                activeTheme: $activeTheme,
+                count: length,
+                items: .
+            }'
+}
+
+
+catalog_human() {
+    list_themes
 }
 
 
@@ -270,6 +522,38 @@ case "${1:-}" in
 
     current)
         current_theme
+        ;;
+
+    status)
+        case "${2:-}" in
+            --json)
+                status_json
+                ;;
+            "")
+                status_human
+                ;;
+            *)
+                echo "Unknown status option: ${2}" >&2
+                usage >&2
+                exit 2
+                ;;
+        esac
+        ;;
+
+    catalog)
+        case "${2:-}" in
+            --json)
+                catalog_json
+                ;;
+            "")
+                catalog_human
+                ;;
+            *)
+                echo "Unknown catalog option: ${2}" >&2
+                usage >&2
+                exit 2
+                ;;
+        esac
         ;;
 
     apply)

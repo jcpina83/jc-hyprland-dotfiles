@@ -7509,6 +7509,94 @@ do
     fi
 done
 
+
+printf '\n==> Phase 2C.1b stable theme read API\n'
+
+phase_2c_theme_script="$repo_root/scripts/theme.sh"
+phase_2c_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c_arch="$repo_root/docs/architecture.md"
+phase_2c_readme="$repo_root/README.md"
+phase_2c_nav="$repo_root/config/quickshell/jc-hyprland/modules/controlcenter/ControlCenterNavigation.qml"
+phase_2c_theme_qml="$repo_root/config/quickshell/jc-hyprland/theme/Theme.qml"
+
+for contract in \
+    'theme.sh status [--json]' \
+    'theme.sh catalog [--json]' \
+    'status_json() {' \
+    'catalog_json() {' \
+    'activeFileTheme:' \
+    'activeLinkTheme:' \
+    'synchronized:' \
+    'preview:' \
+    'mainWallpaper:' \
+    'secondaryWallpaper:'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_script"; then
+        ok "Theme read API: $contract"
+    else
+        fail "Theme read API missing: $contract"
+    fi
+done
+
+for contract in \
+    '# Theme Control Architecture' \
+    '## Phase 2C.1b — Stable theme read API' \
+    'jc-theme status --json' \
+    'jc-theme catalog --json' \
+    'Live preview strategy' \
+    'Mutation boundary remains deferred' \
+    'ThemeService' \
+    'ThemeApplyService'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "Theme control documentation: $contract"
+    else
+        fail "Theme control documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.1b stable theme read boundary' \
+    'Theme.qml' \
+    'jc-theme catalog' \
+    'future ThemeService' \
+    'Themes navigation entry remains disabled'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "Theme architecture: $contract"
+    else
+        fail "Theme architecture missing: $contract"
+    fi
+done
+
+for contract in \
+    'Three themes are currently included.' \
+    '## JC Holo' \
+    '### Stable Theme Control read API' \
+    'jc-theme status --json' \
+    'jc-theme catalog --json'
+do
+    if grep -Fq -- "$contract" "$phase_2c_readme"; then
+        ok "README Theme Control: $contract"
+    else
+        fail "README Theme Control missing: $contract"
+    fi
+done
+
+if grep -A 5 -F 'id: "themes"' "$phase_2c_nav" \
+    | grep -Fq 'enabled: false'
+then
+    ok "Themes navigation remains disabled"
+else
+    fail "Themes navigation must remain disabled in Phase 2C.1b"
+fi
+
+if grep -Fq 'Process {' "$phase_2c_theme_qml"; then
+    fail "Theme.qml must remain free of Process ownership"
+else
+    ok "Theme.qml remains free of Process ownership"
+fi
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

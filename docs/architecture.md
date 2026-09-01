@@ -1744,3 +1744,52 @@ theme application
 
 Historical roadmap snapshots embedded inside completed Phase 2A/2B
 documentation remain historical and are not rewritten by this handoff.
+
+## Phase 2C.1b stable theme read boundary
+
+Phase 2C reuses the existing theme engine rather than creating a second visual
+token authority.
+
+```text
+                    +----------------------+
+                    | themes/<theme>/      |
+                    | quickshell.json      |
+                    +----------+-----------+
+                               |
+                  +------------+------------+
+                  |                         |
+                  v                         v
+            Theme.qml              jc-theme catalog
+      semantic Theme API             --json
+                  |                         |
+                  v                         v
+        existing consumers        future ThemeService
+                                            |
+                                            v
+                                   live preview / draft
+```
+
+`Theme.qml` continues to observe machine-local `local/active-theme` directly
+and remains the semantic Theme API for all existing components.
+
+The stable public read boundary is extended with:
+
+```text
+jc-theme status [--json]
+jc-theme catalog [--json]
+```
+
+`status` makes the active symlink/plain-file dual state observable and reports
+whether both representations are synchronized. `catalog` validates discovered
+themes against their versioned `quickshell.json` metadata and exposes semantic
+palette data plus existing MAIN/SECONDARY wallpaper assets for future
+metadata-driven live previews.
+
+No theme mutation is introduced in this subphase. In particular, the existing
+`jc-theme apply` workflow is not yet a QML mutation contract because its
+auxiliary desktop refreshes currently include best-effort behavior. Apply
+failure/rollback/recovery semantics are deferred to a dedicated Phase 2C
+mutation boundary.
+
+The Themes navigation entry remains disabled until the read service/view
+contract is ready.
