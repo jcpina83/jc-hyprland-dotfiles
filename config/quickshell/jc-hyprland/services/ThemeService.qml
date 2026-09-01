@@ -24,7 +24,7 @@ Scope {
     property string activeFileThemeId: ""
     property string activeLinkThemeId: ""
 
-    property bool synchronized: false
+    property bool isSynchronized: false
     property bool activeThemeValid: false
 
     property string activeThemePath: ""
@@ -54,7 +54,7 @@ Scope {
 
     readonly property bool observedHealthy:
         root.ready
-        && root.synchronized
+        && root.isSynchronized
         && root.activeThemeValid
         && root.activeTheme !== null
 
@@ -100,7 +100,7 @@ Scope {
                 && typeof payload.activeLinkTheme !== "string")
             return false;
 
-        if (typeof payload.synchronized !== "boolean"
+        if (typeof payload["synchronized"] !== "boolean"
                 || typeof payload.valid !== "boolean")
             return false;
 
@@ -238,7 +238,7 @@ Scope {
                 ? ""
                 : String(statusPayload.activeLinkTheme);
 
-        root.synchronized = Boolean(statusPayload.synchronized);
+        root.isSynchronized = Boolean(statusPayload["synchronized"]);
         root.activeThemeValid = Boolean(statusPayload.valid);
 
         root.activeThemePath =
