@@ -2112,3 +2112,32 @@ application, backend commands, recovery, or runtime mutation.
 
 `ThemeApplyService` remains the exclusive orchestration boundary for actual
 theme application in the later Apply-controls phase.
+
+## Phase 2C.2.4 Quickshell token-preview architecture
+
+Candidate-theme visualization remains behind the existing read-only catalog
+boundary:
+
+```text
+themes/<id>/quickshell.json
+        ↓
+jc-theme catalog --json
+        ↓
+ThemeService.themes
+        ↓
+ThemePreviewCard.themeData
+        ↓
+ThemeTokenPreview
+```
+
+`ThemeTokenPreview` is a presentation-only projection of candidate
+`colors + opacity` values. It does not instantiate a second runtime Theme
+authority, read files directly, execute commands, or mutate desktop state.
+
+The preview combines candidate semantic colors/opacities with current Theme API
+geometry (spacing, radii, typography sizes, and border widths). This is
+intentional because the current schema-v1 `quickshell.json` files expose
+theme-variable colors and opacity, not per-theme geometry or motion tokens.
+
+Optional JC Holo HUD opacity extensions remain theme-specific and are not part
+of the generic preview contract.

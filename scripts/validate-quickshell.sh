@@ -8537,6 +8537,118 @@ do
     fi
 done
 
+
+printf '\n==> Phase 2C.2.4 Quickshell token visual preview\n'
+
+phase_2c_theme_preview_card="$config_dir/modules/themes/ThemePreviewCard.qml"
+phase_2c_theme_token_preview="$config_dir/modules/themes/ThemeTokenPreview.qml"
+
+if [[ -f "$phase_2c_theme_token_preview" ]]; then
+    ok "ThemeTokenPreview file"
+else
+    fail "ThemeTokenPreview.qml missing"
+fi
+
+for contract in \
+    'required property var theme' \
+    'property var themeData' \
+    'readonly property var colorData:' \
+    'readonly property var opacityData:' \
+    'readonly property bool tokenDataReady:' \
+    'function colorToken(name, fallback)' \
+    'function opacityToken(name, fallback)' \
+    'root.colorToken("canvas", root.theme.canvas)' \
+    'root.colorToken("surfaceBase", root.theme.surfaceBase)' \
+    'root.colorToken("surfaceRaised", root.theme.surfaceRaised)' \
+    'readonly property color surfaceInteractive:' \
+    'root.colorToken("textPrimary", root.theme.textPrimary)' \
+    'root.colorToken("textSecondary", root.theme.textSecondary)' \
+    'root.colorToken("textMuted", root.theme.textMuted)' \
+    'root.colorToken("primary", root.theme.primary)' \
+    'root.colorToken("secondary", root.theme.secondary)' \
+    'root.colorToken("accent", root.theme.accent)' \
+    'root.colorToken("success", root.theme.success)' \
+    'root.colorToken("warning", root.theme.warning)' \
+    'root.colorToken("danger", root.theme.danger)' \
+    'root.colorToken("info", root.theme.info)' \
+    'root.opacityToken("surfaceGlass", 0.78)' \
+    'root.opacityToken("surfaceGlassRaised", 0.86)' \
+    'root.opacityToken("surfaceSelected", 0.16)' \
+    'root.opacityToken("borderStrong", 0.38)' \
+    'root.opacityToken("borderAccent", 0.34)' \
+    'text: "Semantic token preview"'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_token_preview"; then
+        ok "ThemeTokenPreview contract: $contract"
+    else
+        fail "ThemeTokenPreview contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'FileView {' \
+    'jc-theme' \
+    '"apply"' \
+    'applyDirty' \
+    'setTheme(' \
+    'reset()' \
+    'hyprctl' \
+    'systemctl' \
+    'theme-transaction-manager'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_token_preview"; then
+        fail "ThemeTokenPreview owns forbidden runtime/backend detail: $forbidden"
+    else
+        ok "ThemeTokenPreview remains pure presentation: $forbidden"
+    fi
+done
+
+for contract in \
+    'ThemeTokenPreview {' \
+    'id: tokenPreview' \
+    'theme: root.theme' \
+    'themeData: root.themeData' \
+    'z: 1' \
+    'z: 2'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_preview_card"; then
+        ok "ThemePreviewCard token-preview composition: $contract"
+    else
+        fail "ThemePreviewCard token-preview composition missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.4 — Quickshell token visual preview' \
+    'ThemeTokenPreview.qml' \
+    'colors' \
+    'opacity' \
+    'common schema-v1 token core' \
+    'does not apply'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "Theme token preview documentation: $contract"
+    else
+        fail "Theme token preview documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.4 Quickshell token-preview architecture' \
+    'ThemeService.themes' \
+    'ThemeTokenPreview' \
+    'colors + opacity' \
+    'current Theme API' \
+    'presentation-only'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "Theme token preview architecture: $contract"
+    else
+        fail "Theme token preview architecture missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

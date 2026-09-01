@@ -799,3 +799,30 @@ change to `ThemeDraftStore.setTheme()`.
 Selection does not apply the theme, does not call the `jc-theme` backend, and
 does not mutate Hyprland, Waybar, SwayNC, wallpapers, or any runtime theme
 state. Apply and Reset controls remain deferred to Phase 2C.2.5.
+
+## Phase 2C.2.4 — Quickshell token visual preview
+
+Theme cards now include a miniature semantic UI rendered from the candidate
+theme's Quickshell token data.
+
+`ThemeTokenPreview.qml` consumes the same catalog data originating from each
+theme's `quickshell.json`:
+
+- the common `colors` token object;
+- the common `opacity` token object;
+- `schemaVersion`, `id`, and `name`.
+
+The preview intentionally uses only the common schema-v1 token core shared by
+all installed themes. Optional JC Holo HUD opacity extensions are not required
+for the generic preview.
+
+The miniature UI demonstrates candidate canvas, surfaces, text hierarchy,
+brand accents, semantic state colors, selected surfaces, and border opacity.
+Geometry, typography sizing, spacing, and radii continue to use the current
+Theme API because those values are not theme-specific fields in the current
+`quickshell.json` schema.
+
+This remains preview-only behavior. Rendering a candidate theme does not apply
+it, does not change `local/active-theme`, and does not invoke any theme backend.
+ACTIVE/DRAFT chrome around the card continues to represent observed/draft
+state independently from the candidate token rendering.

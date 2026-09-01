@@ -232,12 +232,28 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
+                ThemeTokenPreview {
+                    id: tokenPreview
+
+                    anchors {
+                        fill: parent
+                        margins: root.theme.spaceSm
+                    }
+
+                    z: 1
+
+                    theme: root.theme
+                    themeData: root.themeData
+                }
+
                 Rectangle {
                     anchors {
                         right: parent.right
                         bottom: parent.bottom
                         margins: root.theme.spaceSm
                     }
+
+                    z: 2
 
                     width: 104
                     height: 66
