@@ -1864,3 +1864,39 @@ The store's `reset()` adopts current observed state rather than assuming its
 older baseline is still authoritative.
 
 No Theme Apply backend/service is introduced in Phase 2C.1d.
+
+## Phase 2C.2b transactional theme mutation architecture
+
+Theme mutation now follows the same public/internal ownership model used by
+Wallpapers:
+
+```text
+future ThemeApplyService
+        |
+        v
+jc-theme apply THEME --json
+        |
+        v
+theme-transaction-manager.sh
+        |
+        +--> theme mutation lock
+        +--> wallpaper coordination locks
+        +--> active identity snapshot
+        +--> critical desktop runtime
+        +--> verified rollback
+        |
+        +--> auxiliary SDDM synchronization
+```
+
+The desktop commit boundary includes synchronized active identity, Hyprland,
+wallpaper runtime, Waybar and SwayNC when it was running.
+
+SDDM remains post-commit auxiliary because the current privileged integration
+does not yet support every Theme Control catalog theme.
+
+Exit codes `0 / 2 / 6 / 7` mean applied, invalid request, verified rollback
+and rollback failure respectively, matching the established transactional
+failure vocabulary.
+
+No QML mutation service or Themes UI Apply action is introduced by this
+backend phase.

@@ -38,6 +38,8 @@ local_dir="$base/local"
 
 active_file="$local_dir/active-theme"
 
+transaction_manager="$repo_root/scripts/runtime/theme-transaction-manager.sh"
+
 
 usage() {
     cat <<'EOF'
@@ -47,7 +49,7 @@ Usage:
   theme.sh current
   theme.sh status [--json]
   theme.sh catalog [--json]
-  theme.sh apply THEME
+  theme.sh apply THEME [--json]
 EOF
 }
 
@@ -373,144 +375,15 @@ catalog_human() {
 }
 
 
+
 apply_theme() {
-
-    local theme_name="$1"
-    local theme_dir="$themes_dir/$theme_name"
-
-    [[ -d "$theme_dir" ]] || {
-        echo "Theme not found: $theme_name" >&2
-        exit 1
+    [[ -x "$transaction_manager" ]] || {
+        printf 'ERROR: theme transaction manager is not executable: %s\n' \
+            "$transaction_manager" >&2
+        return 1
     }
 
-    [[ -r "$theme_dir/theme.env" ]] || {
-        echo "Theme has no theme.env: $theme_name" >&2
-        exit 1
-    }
-
-    [[ -r "$theme_dir/colors.conf" ]] || {
-        echo "Theme has no colors.conf: $theme_name" >&2
-        exit 1
-    }
-
-    required_theme_files=(
-        "theme.env"
-        "colors.conf"
-        "colors.css"
-        "quickshell.json"
-        "foot-colors.ini"
-        "hyprlock.env"
-    )
-
-
-    for required in "${required_theme_files[@]}"; do
-
-        if [[ ! -r "$theme_dir/$required" ]]; then
-            echo "Incomplete theme '$theme_name': missing $required" >&2
-            exit 1
-        fi
-
-    done
-
-    mkdir -p "$base" "$local_dir"
-
-
-    # Atomic-ish replacement of the active theme symlink.
-    ln -sfn \
-        "$theme_dir" \
-        "$active_link"
-
-
-    printf '%s\n' "$theme_name" \
-        > "$active_file"
-
-
-    echo "Active theme: $theme_name"
-
-    # ------------------------------------------------------------------------------
-    # Prepare and synchronize SDDM theme
-    #
-    # The generated artifact remains unprivileged and is useful for development
-    # and validation.
-    #
-    # If the system integration has been installed, the active SDDM profile is
-    # switched through a root-owned helper. The sudoers rule only permits the
-    # explicitly supported jc themes, so no user-controlled QML is copied as root
-    # during a normal theme switch.
-    # ------------------------------------------------------------------------------
-
-    sddm_prepare="$repo_root/scripts/runtime/prepare-sddm-theme.sh"
-    sddm_switch="/usr/local/libexec/jc-hyprland-sddm-switch"
-
-
-    if [[ -x "$sddm_prepare" ]]; then
-
-        echo
-        echo "Preparing SDDM theme..."
-
-        if ! "$sddm_prepare"; then
-            echo
-            echo "Theme activated, but SDDM theme preparation failed." >&2
-        fi
-
-    fi
-
-
-    if [[ -x "$sddm_switch" ]]; then
-
-        echo
-        echo "Synchronizing SDDM profile..."
-
-        if ! sudo -n "$sddm_switch" "$theme_name"; then
-            echo
-            echo "Theme activated, but SDDM profile synchronization failed." >&2
-        fi
-
-    fi
-
-    # Reload Hyprland colors / appearance.
-    if command -v hyprctl >/dev/null 2>&1; then
-        hyprctl reload >/dev/null 2>&1 || true
-    fi
-
-
-    # Wallpaper application is best-effort.
-    wallpaper_script="$repo_root/scripts/runtime/apply-wallpaper.sh"
-
-    if [[ -x "$wallpaper_script" ]]; then
-
-        if ! "$wallpaper_script"; then
-            echo
-            echo "Theme activated, but wallpaper application failed." >&2
-        fi
-
-    fi
-
-    # ------------------------------------------------------------------------------
-    # Refresh resident UI components
-    # ------------------------------------------------------------------------------
-
-    waybar_runtime="$repo_root/scripts/runtime/start-waybar.sh"
-    swaync_runtime="$repo_root/scripts/runtime/start-swaync.sh"
-
-
-    if [[ -x "$waybar_runtime" ]]; then
-        echo
-        echo "Refreshing Waybar..."
-
-        "$waybar_runtime"
-    fi
-
-
-    if pgrep -x swaync >/dev/null 2>&1 \
-        && [[ -x "$swaync_runtime" ]]
-    then
-        echo
-        echo "Refreshing SwayNC..."
-
-        "$swaync_runtime" --restart
-    fi
-
+    "$transaction_manager" apply "$@"
 }
 
 
@@ -557,14 +430,8 @@ case "${1:-}" in
         ;;
 
     apply)
-
-        [[ -n "${2:-}" ]] || {
-            echo "Missing theme name." >&2
-            usage >&2
-            exit 2
-        }
-
-        apply_theme "$2"
+        shift
+        apply_theme "$@"
         ;;
 
     --help|-h|"")

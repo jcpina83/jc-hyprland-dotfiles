@@ -7830,6 +7830,114 @@ else
     ok "ThemeService remains read-only"
 fi
 
+
+printf '\n==> Phase 2C.2b transactional Theme Apply backend\n'
+
+phase_2c_theme_public="$repo_root/scripts/theme.sh"
+phase_2c_theme_manager="$repo_root/scripts/runtime/theme-transaction-manager.sh"
+phase_2c_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c_arch="$repo_root/docs/architecture.md"
+phase_2c_theme_apply_qml="$config_dir/services/ThemeApplyService.qml"
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'theme.sh apply THEME [--json]' \
+    'theme-transaction-manager.sh' \
+    'apply_theme() {' \
+    '"$transaction_manager" apply "$@"'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_public"; then
+        ok "Transactional public Theme Apply: $contract"
+    else
+        fail "Transactional public Theme Apply missing: $contract"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for forbidden in \
+    'ln -sfn' \
+    '> "$active_file"' \
+    'sudo -n "$sddm_switch"' \
+    'hyprctl reload >/dev/null 2>&1 || true'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_public"; then
+        fail "Public jc-theme retains legacy mutation detail: $forbidden"
+    else
+        ok "Public jc-theme excludes internal mutation detail: $forbidden"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'theme_lock="$local_dir/.theme.mutation.lock"' \
+    'wallpaper_env_lock="$local_dir/.wallpaper-env.mutation.lock"' \
+    'flock -x 9' \
+    'flock -x 8' \
+    'apply_transaction() {' \
+    'capture_snapshot() {' \
+    'apply_identity() {' \
+    'restore_identity() {' \
+    'apply_critical_runtime() {' \
+    'rollback_critical_runtime() {' \
+    'synchronize_sddm_auxiliary() {' \
+    '"rolled-back" 6' \
+    '"rollback-failed" 7' \
+    'identityRestored' \
+    'runtimeRollbackVerified'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_manager"; then
+        ok "Theme transaction manager: $contract"
+    else
+        fail "Theme transaction manager missing: $contract"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for contract in \
+    '## Phase 2C.2b — Transactional Theme Apply backend' \
+    'rc=0  applied' \
+    'rc=2  invalid-request' \
+    'rc=6  rolled-back' \
+    'rc=7  rollback-failed' \
+    'SDDM is auxiliary' \
+    'local/.theme.mutation.lock' \
+    'local/.wallpaper-env.mutation.lock' \
+    'adds no `ThemeApplyService`'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "Theme transaction documentation: $contract"
+    else
+        fail "Theme transaction documentation missing: $contract"
+    fi
+done
+
+# Literal grep -F contracts intentionally contain shell syntax.
+# shellcheck disable=SC2016
+for contract in \
+    '## Phase 2C.2b transactional theme mutation architecture' \
+    'theme-transaction-manager.sh' \
+    'wallpaper coordination locks' \
+    'auxiliary SDDM synchronization' \
+    'Exit codes `0 / 2 / 6 / 7`' \
+    'No QML mutation service'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "Theme transaction architecture: $contract"
+    else
+        fail "Theme transaction architecture missing: $contract"
+    fi
+done
+
+if [[ -e "$phase_2c_theme_apply_qml" ]]; then
+    fail "ThemeApplyService must not exist in Phase 2C.2b"
+else
+    ok "ThemeApplyService remains deferred"
+fi
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

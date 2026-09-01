@@ -317,3 +317,114 @@ future mutation service after the public theme Apply contract is hardened.
 view.
 
 Phase 2C.1d does not enable Themes navigation and does not create a Theme view.
+
+## Phase 2C.2b — Transactional Theme Apply backend
+
+The public Theme Control mutation boundary is now:
+
+```text
+jc-theme apply THEME [--json]
+```
+
+`jc-theme` remains the stable public command. It delegates mutation ownership
+to the internal `theme-transaction-manager.sh`; QML must never invoke that
+internal manager directly.
+
+### Transaction-critical state
+
+A theme transaction commits only after all required desktop state is verified:
+
+```text
+active theme symlink + local/active-theme
+        |
+        v
+Hyprland reload + clean configerrors
+        |
+        v
+wallpaper runtime Apply + verification
+        |
+        v
+Waybar restart + process verification
+        |
+        v
+SwayNC restart when it was running
+        |
+        v
+active identity re-verification
+        |
+        v
+COMMIT
+```
+
+`Theme.qml`, Hyprlock, Foot and launch-time consumers do not need a separate
+mutation command; they consume the committed active-theme authority.
+
+### Concurrency
+
+Theme mutation acquires:
+
+```text
+local/.theme.mutation.lock
+        |
+        v
+local/.wallpaper-env.mutation.lock
+        |
+        v
+old/new per-theme wallpaper mutation locks
+```
+
+The wallpaper locks are acquired in the same global-before-per-theme order
+used by transition mutation, and old/new theme locks are ordered
+deterministically.
+
+### Snapshot and rollback
+
+Before mutation the manager requires a healthy synchronized current theme and
+captures exact `local/active-theme` bytes, the exact active-theme symlink
+payload and the previous active theme identity.
+
+The manager writes the new symlink before the watched active-theme file so
+`Theme.qml` is not told about a new theme before the shared active symlink is
+ready.
+
+If a critical runtime step fails, the previous symlink/file snapshot is
+restored and the critical runtime is re-applied against the previous theme.
+
+The stable exit contract follows the existing Wallpapers precedent:
+
+```text
+rc=0  applied
+rc=2  invalid-request
+rc=6  rolled-back
+rc=7  rollback-failed
+```
+
+JSON responses expose `status`, `committed`, `changed`, `rolledBack`,
+`identityRestored`, `runtimeVerified`, `runtimeRollbackVerified`,
+`previousTheme`, `targetTheme`, per-consumer state, warnings and message.
+
+### SDDM is auxiliary until its theme set is reconciled
+
+SDDM is deliberately **not transaction-critical** in this phase.
+
+The current privileged SDDM integration permits only `odyssey-glass` and
+`cyber-noir`, while Theme Control also supports `jc-holo`. A successful desktop
+theme transaction therefore cannot be rolled back merely because the
+root-owned login-screen profile cannot synchronize.
+
+After the desktop commit the manager attempts SDDM preparation and privileged
+profile synchronization. Failures are reported in `warnings` and
+`consumers.sddm`, while the desktop transaction remains committed.
+
+A later SDDM reconciliation step must add full supported-theme parity before
+Phase 2C claims warning-free complete desktop/login synchronization.
+
+### QML boundary remains deferred
+
+Phase 2C.2b adds no `ThemeApplyService`. The next layer may consume only:
+
+```text
+jc-theme apply THEME --json
+```
+
+after a controlled real theme round-trip validates Apply and rollback semantics.
