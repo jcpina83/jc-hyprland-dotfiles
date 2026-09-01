@@ -1190,3 +1190,33 @@ rotation:       enabled / random / both / 15m / synchronized
 No additional Transition mutation owner, second Apply/Reset surface, direct
 QML backend access, or nested Library scroll ownership is part of the closed
 2B.7 architecture.
+
+## Phase 2B overall closure
+
+Phase 2B — **Wallpapers** is complete.
+
+The module now provides the complete roadmap scope:
+
+```text
+MAIN / SECONDARY preview and selection
+    + per-output fit / presentation
+    + transactional Apply / Reset
+    + automatic rotation
+    + transition presets and overrides
+    + observed / draft / applied / runtime reconciliation
+    + JC Holo presentation
+    + hosted settings overflow
+    + independent virtualized Library scrolling
+```
+
+The final mutation composition remains:
+
+```text
+Wallpaper -> Transition -> Rotation
+```
+
+for both normal Apply sequencing and recovery sequencing, while preserving one
+global Apply/Reset interaction surface.
+
+Phase 2B is **CLOSED**. The next Control Center module in the project roadmap
+is **Phase 2C — Themes**.

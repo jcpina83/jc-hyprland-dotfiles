@@ -936,14 +936,14 @@ Control Center.
 
 ## Control Center modules
 
-- [ ] **Phase 2B — Wallpapers** ← **NEXT**
+- [x] **Phase 2B — Wallpapers**
   - MAIN / SECONDARY previews
   - wallpaper selection
   - fit / presentation options
   - transitions
   - automatic rotation
 
-- [ ] **Phase 2C — Themes**
+- [ ] **Phase 2C — Themes** ← **NEXT**
   - installed theme discovery
   - live theme previews
   - active theme state

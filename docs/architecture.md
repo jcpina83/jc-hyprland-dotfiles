@@ -834,8 +834,8 @@ docs/displays-visual-redesign.md
     ▼
 Phase 2B–2H
     Control Center modules
-    ├── Wallpapers  ← NEXT
-    ├── Themes
+    ├── Wallpapers  ✓ COMPLETE
+    ├── Themes      ← NEXT
     ├── Quick Settings
     ├── Performance / Hardware
     ├── Media / Audio
@@ -1710,3 +1710,37 @@ state-specific magic sizing.
 Phase 2B.7 is **CLOSED** at the architecture level. Future phases may extend
 presentation or wallpaper capabilities only through these established
 ownership boundaries.
+
+## Phase 2B overall closure and Phase 2C handoff
+
+Phase 2B — **Wallpapers** is complete at the module level.
+
+Its final architecture preserves the project-wide Phase 2 ownership model:
+
+```text
+presentation
+    -> observed/draft state
+    -> orchestration
+    -> dedicated mutation owners
+    -> stable public runtime APIs
+    -> internal transactional backends
+```
+
+Wallpaper, fit, automatic rotation and transitions all follow those boundaries.
+The Wallpapers module exposes one Apply/Reset surface and retains separate
+settings/catalog scroll ownership.
+
+The global roadmap now advances to **Phase 2C — Themes**.
+
+Phase 2C begins from the existing theme foundation rather than replacing it.
+The documented scope is:
+
+```text
+installed theme discovery
+live theme previews
+active theme state
+theme application
+```
+
+Historical roadmap snapshots embedded inside completed Phase 2A/2B
+documentation remain historical and are not rewritten by this handoff.

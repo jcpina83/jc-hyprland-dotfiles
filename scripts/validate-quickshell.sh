@@ -2884,7 +2884,7 @@ architecture_doc="$repo_root/docs/architecture.md"
 for final_readme_contract in \
     '- [x] **Phase 2A.3 — Control Center shell + navigation**' \
     '- [x] **Phase 2A.4 — Displays visual redesign**' \
-    '- [ ] **Phase 2B — Wallpapers** ← **NEXT**' \
+    '- [x] **Phase 2B — Wallpapers**' \
     "generic \`controlCenter\` IPC with stable \`jc-control-center\` wrapper" \
     'keyboard focus, directional navigation and semantic focus rings' \
     'lightweight shell / module / status motion'
@@ -2929,7 +2929,7 @@ for final_architecture_contract in \
     'Phase 2A  Shared visual platform                 ✓ COMPLETE' \
     '2A.3  Control Center shell + navigation  ✓' \
     '2A.4  Displays visual redesign           ✓' \
-    'Wallpapers  ← NEXT'
+    'Wallpapers  ✓ COMPLETE'
 do
     if grep -Fq -- "$final_architecture_contract" \
         "$architecture_doc" 2>/dev/null
@@ -3967,7 +3967,7 @@ legacy_card="$config_dir/components/JcCard.qml"
 
 for phase_2a4_readme_contract in \
     '- [x] **Phase 2A.4 — Displays visual redesign**' \
-    '- [ ] **Phase 2B — Wallpapers** ← **NEXT**' \
+    '- [x] **Phase 2B — Wallpapers**' \
     'added responsive layout and keyboard-complete topology interaction' \
     'retired the Phase 1 visual compatibility layer'
 do
@@ -3981,7 +3981,7 @@ done
 for phase_2a4_architecture_contract in \
     'Phase 2A  Shared visual platform                 ✓ COMPLETE' \
     '2A.4  Displays visual redesign           ✓' \
-    'Wallpapers  ← NEXT' \
+    'Wallpapers  ✓ COMPLETE' \
     "compatibilidad visual Phase 1 (\`JcCard\` y aliases legacy del Theme API) fue"
 do
     if grep -Fq -- "$phase_2a4_architecture_contract" \
@@ -7450,6 +7450,62 @@ do
         ok "2B.7 architecture closure: $contract"
     else
         fail "2B.7 architecture closure missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B overall closure / Phase 2C handoff\n'
+
+phase_2b_handoff_readme="$repo_root/README.md"
+phase_2b_handoff_docs="$repo_root/docs/wallpaper-control.md"
+phase_2b_handoff_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    '- [x] **Phase 2B — Wallpapers**' \
+    '- [ ] **Phase 2C — Themes** ← **NEXT**'
+do
+    if grep -Fq -- "$contract" "$phase_2b_handoff_readme"; then
+        ok "Roadmap handoff README: $contract"
+    else
+        fail "Roadmap handoff README missing: $contract"
+    fi
+done
+
+if grep -Fq -- \
+    '- [ ] **Phase 2B — Wallpapers** ← **NEXT**' \
+    "$phase_2b_handoff_readme"
+then
+    fail "README still marks Phase 2B as NEXT"
+else
+    ok "README no longer marks Phase 2B as NEXT"
+fi
+
+for contract in \
+    '## Phase 2B overall closure' \
+    'Phase 2B — **Wallpapers** is complete.' \
+    'Phase 2B is **CLOSED**' \
+    'Phase 2C — Themes'
+do
+    if grep -Fq -- "$contract" "$phase_2b_handoff_docs"; then
+        ok "Phase 2B module closure: $contract"
+    else
+        fail "Phase 2B module closure missing: $contract"
+    fi
+done
+
+for contract in \
+    '├── Wallpapers  ✓ COMPLETE' \
+    '├── Themes      ← NEXT' \
+    '## Phase 2B overall closure and Phase 2C handoff' \
+    'installed theme discovery' \
+    'live theme previews' \
+    'active theme state' \
+    'theme application'
+do
+    if grep -Fq -- "$contract" "$phase_2b_handoff_arch"; then
+        ok "Architecture roadmap handoff: $contract"
+    else
+        fail "Architecture roadmap handoff missing: $contract"
     fi
 done
 
