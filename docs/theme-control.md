@@ -170,3 +170,84 @@ A later mutation layer will add a dedicated `ThemeApplyService` only after the
 public Apply contract is hardened.
 
 The Themes navigation entry remains disabled during Phase 2C.1b.
+
+## Phase 2C.1c — ThemeService observed-state boundary
+
+`ThemeService.qml` is the first QML-facing service for Phase 2C.
+
+It is intentionally **read-only**:
+
+```text
+jc-theme status --json
+        |
+        v
+ThemeService
+        |
+        +--> observed active theme identity
+        +--> file/link synchronization health
+
+jc-theme catalog --json
+        |
+        v
+ThemeService
+        |
+        +--> installed theme catalog
+        +--> semantic preview metadata
+        +--> MAIN / SECONDARY wallpaper preview inputs
+```
+
+The service performs a sequential `status -> catalog` read and accepts the
+snapshot only when both payloads report the same active theme. A one-time retry
+handles a theme switch that races the read boundary.
+
+The committed observed snapshot exposes:
+
+```text
+themes
+themeCount
+activeThemeId
+activeFileThemeId
+activeLinkThemeId
+synchronized
+activeThemeValid
+activeThemePath
+activeMetadataFile
+activeTheme
+observedHealthy
+ready
+loading
+errorMessage
+```
+
+`themeById(id)` provides lookup without requiring future feature views to parse
+the raw catalog.
+
+### Ownership
+
+`ThemeService` may execute only:
+
+```text
+jc-theme status --json
+jc-theme catalog --json
+```
+
+It must not:
+
+```text
+write local/active-theme
+replace ~/.config/jc-hyprland-dotfiles/theme
+invoke jc-theme apply
+reload Hyprland
+restart Waybar / SwayNC
+apply wallpapers
+synchronize SDDM
+```
+
+`Theme.qml` remains a separate semantic runtime API. It still observes
+`local/active-theme` through `FileView` and is not coupled to `ThemeService`.
+
+`Main.qml` owns the production `ThemeService` instance and exposes a stable
+`themeServiceHandle` for the future Themes module.
+
+Phase 2C.1c still does not enable Themes navigation and introduces no draft or
+Apply behavior.

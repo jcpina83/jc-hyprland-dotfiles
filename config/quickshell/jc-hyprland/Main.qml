@@ -150,6 +150,7 @@ Scope {
     readonly property var wallpaperMutationCoordinatorHandle:
         wallpaperMutationCoordinator
     readonly property var themeHandle: theme
+    readonly property var themeServiceHandle: themeService
 
     function resolveScreen(outputName) {
         if (Quickshell.screens.length === 0)
@@ -307,6 +308,12 @@ Scope {
     Theme.Theme {
         id: theme
     }
+
+
+    Services.ThemeService {
+        id: themeService
+    }
+
 
     Services.MonitorModeParser {
         id: monitorModeParser

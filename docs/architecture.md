@@ -1793,3 +1793,41 @@ mutation boundary.
 
 The Themes navigation entry remains disabled until the read service/view
 contract is ready.
+
+## Phase 2C.1c ThemeService observed-state architecture
+
+The QML-facing theme architecture now has two deliberately separate read
+paths:
+
+```text
+local/active-theme
+        |
+        v
+Theme.qml
+semantic visual tokens
+        |
+        +--> all existing components
+
+
+jc-theme status --json
+jc-theme catalog --json
+        |
+        v
+ThemeService
+observed feature state
+        |
+        +--> future ThemeDraftStore
+        +--> future ThemeView
+```
+
+`Theme.qml` answers **how the currently active desktop should look**.
+`ThemeService` answers **which themes exist and what Theme Control currently
+observes**.
+
+Keeping these responsibilities separate prevents the Themes module from
+becoming a second Theme API.
+
+`ThemeService` uses a sequential status/catalog snapshot and rejects a mixed
+snapshot when the active theme changes between reads. It performs one bounded retry before surfacing a refresh error.
+
+No mutation owner is introduced in Phase 2C.1c.

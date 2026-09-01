@@ -57,6 +57,7 @@ required_files=(
     "services/MonitorApplyService.qml"
     "services/DisplayPersistenceService.qml"
     "services/WallpaperService.qml"
+    "services/ThemeService.qml"
     "services/WallpaperDraftStore.qml"
     "services/WallpaperApplyService.qml"
     "services/WallpaperRotationApplyService.qml"
@@ -7117,7 +7118,6 @@ transition_ui_view="$config_dir/modules/wallpapers/WallpaperView.qml"
 transition_ui_draft="$config_dir/services/WallpaperDraftStore.qml"
 transition_ui_apply="$config_dir/services/WallpaperTransitionApplyService.qml"
 transition_ui_coord="$config_dir/services/WallpaperMutationCoordinator.qml"
-transition_ui_main="$config_dir/Main.qml"
 transition_ui_docs="$repo_root/docs/wallpaper-control.md"
 transition_ui_arch="$repo_root/docs/architecture.md"
 
@@ -7253,8 +7253,7 @@ done
 
 for file in \
     "$transition_ui_apply" \
-    "$transition_ui_coord" \
-    "$transition_ui_main"
+    "$transition_ui_coord"
 do
     if git diff --quiet HEAD -- "$file"; then
         ok "2B.7.4b leaves mutation composition unchanged: $file"
@@ -7596,6 +7595,119 @@ if grep -Fq 'Process {' "$phase_2c_theme_qml"; then
 else
     ok "Theme.qml remains free of Process ownership"
 fi
+
+
+printf '\n==> Phase 2C.1c ThemeService observed state\n'
+
+phase_2c_theme_service="$config_dir/services/ThemeService.qml"
+phase_2c_main="$config_dir/Main.qml"
+phase_2c_theme_qml="$config_dir/theme/Theme.qml"
+phase_2c_nav="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+phase_2c_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'Scope {' \
+    'property var themes: []' \
+    'property string activeThemeId: ""' \
+    'property string activeFileThemeId: ""' \
+    'property string activeLinkThemeId: ""' \
+    'property bool synchronized: false' \
+    'property bool activeThemeValid: false' \
+    'readonly property int themeCount:' \
+    'readonly property var activeTheme:' \
+    'readonly property bool observedHealthy:' \
+    'function themeCommandPath() {' \
+    'function themeById(themeId) {' \
+    'function validStatusPayload(payload) {' \
+    'function validCatalogPayload(payload) {' \
+    'function refresh() {' \
+    'function retrySnapshotIfNeeded(reason) {' \
+    'function commitSnapshot(statusPayload, catalogPayload) {' \
+    '"status",' \
+    '"catalog",' \
+    '"--json"' \
+    'Process {' \
+    'StdioCollector {' \
+    'Component.onCompleted: root.refresh()'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_service"; then
+        ok "ThemeService contract: $contract"
+    else
+        fail "ThemeService contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    '"apply"' \
+    'local/active-theme"' \
+    'ln -s' \
+    'hyprctl' \
+    'systemctl' \
+    'start-waybar' \
+    'start-swaync' \
+    'apply-wallpaper' \
+    'sddm-switch'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c_theme_service"; then
+        fail "ThemeService mutation/backend leakage: $forbidden"
+    else
+        ok "ThemeService excludes mutation/backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'readonly property var themeServiceHandle: themeService' \
+    'Services.ThemeService {' \
+    'id: themeService'
+do
+    if grep -Fq -- "$contract" "$phase_2c_main"; then
+        ok "Main ThemeService wiring: $contract"
+    else
+        fail "Main ThemeService wiring missing: $contract"
+    fi
+done
+
+if grep -Fq 'Process {' "$phase_2c_theme_qml"; then
+    fail "Theme.qml gained Process ownership"
+else
+    ok "Theme.qml remains independent semantic FileView API"
+fi
+
+if grep -A 5 -F 'id: "themes"' "$phase_2c_nav" \
+    | grep -Fq 'enabled: false'
+then
+    ok "Themes navigation remains disabled"
+else
+    fail "Themes navigation must remain disabled in Phase 2C.1c"
+fi
+
+for contract in \
+    '## Phase 2C.1c — ThemeService observed-state boundary' \
+    'status -> catalog' \
+    'themeServiceHandle' \
+    'still does not enable Themes navigation'
+do
+    if grep -Fq -- "$contract" "$phase_2c_theme_doc"; then
+        ok "ThemeService documentation: $contract"
+    else
+        fail "ThemeService documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.1c ThemeService observed-state architecture' \
+    'Theme.qml' \
+    'ThemeService' \
+    'one bounded retry' \
+    'No mutation owner is introduced'
+do
+    if grep -Fq -- "$contract" "$phase_2c_arch"; then
+        ok "ThemeService architecture: $contract"
+    else
+        fail "ThemeService architecture missing: $contract"
+    fi
+done
 
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
