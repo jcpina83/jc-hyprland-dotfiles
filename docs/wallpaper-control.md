@@ -1059,3 +1059,71 @@ coordinator, preserving one Apply/Reset surface.
 
 No visible transition selector is introduced in this phase. Presentation
 remains deferred to Phase 2B.7.4.
+
+## JC Holo transition control surface
+
+Phase 2B.7.4b adds a dedicated `WallpaperTransitionControl` immediately before
+Automatic Rotation in `WallpaperView`.
+
+The default compact surface exposes **Preset, Effect and Duration**. Effect
+and Duration both include an explicit `Inherit preset` choice so the UI keeps
+the DraftStore's nullable override semantics instead of replacing inherited
+state with an effective value.
+
+The header always shows the canonical observed result:
+
+```text
+Observed <preset -> resolved preset> · <effect> · <duration> · <FPS>
+```
+
+A Draft chip follows the same visual convention as Rotation. The frame also
+uses the draft state as its secondary JC Holo accent.
+
+FPS is intentionally treated as **Advanced**. The advanced row is collapsed
+by default to keep the 1080x820 Control Center compact, but remains visible
+when an FPS override already exists or the FPS draft is dirty. Practical FPS
+values are provided while preserving an externally configured custom value.
+
+Duration uses a compact combo rather than a slider. This keeps `inherit` a
+first-class selection and avoids adding a second toggle solely to distinguish
+preset ownership from a numeric override. Common transition durations are
+listed and an existing custom duration is preserved as an additional option.
+
+`WallpaperTransitionControl` is presentation-only. It emits selection signals;
+`WallpaperView` maps those signals to the existing `WallpaperDraftStore`
+setters. It has no Process, public CLI invocation, Apply service reference, or
+backend knowledge.
+
+The existing **single Apply/Reset** surface remains authoritative for
+Wallpaper, Transition and Rotation. No second transition-specific Apply or
+Reset action is introduced.
+
+Phase 2B.7.4 visual validation and polish follow after this structural control
+surface is exercised in the live Control Center.
+
+## Wallpapers hosted overflow
+
+Phase 2B.7.4c3 gives the Wallpapers module a hosted overflow model derived
+from the proven Displays pattern without nesting two vertical scroll owners
+over the wallpaper catalog.
+
+The upper wallpaper **settings Flickable** owns vertical overflow for preview
+cards, fit controls, Transition and Automatic Rotation. Its content height is
+the settings `ColumnLayout.implicitHeight`, so expanding Transition Advanced
+or adding future settings no longer forces Library through the Control Center
+footer.
+
+The Library header and **Library GridView** remain outside that Flickable.
+The catalog therefore keeps its own virtualized GridView and vertical
+scrollbar for hundreds of wallpapers. Settings scrolling and catalog
+scrolling have **separate vertical scroll ownership**.
+
+The Library gallery keeps a compact one-row-oriented viewport while its
+existing GridView scrollbar exposes the full catalog.
+
+`WallpaperTransitionControl` also retires fixed collapsed/Advanced height
+multipliers. Its root height is now **content-driven** from
+`transitionContent.implicitHeight` plus semantic margins, allowing ComboBox
+rows and the Advanced FPS row to stay inside the HUD naturally.
+
+No controls were shrunk and no mutation ownership changed.

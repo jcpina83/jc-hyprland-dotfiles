@@ -287,242 +287,363 @@ Item {
             }
         }
 
-        RowLayout {
+        Flickable {
+            id: wallpaperSettingsFlickable
+
             Layout.fillWidth: true
-            Layout.fillHeight: false
-
+            Layout.fillHeight: true
             Layout.minimumHeight:
-                root.theme.controlHeightLarge * 2.72
-            Layout.preferredHeight:
-                root.theme.controlHeightLarge * 2.72
-            Layout.maximumHeight:
-                root.theme.controlHeightLarge * 2.72
+                root.theme.controlHeightLarge * 4.60
 
-            spacing: root.theme.spaceMd
+            clip: true
 
-            WallpaperPreviewCard {
+            contentWidth: width
+            contentHeight: wallpaperSettingsColumn.implicitHeight
+
+            flickableDirection: Flickable.VerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            pixelAligned: true
+
+            ColumnLayout {
+                id: wallpaperSettingsColumn
+
+                width: wallpaperSettingsFlickable.width
+                spacing: root.theme.spaceMd
+
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.fillHeight: false
 
-                theme: root.theme
+                Layout.minimumHeight:
+                    root.theme.controlHeightLarge * 2.72
+                Layout.preferredHeight:
+                    root.theme.controlHeightLarge * 2.72
+                Layout.maximumHeight:
+                    root.theme.controlHeightLarge * 2.72
 
-                targetId: "main"
-                controlEnabled: !root.interactionLocked
-                outputName: root.wallpaperService
-                    ? root.wallpaperService.mainOutput
-                    : ""
-                wallpaperPath: root.draftStore
-                    ? root.draftStore.draftMainPath
-                    : ""
-                effectivePath: root.wallpaperService
-                    ? root.wallpaperService.mainEffective
-                    : ""
-                fitMode: root.draftStore
-                    ? root.draftStore.draftMainFit
-                    : "cover"
+                spacing: root.theme.spaceMd
 
-                targetSelected:
-                    root.draftStore
-                    && root.draftStore.selectedTarget === "main"
+                WallpaperPreviewCard {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
-                draftDirty:
-                    root.draftStore
-                    && root.draftStore.mainDirty
+                    theme: root.theme
 
-                onClicked: {
-                    if (root.draftStore)
+                    targetId: "main"
+                    controlEnabled: !root.interactionLocked
+                    outputName: root.wallpaperService
+                        ? root.wallpaperService.mainOutput
+                        : ""
+                    wallpaperPath: root.draftStore
+                        ? root.draftStore.draftMainPath
+                        : ""
+                    effectivePath: root.wallpaperService
+                        ? root.wallpaperService.mainEffective
+                        : ""
+                    fitMode: root.draftStore
+                        ? root.draftStore.draftMainFit
+                        : "cover"
+
+                    targetSelected:
+                        root.draftStore
+                        && root.draftStore.selectedTarget === "main"
+
+                    draftDirty:
+                        root.draftStore
+                        && root.draftStore.mainDirty
+
+                    onClicked: {
+                        if (root.draftStore)
+                            root.draftStore.selectTarget("main");
+                    }
+                }
+
+                WallpaperPreviewCard {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    theme: root.theme
+
+                    targetId: "secondary"
+                    controlEnabled: !root.interactionLocked
+                    outputName: root.wallpaperService
+                        ? root.wallpaperService.secondaryOutput
+                        : ""
+                    wallpaperPath: root.draftStore
+                        ? root.draftStore.draftSecondaryPath
+                        : ""
+                    effectivePath: root.wallpaperService
+                        ? root.wallpaperService.secondaryEffective
+                        : ""
+                    fitMode: root.draftStore
+                        ? root.draftStore.draftSecondaryFit
+                        : "cover"
+
+                    targetSelected:
+                        root.draftStore
+                        && root.draftStore.selectedTarget === "secondary"
+
+                    draftDirty:
+                        root.draftStore
+                        && root.draftStore.secondaryDirty
+
+                    onClicked: {
+                        if (root.draftStore)
+                            root.draftStore.selectTarget("secondary");
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.minimumHeight:
+                    root.theme.controlHeightLarge * 1.00
+                Layout.preferredHeight:
+                    root.theme.controlHeightLarge * 1.00
+                Layout.maximumHeight:
+                    root.theme.controlHeightLarge * 1.00
+
+                spacing: root.theme.spaceMd
+
+                WallpaperFitControl {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+
+                    theme: root.theme
+                    targetId: "main"
+                    outputName: root.wallpaperService
+                        ? root.wallpaperService.mainOutput
+                        : ""
+                    selectedFit: root.draftStore
+                        ? root.draftStore.draftMainFit
+                        : "cover"
+                    targetSelected:
+                        root.draftStore
+                        && root.draftStore.selectedTarget === "main"
+                    draftDirty:
+                        root.draftStore
+                        && root.draftStore.mainFitDirty
+                    controlEnabled: !root.interactionLocked
+
+                    onFitSelected: fitMode => {
+                        if (!root.draftStore)
+                            return;
+
                         root.draftStore.selectTarget("main");
+                        root.draftStore.setFit("main", fitMode);
+                    }
                 }
-            }
 
-            WallpaperPreviewCard {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                WallpaperFitControl {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
 
-                theme: root.theme
+                    theme: root.theme
+                    targetId: "secondary"
+                    outputName: root.wallpaperService
+                        ? root.wallpaperService.secondaryOutput
+                        : ""
+                    selectedFit: root.draftStore
+                        ? root.draftStore.draftSecondaryFit
+                        : "cover"
+                    targetSelected:
+                        root.draftStore
+                        && root.draftStore.selectedTarget === "secondary"
+                    draftDirty:
+                        root.draftStore
+                        && root.draftStore.secondaryFitDirty
+                    controlEnabled: !root.interactionLocked
 
-                targetId: "secondary"
-                controlEnabled: !root.interactionLocked
-                outputName: root.wallpaperService
-                    ? root.wallpaperService.secondaryOutput
-                    : ""
-                wallpaperPath: root.draftStore
-                    ? root.draftStore.draftSecondaryPath
-                    : ""
-                effectivePath: root.wallpaperService
-                    ? root.wallpaperService.secondaryEffective
-                    : ""
-                fitMode: root.draftStore
-                    ? root.draftStore.draftSecondaryFit
-                    : "cover"
+                    onFitSelected: fitMode => {
+                        if (!root.draftStore)
+                            return;
 
-                targetSelected:
-                    root.draftStore
-                    && root.draftStore.selectedTarget === "secondary"
-
-                draftDirty:
-                    root.draftStore
-                    && root.draftStore.secondaryDirty
-
-                onClicked: {
-                    if (root.draftStore)
                         root.draftStore.selectTarget("secondary");
+                        root.draftStore.setFit("secondary", fitMode);
+                    }
                 }
             }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.minimumHeight:
-                root.theme.controlHeightLarge * 1.00
-            Layout.preferredHeight:
-                root.theme.controlHeightLarge * 1.00
-            Layout.maximumHeight:
-                root.theme.controlHeightLarge * 1.00
-
-            spacing: root.theme.spaceMd
-
-            WallpaperFitControl {
+            WallpaperTransitionControl {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
 
                 theme: root.theme
-                targetId: "main"
-                outputName: root.wallpaperService
-                    ? root.wallpaperService.mainOutput
-                    : ""
-                selectedFit: root.draftStore
-                    ? root.draftStore.draftMainFit
-                    : "cover"
-                targetSelected:
-                    root.draftStore
-                    && root.draftStore.selectedTarget === "main"
+
+                controlEnabled:
+                    !root.interactionLocked
+                    && root.wallpaperService
+                    && root.wallpaperService.ready
+                    && root.draftStore
+                    && root.draftStore.initialized
+                    && !root.draftStore.observedChangedWhileDirty
+
                 draftDirty:
                     root.draftStore
-                    && root.draftStore.mainFitDirty
-                controlEnabled: !root.interactionLocked
+                    && root.draftStore.transitionDirty
 
-                onFitSelected: fitMode => {
-                    if (!root.draftStore)
-                        return;
+                fpsDirty:
+                    root.draftStore
+                    && root.draftStore.transitionFpsDirty
 
-                    root.draftStore.selectTarget("main");
-                    root.draftStore.setFit("main", fitMode);
+                presetValue:
+                    root.draftStore
+                        ? root.draftStore.draftTransitionPreset
+                        : "theme"
+
+                typeOverrideValue:
+                    root.draftStore
+                        ? root.draftStore.draftTransitionTypeOverride
+                        : null
+
+                durationOverrideValue:
+                    root.draftStore
+                        ? root.draftStore.draftTransitionDurationOverride
+                        : null
+
+                fpsOverrideValue:
+                    root.draftStore
+                        ? root.draftStore.draftTransitionFpsOverride
+                        : null
+
+                observedReady:
+                    root.wallpaperService
+                    && root.wallpaperService.ready
+
+                observedPreset:
+                    root.wallpaperService
+                        ? root.wallpaperService.transitionPreset
+                        : ""
+
+                observedResolvedPreset:
+                    root.wallpaperService
+                        ? root.wallpaperService.transitionResolvedPreset
+                        : ""
+
+                observedEffectiveType:
+                    root.wallpaperService
+                        ? root.wallpaperService.transitionEffectiveType
+                        : ""
+
+                observedEffectiveDuration:
+                    root.wallpaperService
+                        ? root.wallpaperService.transitionEffectiveDuration
+                        : 0
+
+                observedEffectiveFps:
+                    root.wallpaperService
+                        ? root.wallpaperService.transitionEffectiveFps
+                        : 0
+
+                onPresetSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setTransitionPreset(value);
+                }
+
+                onTypeSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setTransitionTypeOverride(value);
+                }
+
+                onDurationSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setTransitionDurationOverride(value);
+                }
+
+                onFpsSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setTransitionFpsOverride(value);
                 }
             }
 
-            WallpaperFitControl {
+            WallpaperRotationControl {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
 
                 theme: root.theme
-                targetId: "secondary"
-                outputName: root.wallpaperService
-                    ? root.wallpaperService.secondaryOutput
-                    : ""
-                selectedFit: root.draftStore
-                    ? root.draftStore.draftSecondaryFit
-                    : "cover"
-                targetSelected:
+
+                controlEnabled:
+                    !root.interactionLocked
+                    && root.wallpaperService
+                    && root.wallpaperService.ready
+                    && root.draftStore
+                    && root.draftStore.initialized
+                    && !root.draftStore.observedChangedWhileDirty
+
+                enabledValue:
                     root.draftStore
-                    && root.draftStore.selectedTarget === "secondary"
+                        ? root.draftStore.draftRotationEnabled
+                        : false
+
+                modeValue:
+                    root.draftStore
+                        ? root.draftStore.draftRotationMode
+                        : "next"
+
+                targetValue:
+                    root.draftStore
+                        ? root.draftStore.draftRotationTarget
+                        : "both"
+
+                intervalValue:
+                    root.draftStore
+                        ? root.draftStore.draftRotationInterval
+                        : "30m"
+
                 draftDirty:
                     root.draftStore
-                    && root.draftStore.secondaryFitDirty
-                controlEnabled: !root.interactionLocked
+                    && root.draftStore.rotationDirty
 
-                onFitSelected: fitMode => {
-                    if (!root.draftStore)
-                        return;
+                observedReady:
+                    root.wallpaperService
+                    && root.wallpaperService.ready
 
-                    root.draftStore.selectTarget("secondary");
-                    root.draftStore.setFit("secondary", fitMode);
+                observedEnabled:
+                    root.wallpaperService
+                    && root.wallpaperService.rotationEnabled
+
+                observedMode:
+                    root.wallpaperService
+                        ? root.wallpaperService.rotationMode
+                        : ""
+
+                observedTarget:
+                    root.wallpaperService
+                        ? root.wallpaperService.rotationTarget
+                        : ""
+
+                observedInterval:
+                    root.wallpaperService
+                        ? root.wallpaperService.rotationInterval
+                        : ""
+
+                runtimeSynchronized:
+                    root.wallpaperService
+                    && root.wallpaperService.rotationRuntimeSynchronized
+
+                onEnabledSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setRotationEnabled(value);
+                }
+
+                onModeSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setRotationMode(value);
+                }
+
+                onTargetSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setRotationTarget(value);
+                }
+
+                onIntervalSelected: value => {
+                    if (root.draftStore)
+                        root.draftStore.setRotationInterval(value);
                 }
             }
-        }
-
-        WallpaperRotationControl {
-            Layout.fillWidth: true
-
-            theme: root.theme
-
-            controlEnabled:
-                !root.interactionLocked
-                && root.wallpaperService
-                && root.wallpaperService.ready
-                && root.draftStore
-                && root.draftStore.initialized
-                && !root.draftStore.observedChangedWhileDirty
-
-            enabledValue:
-                root.draftStore
-                    ? root.draftStore.draftRotationEnabled
-                    : false
-
-            modeValue:
-                root.draftStore
-                    ? root.draftStore.draftRotationMode
-                    : "next"
-
-            targetValue:
-                root.draftStore
-                    ? root.draftStore.draftRotationTarget
-                    : "both"
-
-            intervalValue:
-                root.draftStore
-                    ? root.draftStore.draftRotationInterval
-                    : "30m"
-
-            draftDirty:
-                root.draftStore
-                && root.draftStore.rotationDirty
-
-            observedReady:
-                root.wallpaperService
-                && root.wallpaperService.ready
-
-            observedEnabled:
-                root.wallpaperService
-                && root.wallpaperService.rotationEnabled
-
-            observedMode:
-                root.wallpaperService
-                    ? root.wallpaperService.rotationMode
-                    : ""
-
-            observedTarget:
-                root.wallpaperService
-                    ? root.wallpaperService.rotationTarget
-                    : ""
-
-            observedInterval:
-                root.wallpaperService
-                    ? root.wallpaperService.rotationInterval
-                    : ""
-
-            runtimeSynchronized:
-                root.wallpaperService
-                && root.wallpaperService.rotationRuntimeSynchronized
-
-            onEnabledSelected: value => {
-                if (root.draftStore)
-                    root.draftStore.setRotationEnabled(value);
             }
 
-            onModeSelected: value => {
-                if (root.draftStore)
-                    root.draftStore.setRotationMode(value);
-            }
-
-            onTargetSelected: value => {
-                if (root.draftStore)
-                    root.draftStore.setRotationTarget(value);
-            }
-
-            onIntervalSelected: value => {
-                if (root.draftStore)
-                    root.draftStore.setRotationInterval(value);
+            Controls.ScrollBar.vertical: Controls.ScrollBar {
+                policy: Controls.ScrollBar.AsNeeded
+                interactive: true
             }
         }
 
@@ -583,9 +704,11 @@ Item {
 
         Components.JcSurface {
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.fillHeight: false
             Layout.minimumHeight:
                 root.theme.controlHeightLarge * 2.95
+            Layout.preferredHeight:
+                root.theme.controlHeightLarge * 3.35
 
             theme: root.theme
             surfaceRole: "glass"

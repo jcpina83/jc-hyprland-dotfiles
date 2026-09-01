@@ -1577,3 +1577,79 @@ semantics cover all three mutation domains.
 
 `Main.qml` owns and wires the three services. `WallpaperView` remains
 presentation-neutral with respect to transition controls until Phase 2B.7.4.
+
+## Phase 2B.7.4b Transition presentation ownership
+
+Transition presentation follows the same ownership split established for
+Rotation:
+
+```text
+WallpaperTransitionControl
+        |
+        | selection signals only
+        v
+WallpaperView
+        |
+        | setTransition...
+        v
+WallpaperDraftStore
+        |
+        | existing unified mutation path
+        v
+WallpaperMutationCoordinator
+```
+
+`WallpaperTransitionControl` is presentation-only. It receives draft values,
+observed effective values, dirty state and the common interaction lock as
+properties. It never receives `WallpaperTransitionApplyService` or the
+coordinator.
+
+The compact primary row contains Preset, Effect and Duration. An advanced FPS
+row is available without making FPS a primary everyday setting. Nullable
+Effect, Duration and FPS ownership is represented by the explicit
+`Inherit preset` presentation value and normalized by the existing DraftStore
+setters.
+
+Observed effective type/duration/FPS stay visible in the header so inherited
+behavior is never ambiguous.
+
+`WallpaperView` retains the single Apply/Reset surface and remains the only
+presentation bridge into DraftStore. The mutation composition implemented in
+Phase 2B.7.3 is unchanged.
+
+## Phase 2B.7.4c3 Wallpapers overflow ownership
+
+Wallpapers now separates two naturally independent vertical navigation
+domains:
+
+```text
+fixed module header / Apply / Reset / Refresh
+        |
+        v
+settings Flickable
+  preview + fit
+  Transition
+  Automatic Rotation
+        |
+        v
+fixed Library header
+        |
+        v
+Library GridView
+  virtualized catalog + own scrollbar
+```
+
+The **settings Flickable** follows the hosted-overflow principle already used
+by Displays: viewport clipping stays local and content height follows the
+settings column's implicit height.
+
+The **Library GridView** deliberately remains outside the settings Flickable.
+This avoids nested vertical scroll competition over a virtualized catalog of
+hundreds of items while keeping the catalog continuously reachable.
+
+Transition uses **content-driven geometry** rather than state-specific magic
+height multipliers. Collapsed and Advanced states are therefore consequences
+of their child layout, not separately tuned frame dimensions.
+
+The shell's `contentHost.clip` remains the final viewport boundary. No
+backend, draft, Apply, coordinator or runtime behavior changes in this phase.

@@ -6934,11 +6934,18 @@ else
     ok "Main contains no direct transition mutation"
 fi
 
-if grep -Fq 'WallpaperTransition' "$transition_apply_view"; then
-    fail "WallpaperView gained transition UI before Phase 2B.7.4"
-else
-    ok "WallpaperView remains transition-control free"
-fi
+for forbidden in \
+    'WallpaperTransitionApplyService' \
+    'transitionApplyService' \
+    'jc-wallpaperctl transition apply' \
+    'wallpaper-transition-manager'
+do
+    if grep -Fq -- "$forbidden" "$transition_apply_view"; then
+        fail "WallpaperView crossed transition Apply boundary: $forbidden"
+    else
+        ok "WallpaperView excludes transition Apply detail: $forbidden"
+    fi
+done
 
 for contract in \
     '## Transition Apply service' \
@@ -7061,11 +7068,18 @@ do
     fi
 done
 
-if grep -Fq 'WallpaperTransition' "$transition_coord_view"; then
-    fail "WallpaperView gained transition controls before Phase 2B.7.4"
-else
-    ok "WallpaperView still exposes only the unified Apply/Reset surface"
-fi
+for forbidden in \
+    'WallpaperTransitionApplyService' \
+    'transitionApplyService' \
+    'jc-wallpaperctl' \
+    'Process {'
+do
+    if grep -Fq -- "$forbidden" "$transition_coord_view"; then
+        fail "WallpaperView bypasses unified coordinator: $forbidden"
+    else
+        ok "WallpaperView preserves unified coordinator boundary: $forbidden"
+    fi
+done
 
 for contract in \
     '## Unified transition sequencing' \
@@ -7092,6 +7106,297 @@ do
         ok "Unified transition architecture: $contract"
     else
         fail "Unified transition architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.7.4b JC Holo transition control surface\n'
+
+transition_ui="$config_dir/modules/wallpapers/WallpaperTransitionControl.qml"
+transition_ui_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+transition_ui_draft="$config_dir/services/WallpaperDraftStore.qml"
+transition_ui_apply="$config_dir/services/WallpaperTransitionApplyService.qml"
+transition_ui_coord="$config_dir/services/WallpaperMutationCoordinator.qml"
+transition_ui_main="$config_dir/Main.qml"
+transition_ui_docs="$repo_root/docs/wallpaper-control.md"
+transition_ui_arch="$repo_root/docs/architecture.md"
+
+if [[ -f "$transition_ui" ]]; then
+    ok "WallpaperTransitionControl.qml"
+else
+    fail "WallpaperTransitionControl.qml missing"
+fi
+
+for contract in \
+    'property bool controlEnabled: true' \
+    'property bool draftDirty: false' \
+    'property bool fpsDirty: false' \
+    'property string presetValue: "theme"' \
+    'property var typeOverrideValue: null' \
+    'property var durationOverrideValue: null' \
+    'property var fpsOverrideValue: null' \
+    'property bool observedReady: false' \
+    'property string observedPreset: ""' \
+    'property string observedResolvedPreset: ""' \
+    'property string observedEffectiveType: ""' \
+    'property real observedEffectiveDuration: 0' \
+    'property int observedEffectiveFps: 0' \
+    'readonly property bool showAdvanced:' \
+    'signal presetSelected(string value)' \
+    'signal typeSelected(string value)' \
+    'signal durationSelected(string value)' \
+    'signal fpsSelected(string value)' \
+    '"label": "Inherit preset"' \
+    '"value": "inherit"' \
+    '"value": "cyber-noir"' \
+    '"value": "odyssey-glass"' \
+    '"value": "wave"' \
+    '"value": "wipe"' \
+    'function buildDurationOptions() {' \
+    'function buildFpsOptions() {' \
+    'text: "Wallpaper transition"' \
+    'text: root.observedSummary' \
+    'text: "Advanced"' \
+    'text: "Preset"' \
+    'text: "Effect"' \
+    'text: "Duration"' \
+    'text: "Transition FPS"'
+do
+    if grep -Fq -- "$contract" "$transition_ui"; then
+        ok "Transition UI contract: $contract"
+    else
+        fail "Transition UI contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-wallpaperctl' \
+    'WallpaperTransitionApplyService' \
+    'WallpaperMutationCoordinator' \
+    'wallpaper-transition-manager' \
+    'wallpaper.env' \
+    'WALLPAPER_TRANSITION_' \
+    'applyDirty()' \
+    'resetDraft()'
+do
+    if grep -Fq -- "$forbidden" "$transition_ui"; then
+        fail "Transition control crossed presentation boundary: $forbidden"
+    else
+        ok "Transition control excludes mutation detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'WallpaperTransitionControl {' \
+    'draftStore.transitionDirty' \
+    'draftStore.transitionFpsDirty' \
+    'draftStore.draftTransitionPreset' \
+    'draftStore.draftTransitionTypeOverride' \
+    'draftStore.draftTransitionDurationOverride' \
+    'draftStore.draftTransitionFpsOverride' \
+    'wallpaperService.transitionPreset' \
+    'wallpaperService.transitionResolvedPreset' \
+    'wallpaperService.transitionEffectiveType' \
+    'wallpaperService.transitionEffectiveDuration' \
+    'wallpaperService.transitionEffectiveFps' \
+    'draftStore.setTransitionPreset(value);' \
+    'draftStore.setTransitionTypeOverride(value);' \
+    'draftStore.setTransitionDurationOverride(value);' \
+    'draftStore.setTransitionFpsOverride(value);'
+do
+    if grep -Fq -- "$contract" "$transition_ui_view"; then
+        ok "WallpaperView transition presentation wiring: $contract"
+    else
+        fail "WallpaperView transition presentation wiring missing: $contract"
+    fi
+done
+
+if python3 - "$transition_ui_view" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+
+transition = text.find("WallpaperTransitionControl {")
+rotation = text.find("WallpaperRotationControl {")
+
+if transition < 0 or rotation < 0 or transition >= rotation:
+    raise SystemExit(
+        "WallpaperTransitionControl must remain directly before Rotation"
+    )
+
+if text.count('signal applyRequested()') != 1:
+    raise SystemExit("WallpaperView must keep exactly one Apply signal")
+
+if text.count('signal resetRequested()') != 1:
+    raise SystemExit("WallpaperView must keep exactly one Reset signal")
+PY
+then
+    ok "Transition block precedes Rotation and keeps one Apply/Reset surface"
+else
+    fail "Transition block placement or Apply/Reset surface changed"
+fi
+
+for contract in \
+    'function setTransitionPreset(preset): void {' \
+    'function setTransitionTypeOverride(value): void {' \
+    'function setTransitionDurationOverride(value): void {' \
+    'function setTransitionFpsOverride(value): void {'
+do
+    if grep -Fq -- "$contract" "$transition_ui_draft"; then
+        ok "Transition UI uses existing DraftStore API: $contract"
+    else
+        fail "Transition DraftStore setter missing: $contract"
+    fi
+done
+
+for file in \
+    "$transition_ui_apply" \
+    "$transition_ui_coord" \
+    "$transition_ui_main"
+do
+    if git diff --quiet HEAD -- "$file"; then
+        ok "2B.7.4b leaves mutation composition unchanged: $file"
+    else
+        fail "2B.7.4b unexpectedly changed mutation composition: $file"
+    fi
+done
+
+for contract in \
+    '## JC Holo transition control surface' \
+    'Preset, Effect and Duration' \
+    'Advanced' \
+    'FPS' \
+    'single Apply/Reset' \
+    'Phase 2B.7.4'
+do
+    if grep -Fq -- "$contract" "$transition_ui_docs"; then
+        ok "Transition UI documentation: $contract"
+    else
+        fail "Transition UI documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.4b Transition presentation ownership' \
+    'presentation-only' \
+    'WallpaperTransitionControl' \
+    'WallpaperDraftStore' \
+    'single Apply/Reset' \
+    'advanced FPS'
+do
+    if grep -Fq -- "$contract" "$transition_ui_arch"; then
+        ok "Transition UI architecture: $contract"
+    else
+        fail "Transition UI architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.7.4c3 Wallpapers hosted overflow\n'
+
+wallpaper_overflow_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+wallpaper_overflow_transition="$config_dir/modules/wallpapers/WallpaperTransitionControl.qml"
+wallpaper_overflow_docs="$repo_root/docs/wallpaper-control.md"
+wallpaper_overflow_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    'id: wallpaperSettingsFlickable' \
+    'Layout.fillHeight: true' \
+    'contentWidth: width' \
+    'contentHeight: wallpaperSettingsColumn.implicitHeight' \
+    'flickableDirection: Flickable.VerticalFlick' \
+    'boundsBehavior: Flickable.StopAtBounds' \
+    'id: wallpaperSettingsColumn' \
+    'width: wallpaperSettingsFlickable.width' \
+    'Controls.ScrollBar.vertical: Controls.ScrollBar {' \
+    'Layout.preferredHeight:' \
+    'root.theme.controlHeightLarge * 3.35'
+do
+    if grep -Fq -- "$contract" "$wallpaper_overflow_view"; then
+        ok "Wallpapers hosted-overflow contract: $contract"
+    else
+        fail "Wallpapers hosted-overflow contract missing: $contract"
+    fi
+done
+
+if python3 - "$wallpaper_overflow_view" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+
+flick = text.find("id: wallpaperSettingsFlickable")
+transition = text.find("WallpaperTransitionControl {")
+rotation = text.find("WallpaperRotationControl {")
+library = text.find('title: "Library"')
+grid = text.find("id: wallpaperGrid")
+
+if min(flick, transition, rotation, library, grid) < 0:
+    raise SystemExit(1)
+
+if not (flick < transition < rotation < library < grid):
+    raise SystemExit(1)
+
+settings_start = text.rfind("Flickable {", 0, flick)
+settings_slice = text[settings_start:library]
+
+if "GridView {" in settings_slice:
+    raise SystemExit(1)
+PY
+then
+    ok "Settings and Library keep separate vertical scroll ownership"
+else
+    fail "Settings/Library vertical scroll ownership regressed"
+fi
+
+for contract in \
+    'transitionContent.implicitHeight' \
+    '+ (root.theme.spaceMd * 2)' \
+    'id: transitionContent'
+do
+    if grep -Fq -- "$contract" "$wallpaper_overflow_transition"; then
+        ok "Transition natural geometry: $contract"
+    else
+        fail "Transition natural geometry missing: $contract"
+    fi
+done
+
+if grep -Fq \
+    'root.showAdvanced ? 4.08 : 2.34' \
+    "$wallpaper_overflow_transition"
+then
+    fail "Transition still uses magic collapsed/Advanced heights"
+else
+    ok "Transition magic collapsed/Advanced heights retired"
+fi
+
+for contract in \
+    '## Wallpapers hosted overflow' \
+    'settings Flickable' \
+    'Library GridView' \
+    'content-driven' \
+    'separate vertical scroll ownership'
+do
+    if grep -Fq -- "$contract" "$wallpaper_overflow_docs"; then
+        ok "Wallpapers overflow documentation: $contract"
+    else
+        fail "Wallpapers overflow documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.4c3 Wallpapers overflow ownership' \
+    'settings Flickable' \
+    'Library GridView' \
+    'content-driven geometry' \
+    'nested vertical scroll'
+do
+    if grep -Fq -- "$contract" "$wallpaper_overflow_arch"; then
+        ok "Wallpapers overflow architecture: $contract"
+    else
+        fail "Wallpapers overflow architecture missing: $contract"
     fi
 done
 
