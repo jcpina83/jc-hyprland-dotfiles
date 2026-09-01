@@ -119,18 +119,17 @@ Scope {
     readonly property bool hasWallpaperDirty:
         root.mainDirty || root.secondaryDirty
 
-    // `hasDirty` remains the set of domains already owned by the current
-    // Apply coordinator. Transition joins it in Phase 2B.7.3 when its Apply
-    // owner exists. `hasAnyDraftDirty` still protects transition drafts from
-    // observed refresh reconciliation in this foundation phase.
+    // All wallpaper mutation domains now have explicit Apply owners under the
+    // unified coordinator. Keep hasAnyDraftDirty as the refresh-protection
+    // semantic alias while hasDirty drives the single Apply/Reset surface.
     readonly property int dirtyCount:
         (root.mainDirty ? 1 : 0)
         + (root.secondaryDirty ? 1 : 0)
+        + (root.transitionDirty ? 1 : 0)
         + (root.rotationDirty ? 1 : 0)
 
     readonly property bool hasDirty: root.dirtyCount > 0
-    readonly property bool hasAnyDraftDirty:
-        root.hasDirty || root.transitionDirty
+    readonly property bool hasAnyDraftDirty: root.hasDirty
 
     signal changed()
     signal rotationChanged()

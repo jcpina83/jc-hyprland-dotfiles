@@ -6752,12 +6752,21 @@ do
 done
 
 if grep -Fq \
-    '+ (root.transitionDirty ? 1 : 0)' \
+    'readonly property bool transitionDirty:' \
     "$transition_draft"
 then
-    fail "Transition draft joined global dirtyCount before Apply ownership"
+    ok "Transition draft dirty ownership remains defined"
 else
-    ok "Transition draft remains outside global Apply dirtyCount in 2B.7.2c"
+    fail "Transition draft dirty ownership missing"
+fi
+
+if grep -Fq \
+    'readonly property bool hasAnyDraftDirty:' \
+    "$transition_draft"
+then
+    ok "Transition refresh-protection dirty contract remains defined"
+else
+    fail "Transition refresh-protection dirty contract missing"
 fi
 
 for contract in \
@@ -6820,6 +6829,269 @@ do
         ok "Transition draft architecture: $contract"
     else
         fail "Transition draft architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.7.3b transition Apply service\n'
+
+transition_apply_service="$config_dir/services/WallpaperTransitionApplyService.qml"
+transition_apply_draft="$config_dir/services/WallpaperDraftStore.qml"
+transition_apply_coordinator="$config_dir/services/WallpaperMutationCoordinator.qml"
+transition_apply_main="$config_dir/Main.qml"
+transition_apply_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+transition_apply_docs="$repo_root/docs/wallpaper-control.md"
+transition_apply_arch="$repo_root/docs/architecture.md"
+
+if [[ -f "$transition_apply_service" ]]; then
+    ok "WallpaperTransitionApplyService.qml"
+else
+    fail "WallpaperTransitionApplyService.qml missing"
+fi
+
+for contract in \
+    'property var wallpaperService' \
+    'property var draftStore' \
+    'property bool applying: false' \
+    'property bool awaitingRefresh: false' \
+    'property bool recoveryResetPending: false' \
+    'property bool rollbackRecoveryRequired: false' \
+    'readonly property bool canApply:' \
+    '&& root.draftStore.transitionDirty' \
+    'signal applied()' \
+    'signal rolledBack(string message)' \
+    'signal rollbackFailed(string message)' \
+    'signal failed(string message)' \
+    'function validateApply() {' \
+    'function buildApplyArguments() {' \
+    'function buildRecoveryArguments() {' \
+    'function responseMatchesDraft(response) {' \
+    'function observedMatchesStatus(response) {' \
+    'function applyDirty(): void {' \
+    'function resetDraft(): void {' \
+    '"transition",' \
+    '"apply"' \
+    '"--preset"' \
+    '"--type"' \
+    '"--duration"' \
+    '"--fps"' \
+    '? "inherit"' \
+    'args.push("--json");' \
+    'exitCode === 6' \
+    'exitCode === 7' \
+    'The recovery attempt rolled back successfully' \
+    'previously unverified runtime state' \
+    'root.draftStore.prepareForRefreshAfterTransitionApply();' \
+    'root.draftStore.resetTransition();' \
+    'function onTransitionChanged() {' \
+    'function onTransitionResetCompleted() {'
+do
+    if grep -Fq -- "$contract" "$transition_apply_service"; then
+        ok "Transition Apply service contract: $contract"
+    else
+        fail "Transition Apply service contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'wallpaper-transition-manager' \
+    'wallpaper.env' \
+    'WALLPAPER_TRANSITION_PRESET' \
+    '__INHERIT__' \
+    '__KEEP__'
+do
+    if grep -Fq -- "$forbidden" "$transition_apply_service"; then
+        fail "Transition Apply service crossed public boundary: $forbidden"
+    else
+        ok "Transition Apply service excludes backend detail: $forbidden"
+    fi
+done
+
+if grep -Fq \
+    'readonly property bool transitionDirty:' \
+    "$transition_apply_draft"
+then
+    ok "Transition draft ownership remains available to Apply service"
+else
+    fail "Transition draft ownership missing"
+fi
+
+for forbidden in \
+    'jc-wallpaperctl transition apply' \
+    'wallpaper-transition-manager' \
+    'wallpaper.env'
+do
+    if grep -Fq -- "$forbidden" "$transition_apply_coordinator"; then
+        fail "Coordinator crossed transition mutation boundary: $forbidden"
+    else
+        ok "Coordinator excludes transition mutation detail: $forbidden"
+    fi
+done
+
+if grep -Fq 'jc-wallpaperctl transition apply' "$transition_apply_main"; then
+    fail "Main crossed transition mutation boundary"
+else
+    ok "Main contains no direct transition mutation"
+fi
+
+if grep -Fq 'WallpaperTransition' "$transition_apply_view"; then
+    fail "WallpaperView gained transition UI before Phase 2B.7.4"
+else
+    ok "WallpaperView remains transition-control free"
+fi
+
+for contract in \
+    '## Transition Apply service' \
+    "Exit code \`6\`" \
+    "Exit code \`7\`" \
+    'Recovery Reset' \
+    'Only a successful recovery transaction' \
+    'does **not** clear recovery state' \
+    'Phase 2B.7.3c'
+do
+    if grep -Fq -- "$contract" "$transition_apply_docs"; then
+        ok "Transition Apply documentation: $contract"
+    else
+        fail "Transition Apply documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.3b Transition Apply ownership' \
+    'stable public transition mutation' \
+    'rollback exit-code' \
+    "Recovery is cleared only after an \`rc=0\`" \
+    "An \`rc=6\` during recovery remains recovery-required" \
+    'Phase 2B.7.3c'
+do
+    if grep -Fq -- "$contract" "$transition_apply_arch"; then
+        ok "Transition Apply architecture: $contract"
+    else
+        fail "Transition Apply architecture missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2B.7.3c unified transition coordinator\n'
+
+transition_coord_draft="$config_dir/services/WallpaperDraftStore.qml"
+transition_coord_service="$config_dir/services/WallpaperTransitionApplyService.qml"
+transition_coord="$config_dir/services/WallpaperMutationCoordinator.qml"
+transition_coord_main="$config_dir/Main.qml"
+transition_coord_view="$config_dir/modules/wallpapers/WallpaperView.qml"
+transition_coord_docs="$repo_root/docs/wallpaper-control.md"
+transition_coord_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    '+ (root.transitionDirty ? 1 : 0)' \
+    'readonly property bool hasAnyDraftDirty: root.hasDirty'
+do
+    if grep -Fq -- "$contract" "$transition_coord_draft"; then
+        ok "Transition dirty promotion: $contract"
+    else
+        fail "Transition dirty promotion missing: $contract"
+    fi
+done
+
+for contract in \
+    'property var transitionApplyService' \
+    'property bool sequenceTransitionPending: false' \
+    'root.transitionApplyService.applying' \
+    'root.transitionApplyService.awaitingRefresh' \
+    'root.transitionApplyService.busy' \
+    'root.transitionApplyService.rollbackRecoveryRequired' \
+    'root.draftStore.transitionDirty' \
+    '!root.transitionApplyService.canApply' \
+    'function startTransitionAfterWallpaper(): void {' \
+    'function startRotationAfterTransition(): void {' \
+    'root.transitionApplyService.applyDirty();' \
+    'const transitionDirty = root.draftStore.transitionDirty;' \
+    'root.sequenceTransitionPending = transitionDirty;' \
+    'root.recoveryResetOwner = "transition";' \
+    'function continueRecoveryResetAfterTransition(): void {' \
+    'target: root.transitionApplyService' \
+    'function onTransitionResetCompleted() {'
+do
+    if grep -Fq -- "$contract" "$transition_coord"; then
+        ok "Unified transition coordinator contract: $contract"
+    else
+        fail "Unified transition coordinator contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-wallpaperctl' \
+    'wallpaper-transition-manager' \
+    'wallpaper.env' \
+    'WALLPAPER_TRANSITION_'
+do
+    if grep -Fq -- "$forbidden" "$transition_coord"; then
+        fail "Coordinator bypasses mutation owner: $forbidden"
+    else
+        ok "Coordinator excludes mutation detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'wallpaperTransitionApplyServiceHandle:' \
+    'Services.WallpaperTransitionApplyService {' \
+    'id: wallpaperTransitionApplyService' \
+    'transitionApplyService: wallpaperTransitionApplyService' \
+    'applyService: root.wallpaperMutationCoordinatorHandle' \
+    'onApplyRequested: wallpaperMutationCoordinator.applyDirty()' \
+    'onResetRequested: wallpaperMutationCoordinator.resetDraft()'
+do
+    if grep -Fq -- "$contract" "$transition_coord_main"; then
+        ok "Main transition coordinator wiring: $contract"
+    else
+        fail "Main transition coordinator wiring missing: $contract"
+    fi
+done
+
+for contract in \
+    'readonly property bool canApply:' \
+    '&& root.draftStore.transitionDirty' \
+    'root.draftStore.prepareForRefreshAfterTransitionApply();'
+do
+    if grep -Fq -- "$contract" "$transition_coord_service"; then
+        ok "Transition Apply owner remains intact: $contract"
+    else
+        fail "Transition Apply owner contract missing: $contract"
+    fi
+done
+
+if grep -Fq 'WallpaperTransition' "$transition_coord_view"; then
+    fail "WallpaperView gained transition controls before Phase 2B.7.4"
+else
+    ok "WallpaperView still exposes only the unified Apply/Reset surface"
+fi
+
+for contract in \
+    '## Unified transition sequencing' \
+    'Wallpaper -> Transition -> Rotation' \
+    'first failing domain stops the sequence' \
+    'transitionDirty' \
+    'Phase 2B.7.4'
+do
+    if grep -Fq -- "$contract" "$transition_coord_docs"; then
+        ok "Unified transition documentation: $contract"
+    else
+        fail "Unified transition documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2B.7.3c Unified transition sequencing' \
+    'Wallpaper -> Transition -> Rotation' \
+    'recovery order' \
+    'single Apply/Reset surface' \
+    'Phase 2B.7.4'
+do
+    if grep -Fq -- "$contract" "$transition_coord_arch"; then
+        ok "Unified transition architecture: $contract"
+    else
+        fail "Unified transition architecture missing: $contract"
     fi
 done
 

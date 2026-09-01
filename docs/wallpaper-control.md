@@ -976,3 +976,86 @@ coordinator sequencing is introduced here.
 
 Phase 2B.7.3 will add the transition Apply owner and then promote
 `transitionDirty` into the single global Apply/Reset workflow.
+
+## Transition Apply service
+
+Phase 2B.7.3b introduces `WallpaperTransitionApplyService.qml` as the QML
+mutation owner for transition drafts. It invokes only the stable public
+`jc-wallpaperctl transition apply` API and contains no direct access to the
+internal transition manager or `wallpaper.env`.
+
+Dirty fields map independently:
+
+```text
+transitionPresetDirty    -> --preset <preset>
+transitionTypeDirty      -> --type <type|inherit>
+transitionDurationDirty  -> --duration <seconds|inherit>
+transitionFpsDirty       -> --fps <integer|inherit>
+                              + --json
+```
+
+A `null` draft override is translated back to the public `inherit` vocabulary.
+Successful transactions call
+`prepareForRefreshAfterTransitionApply()`, refresh `WallpaperService`, and
+emit `applied()` only after the observed transition snapshot matches the
+canonical status returned by the public CLI.
+
+The backend rollback exit contract is preserved across QML. Exit code `6`
+means rollback was verified, keeps the transition draft pending, and does not
+require recovery. Exit code `7` marks `rollbackRecoveryRequired` because the
+configured state was restored but runtime rollback could not be verified.
+
+Recovery Reset does not touch private backend state. The service re-applies
+the currently observed transition configuration through the same stable
+public API. Only a successful recovery transaction (`rc=0`) proceeds to an
+observed refresh and then `resetTransition()`.
+
+A recovery attempt returning exit code `6` does **not** clear recovery state.
+That code proves only that the failed recovery attempt rolled back to the
+runtime that existed before the attempt; after an earlier exit code `7`, that
+previous runtime is exactly the state whose correctness was not verified.
+
+This subphase does not yet add the service to `Main.qml`, does not promote
+`transitionDirty` into global `dirtyCount`, and does not change the unified
+coordinator. Those changes belong to Phase 2B.7.3c.
+
+## Unified transition sequencing
+
+Phase 2B.7.3c installs `WallpaperTransitionApplyService` into the existing
+single Apply/Reset workflow.
+
+The unified Apply order is:
+
+```text
+Wallpaper -> Transition -> Rotation
+```
+
+Each domain is skipped when it is clean. A transition-only draft therefore
+runs only `WallpaperTransitionApplyService`, and a rotation-only draft keeps
+the existing Rotation path. When multiple domains are dirty, each successful
+owner completes its authoritative observed refresh before the next owner is
+started.
+
+The first failing domain stops the sequence. Any later dirty domains remain
+pending and are not mutated implicitly.
+
+`transitionDirty` is now part of `WallpaperDraftStore.dirtyCount`, so
+`hasDirty` again describes every wallpaper mutation domain that has an
+installed Apply owner. `hasAnyDraftDirty` remains as the refresh-protection
+semantic alias and now resolves directly to `hasDirty`.
+
+Recovery Reset uses the same ownership order:
+
+```text
+Wallpaper recovery -> Transition recovery -> Rotation recovery -> draft reset
+```
+
+The coordinator understands service state only. It never invokes
+`jc-wallpaperctl`, reads `wallpaper.env`, or references an internal manager.
+
+`Main.qml` owns all three mutation services and injects them into
+`WallpaperMutationCoordinator`. `WallpaperView` still receives only that
+coordinator, preserving one Apply/Reset surface.
+
+No visible transition selector is introduced in this phase. Presentation
+remains deferred to Phase 2B.7.4.

@@ -143,6 +143,8 @@ Scope {
     readonly property var monitorServiceHandle: monitorService
     readonly property var wallpaperServiceHandle: wallpaperService
     readonly property var wallpaperApplyServiceHandle: wallpaperApplyService
+    readonly property var wallpaperTransitionApplyServiceHandle:
+        wallpaperTransitionApplyService
     readonly property var wallpaperRotationApplyServiceHandle:
         wallpaperRotationApplyService
     readonly property var wallpaperMutationCoordinatorHandle:
@@ -331,6 +333,13 @@ Scope {
         draftStore: wallpaperDraftStore
     }
 
+    Services.WallpaperTransitionApplyService {
+        id: wallpaperTransitionApplyService
+
+        wallpaperService: wallpaperService
+        draftStore: wallpaperDraftStore
+    }
+
     Services.WallpaperRotationApplyService {
         id: wallpaperRotationApplyService
 
@@ -344,6 +353,7 @@ Scope {
         wallpaperService: wallpaperService
         draftStore: wallpaperDraftStore
         wallpaperApplyService: wallpaperApplyService
+        transitionApplyService: wallpaperTransitionApplyService
         rotationApplyService: wallpaperRotationApplyService
     }
 

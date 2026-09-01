@@ -1498,3 +1498,82 @@ writing backend details into the DraftStore.
 
 Phase 2B.7.3 introduces that Apply owner, extends coordinator sequencing, and
 promotes transition dirty state into the global Apply contract.
+
+## Phase 2B.7.3b Transition Apply ownership
+
+`WallpaperTransitionApplyService` becomes the only QML owner allowed to
+translate transition draft state into the stable public transition mutation
+API.
+
+The service boundary is:
+
+```text
+WallpaperDraftStore
+        |
+        v
+WallpaperTransitionApplyService
+        |
+        v
+jc-wallpaperctl transition apply
+        |
+        v
+transactional transition backend
+```
+
+The QML service understands public arguments and the public rollback exit-code
+contract, but it does not know the internal transition manager, persistence
+format, mutation locks, or rollback implementation.
+
+After a successful transaction the service uses the transition-specific
+DraftStore reconcile hook and the canonical `WallpaperService` refresh before
+reporting completion. Recovery-required Reset re-applies the observed
+configured transition through the same public API so runtime can be
+re-established without bypassing ownership boundaries.
+
+Recovery is cleared only after an `rc=0` re-apply followed by observed
+refresh. An `rc=6` during recovery remains recovery-required: it verifies the
+rollback of the recovery attempt, not the correctness of the runtime that
+already existed after the earlier unverified rollback.
+
+Phase 2B.7.3b deliberately stops before composition and sequencing.
+`transitionDirty` remains outside global `dirtyCount`; `Main.qml`,
+`WallpaperMutationCoordinator` and `WallpaperView` are unchanged until
+Phase 2B.7.3c installs this owner into the unified workflow.
+
+## Phase 2B.7.3c Unified transition sequencing
+
+Transition joins the established mutation composition without creating a
+second user-facing workflow.
+
+```text
+WallpaperView
+    |
+    | single Apply / Reset
+    v
+WallpaperMutationCoordinator
+    |
+    +--> WallpaperApplyService
+    |
+    +--> WallpaperTransitionApplyService
+    |
+    +--> WallpaperRotationApplyService
+```
+
+For a multi-domain draft the coordinator uses the deterministic order
+`Wallpaper -> Transition -> Rotation`. Every owner reconciles observed state
+before the coordinator advances. A rollback, rollback-verification failure,
+validation failure, or refresh/reconcile failure stops the sequence at that
+domain.
+
+The recovery order mirrors mutation ownership:
+`Wallpaper -> Transition -> Rotation`. Recovery state is kept by the
+individual services; the coordinator only selects the next owner and never
+implements backend recovery itself.
+
+With the transition owner installed, `transitionDirty` is promoted into the
+global DraftStore dirty contract. The shell therefore continues to expose a
+single Apply/Reset surface whose `hasDirty`, busy, error, status and recovery
+semantics cover all three mutation domains.
+
+`Main.qml` owns and wires the three services. `WallpaperView` remains
+presentation-neutral with respect to transition controls until Phase 2B.7.4.

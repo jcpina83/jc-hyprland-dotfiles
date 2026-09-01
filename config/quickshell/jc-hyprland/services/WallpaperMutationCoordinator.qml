@@ -7,8 +7,10 @@ Scope {
     property var wallpaperService
     property var draftStore
     property var wallpaperApplyService
+    property var transitionApplyService
     property var rotationApplyService
 
+    property bool sequenceTransitionPending: false
     property bool sequenceRotationPending: false
     property string recoveryResetOwner: ""
     property string coordinatorErrorMessage: ""
@@ -16,24 +18,32 @@ Scope {
     readonly property bool applying:
         (root.wallpaperApplyService
             && root.wallpaperApplyService.applying)
+        || (root.transitionApplyService
+            && root.transitionApplyService.applying)
         || (root.rotationApplyService
             && root.rotationApplyService.applying)
 
     readonly property bool awaitingRefresh:
         (root.wallpaperApplyService
             && root.wallpaperApplyService.awaitingRefresh)
+        || (root.transitionApplyService
+            && root.transitionApplyService.awaitingRefresh)
         || (root.rotationApplyService
             && root.rotationApplyService.awaitingRefresh)
 
     readonly property bool busy:
         (root.wallpaperApplyService
             && root.wallpaperApplyService.busy)
+        || (root.transitionApplyService
+            && root.transitionApplyService.busy)
         || (root.rotationApplyService
             && root.rotationApplyService.busy)
 
     readonly property bool rollbackRecoveryRequired:
         (root.wallpaperApplyService
             && root.wallpaperApplyService.rollbackRecoveryRequired)
+        || (root.transitionApplyService
+            && root.transitionApplyService.rollbackRecoveryRequired)
         || (root.rotationApplyService
             && root.rotationApplyService.rollbackRecoveryRequired)
 
@@ -51,6 +61,14 @@ Scope {
                 && (
                     !root.wallpaperApplyService
                     || !root.wallpaperApplyService.canApply
+                )) {
+            return false;
+        }
+
+        if (root.draftStore.transitionDirty
+                && (
+                    !root.transitionApplyService
+                    || !root.transitionApplyService.canApply
                 )) {
             return false;
         }
@@ -75,6 +93,11 @@ Scope {
             return root.rotationApplyService.errorMessage;
         }
 
+        if (root.transitionApplyService
+                && root.transitionApplyService.errorMessage.length > 0) {
+            return root.transitionApplyService.errorMessage;
+        }
+
         if (root.wallpaperApplyService
                 && root.wallpaperApplyService.errorMessage.length > 0) {
             return root.wallpaperApplyService.errorMessage;
@@ -87,8 +110,17 @@ Scope {
         if (root.recoveryResetOwner === "wallpaper")
             return "Recovering wallpaper state before unified Reset…";
 
+        if (root.recoveryResetOwner === "transition")
+            return "Recovering transition state before unified Reset…";
+
         if (root.recoveryResetOwner === "rotation")
             return "Recovering rotation state before unified Reset…";
+
+        if (root.sequenceTransitionPending
+                && root.wallpaperApplyService
+                && root.wallpaperApplyService.busy) {
+            return "Applying wallpaper changes before transition…";
+        }
 
         if (root.sequenceRotationPending
                 && root.wallpaperApplyService
@@ -96,9 +128,20 @@ Scope {
             return "Applying wallpaper changes before rotation…";
         }
 
+        if (root.sequenceRotationPending
+                && root.transitionApplyService
+                && root.transitionApplyService.busy) {
+            return "Applying transition changes before rotation…";
+        }
+
         if (root.rotationApplyService
                 && root.rotationApplyService.busy) {
             return root.rotationApplyService.statusMessage;
+        }
+
+        if (root.transitionApplyService
+                && root.transitionApplyService.busy) {
+            return root.transitionApplyService.statusMessage;
         }
 
         if (root.wallpaperApplyService
@@ -120,6 +163,11 @@ Scope {
             root.wallpaperApplyService.clearTransientFeedback();
         }
 
+        if (root.transitionApplyService
+                && !root.transitionApplyService.rollbackRecoveryRequired) {
+            root.transitionApplyService.clearTransientFeedback();
+        }
+
         if (root.rotationApplyService
                 && !root.rotationApplyService.rollbackRecoveryRequired) {
             root.rotationApplyService.clearTransientFeedback();
@@ -127,7 +175,33 @@ Scope {
     }
 
     function stopSequence(): void {
+        root.sequenceTransitionPending = false;
         root.sequenceRotationPending = false;
+    }
+
+    function startTransitionAfterWallpaper(): void {
+        root.sequenceTransitionPending = false;
+
+        if (!root.draftStore || !root.draftStore.transitionDirty) {
+            if (root.sequenceRotationPending) {
+                Qt.callLater(function() {
+                    root.startRotationAfterWallpaper();
+                });
+            }
+            return;
+        }
+
+        if (!root.transitionApplyService
+                || !root.transitionApplyService.canApply) {
+            root.stopSequence();
+            root.coordinatorErrorMessage =
+                "Wallpaper changes were applied, but the pending "
+                + "transition draft could not start. Review the draft "
+                + "and Apply again.";
+            return;
+        }
+
+        root.transitionApplyService.applyDirty();
     }
 
     function startRotationAfterWallpaper(): void {
@@ -148,6 +222,24 @@ Scope {
         root.rotationApplyService.applyDirty();
     }
 
+    function startRotationAfterTransition(): void {
+        root.sequenceRotationPending = false;
+
+        if (!root.draftStore || !root.draftStore.rotationDirty)
+            return;
+
+        if (!root.rotationApplyService
+                || !root.rotationApplyService.canApply) {
+            root.coordinatorErrorMessage =
+                "Transition changes were applied, but the pending "
+                + "rotation draft could not start. Review the draft "
+                + "and Apply again.";
+            return;
+        }
+
+        root.rotationApplyService.applyDirty();
+    }
+
     function applyDirty(): void {
         if (root.busy || !root.draftStore)
             return;
@@ -158,11 +250,21 @@ Scope {
             return;
 
         const wallpaperDirty = root.draftStore.hasWallpaperDirty;
+        const transitionDirty = root.draftStore.transitionDirty;
         const rotationDirty = root.draftStore.rotationDirty;
 
         if (wallpaperDirty) {
+            root.sequenceTransitionPending = transitionDirty;
             root.sequenceRotationPending = rotationDirty;
             root.wallpaperApplyService.applyDirty();
+            return;
+        }
+
+        root.sequenceTransitionPending = false;
+
+        if (transitionDirty) {
+            root.sequenceRotationPending = rotationDirty;
+            root.transitionApplyService.applyDirty();
             return;
         }
 
@@ -174,6 +276,7 @@ Scope {
 
     function finishUnifiedReset(): void {
         root.recoveryResetOwner = "";
+        root.sequenceTransitionPending = false;
         root.sequenceRotationPending = false;
         root.coordinatorErrorMessage = "";
         root.clearTransientFeedback();
@@ -181,6 +284,31 @@ Scope {
 
     function continueRecoveryResetAfterWallpaper(): void {
         if (root.recoveryResetOwner !== "wallpaper")
+            return;
+
+        if (root.transitionApplyService
+                && root.transitionApplyService.rollbackRecoveryRequired) {
+            root.recoveryResetOwner = "transition";
+            Qt.callLater(function() {
+                root.transitionApplyService.resetDraft();
+            });
+            return;
+        }
+
+        if (root.rotationApplyService
+                && root.rotationApplyService.rollbackRecoveryRequired) {
+            root.recoveryResetOwner = "rotation";
+            Qt.callLater(function() {
+                root.rotationApplyService.resetDraft();
+            });
+            return;
+        }
+
+        root.finishUnifiedReset();
+    }
+
+    function continueRecoveryResetAfterTransition(): void {
+        if (root.recoveryResetOwner !== "transition")
             return;
 
         if (root.rotationApplyService
@@ -211,6 +339,7 @@ Scope {
         if (root.busy || !root.draftStore)
             return;
 
+        root.sequenceTransitionPending = false;
         root.sequenceRotationPending = false;
         root.coordinatorErrorMessage = "";
 
@@ -218,6 +347,13 @@ Scope {
                 && root.wallpaperApplyService.rollbackRecoveryRequired) {
             root.recoveryResetOwner = "wallpaper";
             root.wallpaperApplyService.resetDraft();
+            return;
+        }
+
+        if (root.transitionApplyService
+                && root.transitionApplyService.rollbackRecoveryRequired) {
+            root.recoveryResetOwner = "transition";
+            root.transitionApplyService.resetDraft();
             return;
         }
 
@@ -237,6 +373,13 @@ Scope {
         target: root.wallpaperApplyService
 
         function onApplied() {
+            if (root.sequenceTransitionPending) {
+                Qt.callLater(function() {
+                    root.startTransitionAfterWallpaper();
+                });
+                return;
+            }
+
             if (!root.sequenceRotationPending)
                 return;
 
@@ -259,10 +402,39 @@ Scope {
     }
 
     Connections {
+        target: root.transitionApplyService
+
+        function onApplied() {
+            if (!root.sequenceRotationPending)
+                return;
+
+            Qt.callLater(function() {
+                root.startRotationAfterTransition();
+            });
+        }
+
+        function onRolledBack() {
+            root.stopSequence();
+        }
+
+        function onRollbackFailed() {
+            root.stopSequence();
+        }
+
+        function onFailed() {
+            root.stopSequence();
+        }
+    }
+
+    Connections {
         target: root.draftStore
 
         function onResetCompleted() {
             root.continueRecoveryResetAfterWallpaper();
+        }
+
+        function onTransitionResetCompleted() {
+            root.continueRecoveryResetAfterTransition();
         }
 
         function onRotationResetCompleted() {
