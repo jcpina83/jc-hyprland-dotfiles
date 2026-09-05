@@ -9106,6 +9106,105 @@ do
     fi
 done
 
+printf '\n==> Phase 2D.1b Quick Settings observed-state service\n'
+
+quick_settings_service="$repo_root/config/quickshell/jc-hyprland/services/QuickSettingsService.qml"
+quick_settings_main="$repo_root/config/quickshell/jc-hyprland/Main.qml"
+quick_settings_doc="$repo_root/docs/quick-settings.md"
+
+if [[ -f "$quick_settings_service" ]]; then
+    ok "QuickSettingsService.qml exists"
+else
+    fail "missing QuickSettingsService.qml"
+fi
+
+for contract in \
+    'Scope {' \
+    'property bool dndAvailable: false' \
+    'property bool dndBackendInstalled: false' \
+    'property bool dndRunning: false' \
+    'property bool dndEnabled: false' \
+    'property bool lockAvailable: false' \
+    'property bool nightLightAvailable: false' \
+    'property bool nightLightRunning: false' \
+    'property bool nightLightManaged: false' \
+    'property var nightLightEnabled: null' \
+    'property bool suspendAvailable: false' \
+    'property bool loading: false' \
+    'property bool ready: false' \
+    'property string errorMessage: ""' \
+    'property string lastRefresh: ""' \
+    'signal refreshed()' \
+    'signal refreshFailed(string message)' \
+    'function quickSettingsCommandPath() {' \
+    'function validStatus(payload) {' \
+    'function commitSnapshot(payload) {' \
+    'function refresh(): void {' \
+    '"status",' \
+    '"--json"' \
+    'Process {' \
+    'StdioCollector {' \
+    'Component.onCompleted: root.refresh()'
+do
+    if grep -Fq -- "$contract" "$quick_settings_service"; then
+        ok "QuickSettingsService contract: $contract"
+    else
+        fail "QuickSettingsService contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'swaync-client' \
+    'hyprsunset' \
+    'lock-session.sh' \
+    'suspend-session.sh' \
+    'systemctl' \
+    '"dnd",' \
+    '"on",' \
+    '"off",'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_service"; then
+        fail "QuickSettingsService violates read-only boundary: $forbidden"
+    else
+        ok "QuickSettingsService excludes mutation/backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'readonly property var quickSettingsServiceHandle: quickSettingsService' \
+    'Services.QuickSettingsService {' \
+    'id: quickSettingsService'
+do
+    if grep -Fq -- "$contract" "$quick_settings_main"; then
+        ok "Main Quick Settings service wiring: $contract"
+    else
+        fail "Main Quick Settings service wiring missing: $contract"
+    fi
+done
+
+if grep -Fq -- \
+    '|| moduleId === "quick-settings";' \
+    "$quick_settings_main"
+then
+    fail "Phase 2D.1b must not enable Quick Settings navigation"
+else
+    ok "Phase 2D.1b keeps Quick Settings unavailable in Main"
+fi
+
+for contract in \
+    '## Phase 2D.1b — Observed-state service' \
+    "\`QuickSettingsService.qml\` is the read-only QML projection" \
+    'jc-quick-settings status --json' \
+    'quickSettingsServiceHandle' \
+    "The \`quick-settings\` navigation item remains disabled"
+do
+    if grep -Fq -- "$contract" "$quick_settings_doc"; then
+        ok "Quick Settings 2D.1b documentation: $contract"
+    else
+        fail "Quick Settings 2D.1b documentation missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

@@ -213,6 +213,7 @@ Scope {
         wallpaperMutationCoordinator
     readonly property var themeHandle: theme
     readonly property var themeServiceHandle: themeService
+    readonly property var quickSettingsServiceHandle: quickSettingsService
     readonly property var themeDraftStoreHandle: themeDraftStore
     readonly property var themeApplyServiceHandle: themeApplyService
 
@@ -400,6 +401,11 @@ Scope {
 
     Services.ThemeService {
         id: themeService
+    }
+
+
+    Services.QuickSettingsService {
+        id: quickSettingsService
     }
 
 

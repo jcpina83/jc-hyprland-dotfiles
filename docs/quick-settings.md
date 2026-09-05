@@ -121,3 +121,83 @@ Phase 2D.1a creates no `QuickSettingsView`, no `QuickSettingsService`, and no
 
 `quick-settings` remains disabled in the Control Center navigation until the
 observed/action services and module foundation exist.
+
+## Phase 2D.1b — Observed-state service
+
+`QuickSettingsService.qml` is the read-only QML projection of:
+
+```bash
+jc-quick-settings status --json
+```
+
+The service owns these observed domains:
+
+```text
+DND
+  available
+  backendInstalled
+  running
+  enabled
+  backend
+
+Lock
+  available
+  backend
+
+Night Light
+  available
+  running
+  managed
+  enabled
+  backend
+
+Suspend
+  available
+  backend
+```
+
+It also exposes the standard service lifecycle:
+
+```text
+loading
+ready
+errorMessage
+lastRefresh
+refreshed()
+refreshFailed(message)
+refresh()
+```
+
+The service validates the complete schema before committing an observed
+snapshot. Consumers therefore never receive a partially updated Quick Settings
+state.
+
+`Main.qml` owns one `QuickSettingsService` instance and exposes an explicit
+`quickSettingsServiceHandle` for future dynamically-instantiated Quick Settings
+views.
+
+### Read-only boundary
+
+`QuickSettingsService` may invoke only:
+
+```text
+jc-quick-settings status --json
+```
+
+It must not invoke:
+
+```text
+jc-quick-settings dnd on
+jc-quick-settings dnd off
+swaync-client
+hyprsunset
+lock-session.sh
+suspend-session.sh
+systemctl
+```
+
+Those operations belong outside the observed-state service.
+
+The `quick-settings` navigation item remains disabled in Phase 2D.1b. The
+module is enabled only after the action service and presentation foundation are
+both available.
