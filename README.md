@@ -353,9 +353,10 @@ jc-theme status --json
 jc-theme catalog --json
 ```
 
-The Control Center will consume these stable surfaces rather than parsing
+The Control Center consumes these stable surfaces rather than parsing
 human-oriented `jc-theme list` output or reading theme directories directly.
-See `docs/theme-control.md`.
+Phase 2C owns the complete observed → draft → transactional Apply →
+reconciliation lifecycle. See `docs/theme-control.md`.
 
 Useful commands:
 
@@ -897,6 +898,28 @@ make wallpaper-apply
 
 ---
 
+
+## Phase 2C — Themes (CLOSED)
+
+Phase 2C is complete. The Control Center now provides installed-theme
+discovery, live semantic previews, independent ACTIVE / DRAFT state,
+transactional Apply / rollback / recovery, Reset, keyboard-complete gallery
+navigation, and verified runtime reconciliation.
+
+The production UI was validated with the real round-trip:
+
+```text
+jc-holo -> cyber-noir -> jc-holo
+```
+
+Both transactions completed through the production QML path. Quickshell
+remained alive, Hyprland stayed clean, Waybar and SwayNC restarted under the
+transaction owner, runtime style hashes returned to the original baseline,
+and no theme/wallpaper mutation lock remained held.
+
+Phase 2C is **CLOSED**. The Control Center roadmap now advances to
+**Phase 2D — Quick Settings**.
+
 # Roadmap
 
 The project is evolving toward its first official stable release: **v1.0.0**.
@@ -966,13 +989,16 @@ Control Center.
   - transitions
   - automatic rotation
 
-- [ ] **Phase 2C — Themes** ← **NEXT**
+- [x] **Phase 2C — Themes**
   - installed theme discovery
   - live theme previews
-  - active theme state
-  - theme application
+  - active / draft theme state
+  - transactional theme application
+  - Reset / recovery semantics
+  - keyboard-complete gallery interaction
+  - verified visual/runtime round-trip
 
-- [ ] **Phase 2D — Quick Settings**
+- [ ] **Phase 2D — Quick Settings** ← **NEXT**
   - lock
   - Do Not Disturb
   - Night Light

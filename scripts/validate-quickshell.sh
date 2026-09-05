@@ -7466,7 +7466,8 @@ phase_2b_handoff_arch="$repo_root/docs/architecture.md"
 
 for contract in \
     '- [x] **Phase 2B — Wallpapers**' \
-    '- [ ] **Phase 2C — Themes** ← **NEXT**'
+    '- [x] **Phase 2C — Themes**' \
+    '- [ ] **Phase 2D — Quick Settings** ← **NEXT**'
 do
     if grep -Fq -- "$contract" "$phase_2b_handoff_readme"; then
         ok "Roadmap handoff README: $contract"
@@ -7476,12 +7477,12 @@ do
 done
 
 if grep -Fq -- \
-    '- [ ] **Phase 2B — Wallpapers** ← **NEXT**' \
+    '- [ ] **Phase 2C — Themes** ← **NEXT**' \
     "$phase_2b_handoff_readme"
 then
-    fail "README still marks Phase 2B as NEXT"
+    fail "README still marks Phase 2C as NEXT"
 else
-    ok "README no longer marks Phase 2B as NEXT"
+    ok "README no longer marks Phase 2C as NEXT"
 fi
 
 for contract in \
@@ -7499,7 +7500,8 @@ done
 
 for contract in \
     '├── Wallpapers  ✓ COMPLETE' \
-    '├── Themes      ← NEXT' \
+    '├── Themes      ✓ COMPLETE' \
+    '├── Quick Settings ← NEXT' \
     '## Phase 2B overall closure and Phase 2C handoff' \
     'installed theme discovery' \
     'live theme previews' \
@@ -8922,6 +8924,88 @@ do
         ok "Theme keyboard/focus architecture: $contract"
     else
         fail "Theme keyboard/focus architecture missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2C formal closure / Phase 2D handoff\n'
+
+phase_2c_closure_readme="$repo_root/README.md"
+phase_2c_closure_doc="$repo_root/docs/theme-control.md"
+phase_2c_closure_arch="$repo_root/docs/architecture.md"
+
+for contract in \
+    '- [x] **Phase 2C — Themes**' \
+    '- [ ] **Phase 2D — Quick Settings** ← **NEXT**' \
+    '## Phase 2C — Themes (CLOSED)' \
+    'Phase 2C is **CLOSED**'
+do
+    if grep -Fq -- "$contract" "$phase_2c_closure_readme"; then
+        ok "Phase 2C README closure: $contract"
+    else
+        fail "Phase 2C README closure missing: $contract"
+    fi
+done
+
+if grep -Fq -- \
+    '- [ ] **Phase 2C — Themes** ← **NEXT**' \
+    "$phase_2c_closure_readme"
+then
+    fail "README still marks Phase 2C as NEXT after formal closure"
+else
+    ok "README advances NEXT to Phase 2D"
+fi
+
+for contract in \
+    '## Phase 2C.2.7 — Visual / runtime E2E' \
+    'jc-holo -> cyber-noir -> jc-holo' \
+    '## Phase 2C.2.8 — Formal Themes closure' \
+    'Phase 2C — **Themes** is complete.' \
+    'Phase 2C is **CLOSED**' \
+    'Phase 2D — Quick Settings'
+do
+    if grep -Fq -- "$contract" "$phase_2c_closure_doc"; then
+        ok "Phase 2C Theme Control closure: $contract"
+    else
+        fail "Phase 2C Theme Control closure missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.7 Theme visual/runtime E2E evidence' \
+    '## Phase 2C final architecture and Phase 2D handoff (CLOSED)' \
+    'ThemeDraftStore' \
+    'ThemeApplyService' \
+    'jc-theme apply / recover --json' \
+    'Phase 2C is **CLOSED**' \
+    'Phase 2D — Quick Settings'
+do
+    if grep -Fq -- "$contract" "$phase_2c_closure_arch"; then
+        ok "Phase 2C architecture closure: $contract"
+    else
+        fail "Phase 2C architecture closure missing: $contract"
+    fi
+done
+
+for commit_id in \
+    '12c7c2c' \
+    '1571c84' \
+    'bdf057b' \
+    '86e147c' \
+    'd9ad4c9' \
+    '9f505fa' \
+    '4bed918' \
+    '9747844' \
+    '8fde591' \
+    'e02cefe' \
+    'd41eda1' \
+    'be91450' \
+    '51bea91' \
+    '2b230e1'
+do
+    if grep -Fq -- "$commit_id" "$phase_2c_closure_doc"; then
+        ok "Phase 2C closure commit recorded: $commit_id"
+    else
+        fail "Phase 2C closure commit missing: $commit_id"
     fi
 done
 

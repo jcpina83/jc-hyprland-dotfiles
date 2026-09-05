@@ -835,8 +835,8 @@ docs/displays-visual-redesign.md
 Phase 2B–2H
     Control Center modules
     ├── Wallpapers  ✓ COMPLETE
-    ├── Themes      ← NEXT
-    ├── Quick Settings
+    ├── Themes      ✓ COMPLETE
+    ├── Quick Settings ← NEXT
     ├── Performance / Hardware
     ├── Media / Audio
     ├── Network / Bluetooth
@@ -2215,3 +2215,111 @@ behavior is retained, overshoot is stopped at bounds, current-index changes use
 No mutation architecture changes in Phase 2C.2.6. Keyboard activation still
 stages a draft; `ThemeApplyService` remains the exclusive Apply/Recovery
 mutation boundary established in Phase 2C.2.5.
+
+## Phase 2C.2.7 Theme visual/runtime E2E evidence
+
+The final Theme UI was validated through the production QML mutation path,
+without diagnostic instrumentation.
+
+The accepted round-trip was:
+
+```text
+jc-holo -> cyber-noir -> jc-holo
+```
+
+The DRAFT / Reset gate first proved that staging and Reset do not mutate
+runtime identity or generated Waybar/SwayNC styles.
+
+The target Apply proved that persistent identity became `cyber-noir`, observed
+state was synchronized and valid, Quickshell remained alive, Hyprland stayed
+clean, Waybar and SwayNC restarted, wallpaper runtime remained verified, and
+no theme or wallpaper mutation lock remained held.
+
+The restore Apply proved the inverse transaction and exact return to the
+original `jc-holo` baseline, including active-theme bytes, symlink target and
+generated Waybar/SwayNC style hashes.
+
+Phase 2C.2.7 created no repository changes.
+
+## Phase 2C final architecture and Phase 2D handoff (CLOSED)
+
+Phase 2C — **Themes** is complete at the module level.
+
+Its final ownership graph is:
+
+```text
+Theme.qml
+  semantic visual tokens / active visual projection
+        ^
+        |
+ThemeService
+  authoritative observed state
+        |
+        v
+ThemeDraftStore
+  baseline + DRAFT + conflict/reconcile state
+        |
+        v
+ThemeView / ThemePreviewCard
+  presentation + keyboard/mouse interaction only
+        |
+        | Apply intent
+        v
+ThemeApplyService
+  QML mutation / recovery orchestration
+        |
+        v
+jc-theme apply / recover --json
+        |
+        v
+transactional theme backend
+        |
+        +--> persistent identity
+        +--> Hyprland
+        +--> wallpaper
+        +--> Waybar
+        +--> SwayNC
+        +--> auxiliary SDDM synchronization
+```
+
+The closure preserves these boundaries:
+
+- selection is draft-only until Apply;
+- Reset adopts authoritative observed state and performs no runtime mutation;
+- Recovery is separate from same-theme Apply and preserves a pending draft;
+- presentation QML owns no backend commands or machine-local files;
+- `ThemeService` remains read-only;
+- `ThemeApplyService` invokes only the stable public `jc-theme` boundary;
+- backend mutation remains transactional and verifies critical consumers before
+  commit;
+- successful Apply reconciles observed, baseline and draft state before the UI
+  returns to ready;
+- ACTIVE, DRAFT and keyboard-current remain independent visual concepts.
+
+Versioned Phase 2C commits:
+
+```text
+12c7c2c  stable Theme read API
+1571c84  observed ThemeService
+bdf057b  Theme draft state
+86e147c  transactional Apply backend
+d9ad4c9  mutation-lock inheritance fix
+9f505fa  explicit runtime recovery API
+4bed918  ThemeApplyService
+9747844  QML reserved-identifier compatibility fix
+8fde591  ThemeView foundation
+e02cefe  Theme preview cards
+d41eda1  ACTIVE / DRAFT selection
+be91450  visual token preview
+51bea91  Apply / Reset wiring
+2b230e1  keyboard / focus / scroll
+```
+
+The production E2E evidence validated `jc-holo -> cyber-noir -> jc-holo`,
+with final `jc-holo` identity synchronized and valid, runtime consumers
+healthy, mutation locks released and the versioned worktree unchanged.
+
+Phase 2C is **CLOSED**. New Theme capabilities must preserve these ownership
+boundaries rather than extending the closed contract implicitly.
+
+The global Control Center roadmap now advances to **Phase 2D — Quick Settings**.

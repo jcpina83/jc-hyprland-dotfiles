@@ -893,3 +893,81 @@ Keyboard activation remains draft-only. It calls the same `selectTheme()`
 path used by mouse selection and never invokes Apply automatically. Apply,
 Reset, Recover, and Refresh remain normal `JcButton` controls and keep their
 existing keyboard contract.
+
+## Phase 2C.2.7 — Visual / runtime E2E
+
+The production Themes module passed a full real-runtime round-trip:
+
+```text
+jc-holo -> cyber-noir -> jc-holo
+```
+
+Before mutation, DRAFT / Reset was verified as presentation/state-only:
+`cyber-noir` could be staged and Reset back to `jc-holo` without changing the
+active identity or generated Waybar/SwayNC style hashes.
+
+The target Apply was performed through the production `ThemeView` Apply
+surface. The resulting `cyber-noir` identity remained synchronized and valid,
+Quickshell stayed alive, Hyprland remained clean, Waybar and SwayNC restarted,
+and generated runtime styles changed to the target theme.
+
+The restore Apply was also performed through the production UI. The final
+`jc-holo` active file, active symlink and generated Waybar/SwayNC style hashes
+matched the original baseline exactly. Mutation-lock sentinels were acquirable
+after both transactions.
+
+The E2E finished on `HEAD=2b230e1` with a clean versioned worktree and no
+repository changes.
+
+## Phase 2C.2.8 — Formal Themes closure
+
+Phase 2C — **Themes** is complete.
+
+Delivered Theme Control capabilities are:
+
+- stable `status --json`, `catalog --json`, `apply --json` and `recover --json`
+  public boundaries;
+- authoritative observed Theme state;
+- independent baseline and DRAFT ownership;
+- transactional Apply with verified critical runtime consumers;
+- explicit rollback and recovery semantics;
+- Reset that never substitutes for runtime Recovery;
+- installed-theme preview cards and semantic token previews;
+- independent ACTIVE / DRAFT / keyboard-current presentation;
+- keyboard-complete GridView navigation with containment scrolling;
+- real visual/runtime round-trip evidence through production QML.
+
+The final UI ownership chain is:
+
+```text
+ThemeService
+    -> ThemeDraftStore
+    -> ThemeView
+    -> ThemeApplyService
+    -> jc-theme
+    -> transactional backend
+```
+
+`ThemeView` and `ThemePreviewCard` remain presentation-only.
+
+Closure commits:
+
+```text
+12c7c2c  stable read API
+1571c84  observed state
+bdf057b  draft state
+86e147c  transactional Apply backend
+d9ad4c9  mutation-lock inheritance fix
+9f505fa  runtime recovery API
+4bed918  QML Apply service
+9747844  reserved-identifier fix
+8fde591  ThemeView foundation
+e02cefe  preview cards
+d41eda1  ACTIVE / DRAFT selection
+be91450  token preview
+51bea91  Apply / Reset wiring
+2b230e1  keyboard / focus / scroll
+```
+
+Phase 2C is **CLOSED**. The next Control Center module is
+**Phase 2D — Quick Settings**.
