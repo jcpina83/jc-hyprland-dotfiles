@@ -259,6 +259,10 @@ ensure_symlink \
     "$bin_dir/jc-wallpaperctl"
 
 ensure_symlink \
+    "$repo_root/scripts/runtime/jc-quick-settings.sh" \
+    "$bin_dir/jc-quick-settings"
+
+ensure_symlink \
     "$repo_root/scripts/runtime/network-traffic.sh" \
     "$bin_dir/network-traffic.sh"
 
@@ -366,6 +370,10 @@ ensure_symlink \
 ensure_symlink \
     "$bin_dir/jc-wallpaperctl" \
     "$public_bin_dir/jc-wallpaperctl"
+
+ensure_symlink \
+    "$bin_dir/jc-quick-settings" \
+    "$public_bin_dir/jc-quick-settings"
 
 ensure_symlink \
     "$bin_dir/jc-theme" \
@@ -522,6 +530,7 @@ echo "  $public_bin_dir/jc-control-center"
 echo "  $public_bin_dir/jc-displayctl"
 echo "  $public_bin_dir/jc-displaycfg"
 echo "  $public_bin_dir/jc-wallpaperctl"
+echo "  $public_bin_dir/jc-quick-settings"
 echo "  $public_bin_dir/jc-theme"
 
 echo

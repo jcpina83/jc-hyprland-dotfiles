@@ -887,6 +887,12 @@ make theme-list
 make theme-current
 make theme-apply THEME=odyssey-glass
 
+# Quick Settings runtime API
+jc-quick-settings status --json
+jc-quick-settings dnd status --json
+jc-quick-settings dnd on --json
+jc-quick-settings dnd off --json
+
 # Waybar
 make waybar-test
 make waybar-stop
@@ -1101,6 +1107,7 @@ docs/
 ├── component-library.md
 ├── design-system.md
 ├── multi-monitor.md
+├── quick-settings.md
 └── screenshots/
 ```
 

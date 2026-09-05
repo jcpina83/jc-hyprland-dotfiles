@@ -9009,6 +9009,103 @@ do
     fi
 done
 
+printf '\n==> Phase 2D.1a stable Quick Settings runtime API\n'
+
+quick_settings_cli="$repo_root/scripts/runtime/jc-quick-settings.sh"
+quick_settings_doc="$repo_root/docs/quick-settings.md"
+quick_settings_installer="$repo_root/scripts/install.sh"
+quick_settings_readme="$repo_root/README.md"
+
+if [[ -x "$quick_settings_cli" ]]; then
+    ok "Quick Settings public API source is executable"
+else
+    fail "missing executable Quick Settings API source"
+fi
+
+for contract in \
+    'jc-quick-settings status [--json]' \
+    'jc-quick-settings dnd status [--json]' \
+    'jc-quick-settings dnd on [--json]' \
+    'jc-quick-settings dnd off [--json]' \
+    'schema_version=1' \
+    'swaync-client -D' \
+    'swaync-client -dn' \
+    'swaync-client -df' \
+    'backend: "swaync-client"' \
+    'managed: false' \
+    'backend: "hyprsunset"'
+do
+    if grep -Fq -- "$contract" "$quick_settings_cli"; then
+        ok "Quick Settings API contract: $contract"
+    else
+        fail "Quick Settings API contract missing: $contract"
+    fi
+done
+
+# `-d` is the toggle form. Match it as a standalone argument so valid
+# deterministic forms `-dn` and `-df` are not false positives.
+if grep -Eq -- \
+    'swaync-client[[:space:]]+-d([[:space:]]|$)' \
+    "$quick_settings_cli"
+then
+    fail "Phase 2D.1a API contains forbidden DND toggle mutation: swaync-client -d"
+else
+    ok "Phase 2D.1a API excludes standalone DND toggle mutation: swaync-client -d"
+fi
+
+for forbidden in \
+    'hyprctl hyprsunset' \
+    'systemctl --user start hyprsunset' \
+    'systemctl --user enable hyprsunset'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_cli"; then
+        fail "Phase 2D.1a API contains forbidden premature mutation: $forbidden"
+    else
+        ok "Phase 2D.1a API excludes: $forbidden"
+    fi
+done
+
+for contract in \
+    "\"\$repo_root/scripts/runtime/jc-quick-settings.sh\"" \
+    "\"\$bin_dir/jc-quick-settings\"" \
+    "\"\$public_bin_dir/jc-quick-settings\""
+do
+    if grep -Fq -- "$contract" "$quick_settings_installer"; then
+        ok "Quick Settings installer contract: $contract"
+    else
+        fail "Quick Settings installer contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '# Quick Settings Control' \
+    '## Phase 2D.1a — Stable runtime API' \
+    'There is no global Quick Settings draft and no global Apply button.' \
+    'managed=false' \
+    'Phase 2H' \
+    'quick-settings` remains disabled'
+do
+    if grep -Fq -- "$contract" "$quick_settings_doc"; then
+        ok "Quick Settings documentation contract: $contract"
+    else
+        fail "Quick Settings documentation contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'jc-quick-settings status --json' \
+    'jc-quick-settings dnd status --json' \
+    'jc-quick-settings dnd on --json' \
+    'jc-quick-settings dnd off --json' \
+    'quick-settings.md'
+do
+    if grep -Fq -- "$contract" "$quick_settings_readme"; then
+        ok "Quick Settings README contract: $contract"
+    else
+        fail "Quick Settings README contract missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then
