@@ -863,3 +863,33 @@ prevents the Control Center from closing through the existing transition lock.
 The Control Center status/footer now reports Theme-specific states including
 Apply, recovery, reconciliation, observed-state conflict, pending draft,
 refresh, and service errors.
+
+## Phase 2C.2.6 — Keyboard, focus, and scroll interaction
+
+The Themes gallery now follows the established Control Center gallery
+interaction model.
+
+`ThemeView` owns keyboard navigation at the `GridView` level:
+
+- Tab can move focus into the theme gallery.
+- Arrow keys use native `GridView` key navigation.
+- Enter, Return, or Space stages the current theme as the draft.
+- Home moves to the first theme and End moves to the last theme.
+- changing `currentIndex` keeps the focused card inside the visible viewport.
+- mouse selection updates `currentIndex` and transfers focus to the grid so
+  keyboard navigation can continue from the clicked card.
+- vertical wheel/drag scrolling remains enabled and an as-needed vertical
+  scrollbar exposes scroll position.
+
+The initial grid current item is normalized to the draft theme when one exists,
+otherwise to the observed active theme. This makes keyboard focus start from
+the most relevant state instead of an arbitrary catalog entry.
+
+`ThemePreviewCard` receives a presentation-only `keyboardCurrent` state and
+passes it to the canonical `JcSurface.focused` contract. Keyboard focus is
+therefore visually independent from the `ACTIVE` and `DRAFT` badges.
+
+Keyboard activation remains draft-only. It calls the same `selectTheme()`
+path used by mouse selection and never invokes Apply automatically. Apply,
+Reset, Recover, and Refresh remain normal `JcButton` controls and keep their
+existing keyboard contract.

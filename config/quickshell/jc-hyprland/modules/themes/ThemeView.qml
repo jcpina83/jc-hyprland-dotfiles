@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as Controls
 import qs.components as Components
 
 Item {
@@ -87,6 +88,57 @@ Item {
                     === "function") {
             root.applyService.clearTransientFeedback();
         }
+    }
+
+    function normalizeGridCurrentIndex(): void {
+        if (root.themes.length === 0) {
+            themeGrid.currentIndex = -1;
+            return;
+        }
+
+        const preferredThemeId =
+            root.draftThemeId.length > 0
+                ? root.draftThemeId
+                : root.activeThemeId;
+
+        if (preferredThemeId.length > 0) {
+            for (let index = 0; index < root.themes.length; ++index) {
+                const item = root.themes[index];
+                const itemThemeId =
+                    item
+                        ? String(item.id || "")
+                        : "";
+
+                if (itemThemeId === preferredThemeId) {
+                    themeGrid.currentIndex = index;
+                    return;
+                }
+            }
+        }
+
+        if (themeGrid.currentIndex < 0
+                || themeGrid.currentIndex >= root.themes.length) {
+            themeGrid.currentIndex = 0;
+        }
+    }
+
+    function activateCurrentGridItem(): void {
+        if (root.interactionLocked || root.observedConflict)
+            return;
+
+        const index = themeGrid.currentIndex;
+
+        if (index < 0 || index >= root.themes.length)
+            return;
+
+        const item = root.themes[index];
+        const themeId =
+            item
+                ? String(item.id || "")
+                : "";
+
+        if (themeId.length > 0)
+            root.selectTheme(themeId);
     }
 
     Column {
@@ -293,6 +345,18 @@ Item {
                 model: root.themes
                 visible: root.installedThemeCount > 0
 
+                activeFocusOnTab:
+                    !root.interactionLocked
+                    && !root.observedConflict
+
+                keyNavigationEnabled:
+                    !root.interactionLocked
+                    && !root.observedConflict
+
+                keyNavigationWraps: false
+                highlightFollowsCurrentItem: false
+                boundsBehavior: Flickable.StopAtBounds
+
                 readonly property int columnCount:
                     width >= 760 ? 2 : 1
 
@@ -326,13 +390,65 @@ Item {
                         themeId.length > 0
                         && themeId === root.draftThemeId
 
+                    keyboardCurrent:
+                        controlEnabled
+                        && themeGrid.activeFocus
+                        && index === themeGrid.currentIndex
+
                     controlEnabled:
                         !root.interactionLocked
                         && !root.observedConflict
 
-                    onSelected: themeId =>
-                        root.selectTheme(themeId)
+                    onSelected: themeId => {
+                        themeGrid.currentIndex = index;
+                        themeGrid.forceActiveFocus();
+                        root.selectTheme(themeId);
+                    }
                 }
+
+                onCountChanged:
+                    Qt.callLater(root.normalizeGridCurrentIndex)
+
+                onCurrentIndexChanged: {
+                    if (currentIndex >= 0)
+                        positionViewAtIndex(
+                            currentIndex,
+                            GridView.Contain
+                        );
+                }
+
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Return
+                            || event.key === Qt.Key_Enter
+                            || event.key === Qt.Key_Space) {
+                        root.activateCurrentGridItem();
+                        event.accepted = true;
+                        return;
+                    }
+
+                    if (event.key === Qt.Key_Home) {
+                        if (count > 0)
+                            currentIndex = 0;
+
+                        event.accepted = true;
+                        return;
+                    }
+
+                    if (event.key === Qt.Key_End) {
+                        if (count > 0)
+                            currentIndex = count - 1;
+
+                        event.accepted = true;
+                    }
+                }
+
+                Controls.ScrollBar.vertical: Controls.ScrollBar {
+                    policy: Controls.ScrollBar.AsNeeded
+                    interactive: true
+                }
+
+                Component.onCompleted:
+                    Qt.callLater(root.normalizeGridCurrentIndex)
             }
         }
     }

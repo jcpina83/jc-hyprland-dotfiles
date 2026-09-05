@@ -9,6 +9,7 @@ Item {
 
     property bool observedActive: false
     property bool draftSelected: false
+    property bool keyboardCurrent: false
     property bool controlEnabled: true
 
     signal selected(string themeId)
@@ -110,6 +111,7 @@ Item {
         theme: root.theme
         surfaceRole: "glass-raised"
         selected: root.draftSelected
+        focused: root.keyboardCurrent
         opacity:
             root.controlEnabled
                 ? 1

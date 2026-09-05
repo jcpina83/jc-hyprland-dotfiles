@@ -8811,6 +8811,120 @@ do
     fi
 done
 
+
+printf '\n==> Phase 2C.2.6 Theme keyboard / focus / scroll\n'
+
+phase_2c26_theme_view="$config_dir/modules/themes/ThemeView.qml"
+phase_2c26_theme_card="$config_dir/modules/themes/ThemePreviewCard.qml"
+phase_2c26_theme_doc="$repo_root/docs/theme-control.md"
+phase_2c26_arch="$repo_root/docs/architecture.md"
+
+# Literal grep -F contracts intentionally contain QML syntax.
+# shellcheck disable=SC2016
+for contract in \
+    'import QtQuick.Controls as Controls' \
+    'function normalizeGridCurrentIndex(): void {' \
+    'function activateCurrentGridItem(): void {' \
+    'activeFocusOnTab:' \
+    'keyNavigationEnabled:' \
+    'keyNavigationWraps: false' \
+    'highlightFollowsCurrentItem: false' \
+    'boundsBehavior: Flickable.StopAtBounds' \
+    'keyboardCurrent:' \
+    'themeGrid.activeFocus' \
+    'themeGrid.currentIndex' \
+    'themeGrid.forceActiveFocus();' \
+    'onCountChanged:' \
+    'Qt.callLater(root.normalizeGridCurrentIndex)' \
+    'onCurrentIndexChanged: {' \
+    'positionViewAtIndex(' \
+    'GridView.Contain' \
+    'Keys.onPressed: event => {' \
+    'event.key === Qt.Key_Return' \
+    'event.key === Qt.Key_Enter' \
+    'event.key === Qt.Key_Space' \
+    'event.key === Qt.Key_Home' \
+    'event.key === Qt.Key_End' \
+    'Controls.ScrollBar.vertical: Controls.ScrollBar {' \
+    'policy: Controls.ScrollBar.AsNeeded' \
+    'interactive: true' \
+    'Component.onCompleted:'
+do
+    if grep -Fq -- "$contract" "$phase_2c26_theme_view"; then
+        ok "Theme keyboard/focus/scroll contract: $contract"
+    else
+        fail "Theme keyboard/focus/scroll contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool keyboardCurrent: false' \
+    'focused: root.keyboardCurrent'
+do
+    if grep -Fq -- "$contract" "$phase_2c26_theme_card"; then
+        ok "Theme card keyboard focus contract: $contract"
+    else
+        fail "Theme card keyboard focus contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'activeFocusOnTab: root.controlEnabled' \
+    'Keys.onPressed: event =>' \
+    'forceActiveFocus()'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c26_theme_card"; then
+        fail "ThemePreviewCard became an independent keyboard focus owner: $forbidden"
+    else
+        ok "ThemePreviewCard remains a visual focus projection: $forbidden"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'FileView {' \
+    'jc-theme' \
+    'theme-transaction-manager' \
+    'local/active-theme' \
+    'hyprctl' \
+    'systemctl'
+do
+    if grep -Fq -- "$forbidden" "$phase_2c26_theme_view"; then
+        fail "Theme keyboard path bypasses service boundary: $forbidden"
+    else
+        ok "Theme keyboard path excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.6 — Keyboard, focus, and scroll interaction' \
+    'Arrow keys use native ' \
+    'Enter, Return, or Space stages the current theme as the draft.' \
+    'Home moves to the first theme and End moves to the last theme.' \
+    'receives a presentation-only ' \
+    'Keyboard activation remains draft-only.'
+do
+    if grep -Fq -- "$contract" "$phase_2c26_theme_doc"; then
+        ok "Theme keyboard/focus documentation: $contract"
+    else
+        fail "Theme keyboard/focus documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2C.2.6 Theme keyboard/focus/scroll architecture' \
+    'owns focus and current-index navigation.' \
+    'is only a visual projection of the grid' \
+    'keyboard focus remain three' \
+    'No mutation architecture changes in Phase 2C.2.6.'
+do
+    if grep -Fq -- "$contract" "$phase_2c26_arch"; then
+        ok "Theme keyboard/focus architecture: $contract"
+    else
+        fail "Theme keyboard/focus architecture missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

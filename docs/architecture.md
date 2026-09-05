@@ -2180,3 +2180,38 @@ the pending draft.
 The existing `controlCenterTransitionLocked` includes
 `ThemeApplyService.busy`, so navigation/close operations cannot interrupt a
 Theme Apply, Recovery, or observed-state reconciliation.
+
+## Phase 2C.2.6 Theme keyboard/focus/scroll architecture
+
+Theme gallery interaction keeps a single focus owner:
+
+```text
+Tab / Arrow / Home / End / Enter / Space
+                    |
+                    v
+             ThemeView.GridView
+               |          |
+        currentIndex    activation
+               |          |
+               v          v
+ThemePreviewCard     ThemeView.selectTheme()
+ keyboardCurrent              |
+       |                       v
+       v                ThemeDraftStore
+JcSurface.focused
+```
+
+The `GridView` owns focus and current-index navigation. Delegates do not become
+independent tab stops, which avoids nested or competing focus states.
+
+`ThemePreviewCard.keyboardCurrent` is only a visual projection of the grid's
+focus/current-index state. `ACTIVE`, `DRAFT`, and keyboard focus remain three
+independent concepts.
+
+Scrolling is also owned by the existing `GridView`: native vertical flick/wheel
+behavior is retained, overshoot is stopped at bounds, current-index changes use
+`GridView.Contain`, and a vertical `ScrollBar.AsNeeded` reports position.
+
+No mutation architecture changes in Phase 2C.2.6. Keyboard activation still
+stages a draft; `ThemeApplyService` remains the exclusive Apply/Recovery
+mutation boundary established in Phase 2C.2.5.
