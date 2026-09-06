@@ -5,6 +5,7 @@ wofi
 foot
 swaync
 hyprlock
+hyprsunset
 hypridle
 awww
 hyprpaper

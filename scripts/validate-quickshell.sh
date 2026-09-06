@@ -9041,7 +9041,6 @@ for contract in \
     'swaync-client -dn' \
     'swaync-client -df' \
     'backend: "swaync-client"' \
-    'managed: false' \
     'backend: "hyprsunset"'
 do
     if grep -Fq -- "$contract" "$quick_settings_cli"; then
@@ -9062,17 +9061,7 @@ else
     ok "Phase 2D.1a API excludes standalone DND toggle mutation: swaync-client -d"
 fi
 
-for forbidden in \
-    'hyprctl hyprsunset' \
-    'systemctl --user start hyprsunset' \
-    'systemctl --user enable hyprsunset'
-do
-    if grep -Fq -- "$forbidden" "$quick_settings_cli"; then
-        fail "Phase 2D.1a API contains forbidden premature mutation: $forbidden"
-    else
-        ok "Phase 2D.1a API excludes: $forbidden"
-    fi
-done
+# Phase 2D.2 now owns deterministic hyprsunset mutation in the runtime API.
 
 for contract in \
     "\"\$repo_root/scripts/runtime/jc-quick-settings.sh\"" \
@@ -9338,7 +9327,7 @@ for contract in \
     'root.dndRequested(value)' \
     'Components.JcSurface {' \
     'title: "Observed capabilities"' \
-    'Observed-only in Phase 2D.1d.'
+    'Lock and Suspend remain observed-only.'
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "QuickSettingsView contract: $contract"
@@ -9515,7 +9504,7 @@ for contract in \
     'root.quickSettingsService.lockAvailable' \
     'root.quickSettingsService.nightLightAvailable' \
     'root.quickSettingsService.suspendAvailable' \
-    'Observed-only in Phase 2D.1d.'
+    'Lock and Suspend remain observed-only.'
 do
     if grep -Fq -- "$contract" "$quick_settings_capability_view"; then
         ok "Quick Settings capability tile: $contract"
@@ -9539,7 +9528,6 @@ capability_read_only_ok=true
 
 for capability_tile_id in \
     lockCapabilityTile \
-    nightLightCapabilityTile \
     suspendCapabilityTile
 do
     if grep -A32 -F "id: $capability_tile_id" \
@@ -9569,6 +9557,175 @@ do
         ok "Observed capability tile documentation: $doc_contract"
     else
         fail "Observed capability tile documentation missing: $doc_contract"
+    fi
+done
+
+printf '\n==> Phase 2D.2 Night Light / hyprsunset\n'
+
+quick_settings_cli="$repo_root/scripts/runtime/jc-quick-settings.sh"
+quick_settings_action_service="$repo_root/config/quickshell/jc-hyprland/services/QuickSettingsActionService.qml"
+quick_settings_view="$repo_root/config/quickshell/jc-hyprland/modules/quicksettings/QuickSettingsView.qml"
+quick_settings_main="$repo_root/config/quickshell/jc-hyprland/Main.qml"
+quick_settings_doc="$repo_root/docs/quick-settings.md"
+quick_settings_readme="$repo_root/README.md"
+arch_packages="$repo_root/distros/arch/packages.txt"
+opensuse_packages="$repo_root/distros/opensuse/packages.txt"
+
+# These are literal source-code contracts; dollar signs must not expand.
+# shellcheck disable=SC2016
+for contract in \
+    'jc-quick-settings night-light status [--json]' \
+    'jc-quick-settings night-light on [--json]' \
+    'jc-quick-settings night-light off [--json]' \
+    'night_light_temperature=4500' \
+    'night_light_runtime_available() {' \
+    'read_night_light_identity() {' \
+    'read_night_light_state() {' \
+    'wait_for_night_light_ipc() {' \
+    'hyprctl hyprsunset identity get' \
+    'hyprctl hyprsunset temperature' \
+    'hyprctl hyprsunset identity false' \
+    'hyprctl hyprsunset identity true' \
+    'systemctl --user start "$night_light_service"' \
+    'capability: "night-light"' \
+    'managed: $nightLightManaged' \
+    'targetTemperature: $nightLightTemperature'
+do
+    if grep -Fq -- "$contract" "$quick_settings_cli"; then
+        ok "Night Light runtime API: $contract"
+    else
+        fail "Night Light runtime API missing: $contract"
+    fi
+done
+
+# Literal contract; no shell expansion is intended.
+# shellcheck disable=SC2016
+if grep -Fq 'systemctl --user enable "$night_light_service"' \
+    "$quick_settings_cli"
+then
+    fail "Night Light runtime API must not enable hyprsunset.service"
+else
+    ok "Night Light service is start-on-demand, not enabled by runtime API"
+fi
+
+for contract in \
+    'property bool applyingNightLight: false' \
+    'property bool awaitingNightLightRefresh: false' \
+    'readonly property bool canSetNightLight:' \
+    'signal nightLightApplied(bool desiredEnabled, bool stateChanged)' \
+    'function validNightLightAppliedResponse(payload, desiredEnabled) {' \
+    'function validateNightLightMutation() {' \
+    'function setNightLightEnabled(desiredEnabled): void {' \
+    'function finishNightLightObservedReconciliation(): void {' \
+    '"night-light",' \
+    'root.quickSettingsService.nightLightEnabled !== expected'
+do
+    if grep -Fq -- "$contract" "$quick_settings_action_service"; then
+        ok "Night Light action service: $contract"
+    else
+        fail "Night Light action service missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'hyprctl hyprsunset' \
+    'systemctl --user' \
+    'swaync-client'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_action_service"; then
+        fail "Night Light action service owns backend detail: $forbidden"
+    else
+        ok "Night Light action service excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'signal nightLightRequested(bool enabled)' \
+    'readonly property bool nightLightEnabled:' \
+    'readonly property bool nightLightControlEnabled:' \
+    'readonly property string nightLightStateLabel:' \
+    'controlEnabled:' \
+    'root.nightLightControlEnabled' \
+    'root.nightLightRequested(' \
+    'Lock and Suspend remain observed-only.'
+do
+    if grep -Fq -- "$contract" "$quick_settings_view"; then
+        ok "Night Light view contract: $contract"
+    else
+        fail "Night Light view contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'hyprctl hyprsunset' \
+    'systemctl --user' \
+    'jc-quick-settings'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_view"; then
+        fail "Night Light view owns backend detail: $forbidden"
+    else
+        ok "Night Light view excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'quickSettingsActionService.applyingNightLight' \
+    'quickSettingsActionService.awaitingNightLightRefresh' \
+    'quickSettingsService.nightLightEnabled === true' \
+    'onNightLightRequested: enabled =>' \
+    'quickSettingsActionService.setNightLightEnabled(enabled)' \
+    'Use Do Not Disturb and Night Light now.'
+do
+    if grep -Fq -- "$contract" "$quick_settings_main"; then
+        ok "Main Night Light orchestration: $contract"
+    else
+        fail "Main Night Light orchestration missing: $contract"
+    fi
+done
+
+if grep -Fxq 'hyprsunset' "$arch_packages"; then
+    ok "Arch/Garuda package manifest includes hyprsunset"
+else
+    fail "Arch/Garuda package manifest missing hyprsunset"
+fi
+
+if grep -Fxq 'hyprsunset' "$opensuse_packages"; then
+    fail "openSUSE manifest must not assume hyprsunset package parity"
+else
+    ok "openSUSE manifest remains unchanged for unverified hyprsunset packaging"
+fi
+
+# Markdown backticks are intentional literal documentation contracts.
+# shellcheck disable=SC2016
+for contract in \
+    '## Phase 2D.2 — Night Light / hyprsunset' \
+    'jc-quick-settings night-light status --json' \
+    'jc-quick-settings night-light on --json' \
+    'jc-quick-settings night-light off --json' \
+    'identity=false' \
+    'identity=true' \
+    '`4500 K`' \
+    'service is started on demand but is not enabled automatically' \
+    'Lock and Suspend remain observed-only' \
+    'openSUSE package manifest is intentionally unchanged'
+do
+    if grep -Fq -- "$contract" "$quick_settings_doc"; then
+        ok "Night Light documentation: $contract"
+    else
+        fail "Night Light documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '### Quick Settings — Phase 2D.2 Night Light' \
+    'jc-quick-settings night-light status --json' \
+    'jc-quick-settings night-light on --json' \
+    'jc-quick-settings night-light off --json'
+do
+    if grep -Fq -- "$contract" "$quick_settings_readme"; then
+        ok "Night Light README: $contract"
+    else
+        fail "Night Light README missing: $contract"
     fi
 done
 

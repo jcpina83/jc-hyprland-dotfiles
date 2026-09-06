@@ -6,15 +6,15 @@ Scope {
     id: root
 
     // -------------------------------------------------------------------------
-    // Phase 2D.1c — immediate Quick Settings mutation boundary.
+    // Phase 2D immediate Quick Settings mutation boundary.
     //
-    // This service may invoke only the stable public Quick Settings API:
+    // This service invokes only the stable public Quick Settings API:
     //
-    //   jc-quick-settings dnd on --json
-    //   jc-quick-settings dnd off --json
+    //   jc-quick-settings dnd on|off --json
+    //   jc-quick-settings night-light on|off --json
     //
-    // It never invokes SwayNC or any desktop backend directly. Successful and
-    // failed mutations are reconciled through QuickSettingsService.
+    // It never invokes desktop backends directly.
+    // Successful and failed mutations reconcile through QuickSettingsService.
     // -------------------------------------------------------------------------
 
     property var quickSettingsService
@@ -25,12 +25,21 @@ Scope {
     property bool pendingMutationSucceeded: false
     property bool pendingChanged: false
 
+    property bool applyingNightLight: false
+    property bool awaitingNightLightRefresh: false
+    property bool pendingNightLightEnabled: false
+    property bool pendingNightLightMutationSucceeded: false
+    property bool pendingNightLightChanged: false
+
     property string errorMessage: ""
     property string statusMessage: ""
     property var lastResult: null
 
     readonly property bool busy:
-        root.applyingDnd || root.awaitingRefresh
+        root.applyingDnd
+        || root.awaitingRefresh
+        || root.applyingNightLight
+        || root.awaitingNightLightRefresh
 
     readonly property bool canSetDnd:
         !root.busy
@@ -41,7 +50,16 @@ Scope {
         && root.quickSettingsService.dndBackendInstalled
         && root.quickSettingsService.dndRunning
 
+    readonly property bool canSetNightLight:
+        !root.busy
+        && root.quickSettingsService
+        && root.quickSettingsService.ready
+        && !root.quickSettingsService.loading
+        && root.quickSettingsService.nightLightAvailable
+        && root.quickSettingsService.nightLightManaged
+
     signal dndApplied(bool desiredEnabled, bool stateChanged)
+    signal nightLightApplied(bool desiredEnabled, bool stateChanged)
     signal failed(string message)
 
     function quickSettingsCommandPath() {
@@ -88,6 +106,24 @@ Scope {
             && payload.verified;
     }
 
+    function validNightLightAppliedResponse(payload, desiredEnabled) {
+        return payload
+            && Number(payload.schemaVersion) === 1
+            && payload.status === "applied"
+            && payload.capability === "night-light"
+            && typeof payload.requested === "boolean"
+            && typeof payload.enabled === "boolean"
+            && typeof payload.verified === "boolean"
+            && typeof payload.changed === "boolean"
+            && typeof payload.running === "boolean"
+            && typeof payload.managed === "boolean"
+            && typeof payload.backend === "string"
+            && payload.requested === desiredEnabled
+            && payload.enabled === desiredEnabled
+            && payload.verified
+            && payload.managed;
+    }
+
     function validateDndMutation() {
         if (!root.quickSettingsService)
             return "Quick Settings observed-state service is unavailable.";
@@ -106,6 +142,25 @@ Scope {
 
         if (!root.quickSettingsService.dndRunning)
             return "Do Not Disturb backend is not running.";
+
+        return "";
+    }
+
+    function validateNightLightMutation() {
+        if (!root.quickSettingsService)
+            return "Quick Settings observed-state service is unavailable.";
+
+        if (!root.quickSettingsService.ready)
+            return "Quick Settings observed state is not ready.";
+
+        if (root.quickSettingsService.loading)
+            return "Quick Settings observed state is still refreshing.";
+
+        if (!root.quickSettingsService.nightLightAvailable)
+            return "Night Light is unavailable.";
+
+        if (!root.quickSettingsService.nightLightManaged)
+            return "Night Light backend is detected but not managed.";
 
         return "";
     }
@@ -131,6 +186,23 @@ Scope {
         }
 
         root.awaitingRefresh = true;
+
+        if (!root.quickSettingsService.loading)
+            root.quickSettingsService.refresh();
+    }
+
+    function beginNightLightObservedReconciliation(): void {
+        if (!root.quickSettingsService) {
+            root.awaitingNightLightRefresh = false;
+            root.errorMessage =
+                "Quick Settings observed-state service is unavailable "
+                + "for Night Light reconciliation.";
+            root.statusMessage = "";
+            root.failed(root.errorMessage);
+            return;
+        }
+
+        root.awaitingNightLightRefresh = true;
 
         if (!root.quickSettingsService.loading)
             root.quickSettingsService.refresh();
@@ -169,6 +241,41 @@ Scope {
             "--json"
         ];
         dndProcess.running = true;
+    }
+
+    function setNightLightEnabled(desiredEnabled): void {
+        root.errorMessage = "";
+        root.statusMessage = "";
+        root.lastResult = null;
+
+        if (root.busy)
+            return;
+
+        const validationError = root.validateNightLightMutation();
+
+        if (validationError.length > 0) {
+            root.errorMessage = validationError;
+            root.failed(root.errorMessage);
+            return;
+        }
+
+        root.pendingNightLightEnabled = Boolean(desiredEnabled);
+        root.pendingNightLightMutationSucceeded = false;
+        root.pendingNightLightChanged = false;
+        root.applyingNightLight = true;
+
+        root.statusMessage =
+            root.pendingNightLightEnabled
+                ? "Enabling Night Light…"
+                : "Disabling Night Light…";
+
+        nightLightProcess.command = [
+            root.quickSettingsCommandPath(),
+            "night-light",
+            root.pendingNightLightEnabled ? "on" : "off",
+            "--json"
+        ];
+        nightLightProcess.running = true;
     }
 
     function finishObservedReconciliation(): void {
@@ -233,6 +340,132 @@ Scope {
         root.dndApplied(expected, changed);
     }
 
+    function finishNightLightObservedReconciliation(): void {
+        if (!root.awaitingNightLightRefresh)
+            return;
+
+        const mutationSucceeded = root.pendingNightLightMutationSucceeded;
+        const expected = root.pendingNightLightEnabled;
+        const changed = root.pendingNightLightChanged;
+
+        root.awaitingNightLightRefresh = false;
+        root.pendingNightLightMutationSucceeded = false;
+        root.pendingNightLightChanged = false;
+
+        if (!root.quickSettingsService
+                || !root.quickSettingsService.ready
+                || root.quickSettingsService.loading) {
+            root.errorMessage =
+                mutationSucceeded
+                    ? "Night Light mutation completed, but observed "
+                        + "state is not ready after refresh."
+                    : root.errorMessage;
+            root.statusMessage =
+                "Night Light observed-state reconciliation failed.";
+            root.failed(root.errorMessage);
+            return;
+        }
+
+        if (!mutationSucceeded) {
+            root.statusMessage =
+                "Night Light request failed; observed state refreshed.";
+            root.failed(
+                root.errorMessage.length > 0
+                    ? root.errorMessage
+                    : "Night Light mutation failed."
+            );
+            return;
+        }
+
+        if (!root.quickSettingsService.nightLightAvailable
+                || !root.quickSettingsService.nightLightManaged
+                || root.quickSettingsService.nightLightEnabled !== expected) {
+            const observed =
+                root.quickSettingsService.nightLightEnabled === null
+                    ? "<unknown>"
+                    : String(root.quickSettingsService.nightLightEnabled);
+
+            root.errorMessage =
+                "Night Light observed-state reconciliation failed. "
+                + "Expected " + String(expected)
+                + ", observed " + observed + ".";
+            root.statusMessage =
+                "Night Light state requires another refresh.";
+            root.failed(root.errorMessage);
+            return;
+        }
+
+        root.errorMessage = "";
+        root.statusMessage =
+            changed
+                ? "Night Light updated and observed state reconciled."
+                : "Night Light already matched the requested state.";
+
+        root.nightLightApplied(expected, changed);
+    }
+
+    function handleDndRefreshFailure(message): void {
+        if (!root.awaitingRefresh)
+            return;
+
+        const mutationSucceeded = root.pendingMutationSucceeded;
+
+        root.awaitingRefresh = false;
+        root.pendingMutationSucceeded = false;
+        root.pendingChanged = false;
+
+        if (mutationSucceeded) {
+            root.errorMessage =
+                "Do Not Disturb mutation was verified, but observed-state "
+                + "refresh failed: "
+                + String(message || "unknown error");
+        } else if (root.errorMessage.length === 0) {
+            root.errorMessage =
+                "Do Not Disturb mutation failed and observed-state "
+                + "refresh also failed: "
+                + String(message || "unknown error");
+        } else {
+            root.errorMessage +=
+                " Observed-state refresh also failed: "
+                + String(message || "unknown error");
+        }
+
+        root.statusMessage =
+            "Do Not Disturb state could not be reconciled.";
+        root.failed(root.errorMessage);
+    }
+
+    function handleNightLightRefreshFailure(message): void {
+        if (!root.awaitingNightLightRefresh)
+            return;
+
+        const mutationSucceeded = root.pendingNightLightMutationSucceeded;
+
+        root.awaitingNightLightRefresh = false;
+        root.pendingNightLightMutationSucceeded = false;
+        root.pendingNightLightChanged = false;
+
+        if (mutationSucceeded) {
+            root.errorMessage =
+                "Night Light mutation was verified, but observed-state "
+                + "refresh failed: "
+                + String(message || "unknown error");
+        } else if (root.errorMessage.length === 0) {
+            root.errorMessage =
+                "Night Light mutation failed and observed-state "
+                + "refresh also failed: "
+                + String(message || "unknown error");
+        } else {
+            root.errorMessage +=
+                " Observed-state refresh also failed: "
+                + String(message || "unknown error");
+        }
+
+        root.statusMessage =
+            "Night Light state could not be reconciled.";
+        root.failed(root.errorMessage);
+    }
+
     Process {
         id: dndProcess
 
@@ -294,45 +527,84 @@ Scope {
         }
     }
 
+    Process {
+        id: nightLightProcess
+
+        stdout: StdioCollector {
+            id: nightLightStdout
+        }
+
+        stderr: StdioCollector {
+            id: nightLightStderr
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const stdoutText = String(nightLightStdout.text || "").trim();
+            const stderrText = String(nightLightStderr.text || "").trim();
+            const response = root.parseResponse(stdoutText);
+
+            root.applyingNightLight = false;
+            root.lastResult = response;
+
+            if (exitCode !== 0) {
+                const details = stderrText.length > 0
+                    ? stderrText
+                    : stdoutText;
+
+                root.pendingNightLightMutationSucceeded = false;
+                root.pendingNightLightChanged = false;
+                root.errorMessage =
+                    "Night Light mutation failed"
+                    + (details.length > 0 ? ": " + details : "");
+                root.statusMessage =
+                    "Refreshing observed Night Light state…";
+                root.beginNightLightObservedReconciliation();
+                return;
+            }
+
+            if (!root.validNightLightAppliedResponse(
+                    response,
+                    root.pendingNightLightEnabled
+                )) {
+                root.pendingNightLightMutationSucceeded = false;
+                root.pendingNightLightChanged = false;
+                root.errorMessage =
+                    "Unexpected jc-quick-settings Night Light response: "
+                    + (stdoutText.length > 0 ? stdoutText : "<empty>");
+                root.statusMessage =
+                    "Refreshing observed Night Light state…";
+                root.beginNightLightObservedReconciliation();
+                return;
+            }
+
+            root.pendingNightLightMutationSucceeded = true;
+            root.pendingNightLightChanged = Boolean(response.changed);
+            root.errorMessage = "";
+            root.statusMessage =
+                "Night Light request verified. "
+                + "Refreshing observed state…";
+
+            root.beginNightLightObservedReconciliation();
+        }
+    }
+
     Connections {
         target: root.quickSettingsService
 
         function onRefreshed() {
-            if (!root.awaitingRefresh)
-                return;
+            if (root.awaitingRefresh)
+                Qt.callLater(root.finishObservedReconciliation);
 
-            Qt.callLater(root.finishObservedReconciliation);
+            if (root.awaitingNightLightRefresh)
+                Qt.callLater(root.finishNightLightObservedReconciliation);
         }
 
         function onRefreshFailed(message) {
-            if (!root.awaitingRefresh)
-                return;
+            if (root.awaitingRefresh)
+                root.handleDndRefreshFailure(message);
 
-            const mutationSucceeded = root.pendingMutationSucceeded;
-
-            root.awaitingRefresh = false;
-            root.pendingMutationSucceeded = false;
-            root.pendingChanged = false;
-
-            if (mutationSucceeded) {
-                root.errorMessage =
-                    "Do Not Disturb mutation was verified, but observed-state "
-                    + "refresh failed: "
-                    + String(message || "unknown error");
-            } else if (root.errorMessage.length === 0) {
-                root.errorMessage =
-                    "Do Not Disturb mutation failed and observed-state "
-                    + "refresh also failed: "
-                    + String(message || "unknown error");
-            } else {
-                root.errorMessage +=
-                    " Observed-state refresh also failed: "
-                    + String(message || "unknown error");
-            }
-
-            root.statusMessage =
-                "Do Not Disturb state could not be reconciled.";
-            root.failed(root.errorMessage);
+            if (root.awaitingNightLightRefresh)
+                root.handleNightLightRefreshFailure(message);
         }
     }
 }

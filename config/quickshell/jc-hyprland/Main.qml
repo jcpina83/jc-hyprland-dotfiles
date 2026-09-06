@@ -67,8 +67,13 @@ Scope {
             if (quickSettingsActionService.applyingDnd)
                 return "Updating Do Not Disturb…";
 
-            if (quickSettingsActionService.awaitingRefresh)
+            if (quickSettingsActionService.applyingNightLight)
+                return "Updating Night Light…";
+
+            if (quickSettingsActionService.awaitingRefresh
+                    || quickSettingsActionService.awaitingNightLightRefresh) {
                 return "Reconciling Quick Settings…";
+            }
 
             if (quickSettingsActionService.errorMessage.length > 0)
                 return "Quick Settings action error";
@@ -79,10 +84,15 @@ Scope {
             if (quickSettingsService.errorMessage.length > 0)
                 return "Quick Settings service error";
 
-            if (quickSettingsService.ready)
-                return quickSettingsService.dndEnabled
-                    ? "Do Not Disturb enabled"
-                    : "Quick Settings ready";
+            if (quickSettingsService.ready) {
+                if (quickSettingsService.dndEnabled)
+                    return "Do Not Disturb enabled";
+
+                if (quickSettingsService.nightLightEnabled === true)
+                    return "Night Light enabled";
+
+                return "Quick Settings ready";
+            }
         }
 
         if (root.activeModuleId === "wallpapers") {
@@ -183,8 +193,8 @@ Scope {
                 return quickSettingsService.errorMessage;
 
             if (quickSettingsService.ready) {
-                return "Use Do Not Disturb now. Lock, Night Light and "
-                    + "Suspend remain observed-only in this foundation.";
+                return "Use Do Not Disturb and Night Light now. "
+                    + "Lock and Suspend remain observed-only.";
             }
 
             return "Waiting for Quick Settings observed state.";
@@ -618,6 +628,8 @@ Scope {
             onRefreshRequested: quickSettingsService.refresh()
             onDndRequested: enabled =>
                 quickSettingsActionService.setDndEnabled(enabled)
+            onNightLightRequested: enabled =>
+                quickSettingsActionService.setNightLightEnabled(enabled)
         }
     }
 

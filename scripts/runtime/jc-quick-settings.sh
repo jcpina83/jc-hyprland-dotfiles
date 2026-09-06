@@ -7,6 +7,9 @@ json_output=false
 base="${XDG_CONFIG_HOME:-$HOME/.config}/jc-hyprland-dotfiles"
 repo="$base/repo"
 
+night_light_service="hyprsunset.service"
+night_light_temperature=4500
+
 usage() {
     cat <<'USAGE'
 Usage:
@@ -14,13 +17,25 @@ Usage:
   jc-quick-settings dnd status [--json]
   jc-quick-settings dnd on [--json]
   jc-quick-settings dnd off [--json]
+  jc-quick-settings night-light status [--json]
+  jc-quick-settings night-light on [--json]
+  jc-quick-settings night-light off [--json]
   jc-quick-settings --help
 
-Stable Phase 2D.1a contract:
-  status       Observed Quick Settings capability state.
-  dnd status   Read SwayNC Do Not Disturb state.
-  dnd on       Enable Do Not Disturb and verify observed state.
-  dnd off      Disable Do Not Disturb and verify observed state.
+Stable Quick Settings contract:
+  status              Observed Quick Settings capability state.
+  dnd status          Read SwayNC Do Not Disturb state.
+  dnd on              Enable Do Not Disturb and verify observed state.
+  dnd off             Disable Do Not Disturb and verify observed state.
+  night-light status  Read managed hyprsunset state.
+  night-light on      Start hyprsunset on demand, apply 4500 K and verify.
+  night-light off     Restore the neutral identity matrix and verify.
+
+Night Light lifecycle:
+  hyprsunset.service is started on demand and is never enabled by this CLI.
+  A stopped service is observed as Night Light off.
+  A running service is read through: hyprctl hyprsunset identity get.
+  identity=false means Night Light on; identity=true means Night Light off.
 
 Exit codes:
   0  success
@@ -95,6 +110,77 @@ read_dnd_state() {
     esac
 }
 
+night_light_runtime_available() {
+    command_available hyprsunset \
+        && command_available hyprctl \
+        && command_available systemctl \
+        && systemctl --user cat "$night_light_service" \
+            --no-pager >/dev/null 2>&1
+}
+
+night_light_running() {
+    systemctl --user is-active --quiet \
+        "$night_light_service" 2>/dev/null
+}
+
+read_night_light_identity() {
+    night_light_runtime_available || return 3
+    night_light_running || return 4
+
+    local value
+    value="$(
+        hyprctl hyprsunset identity get 2>/dev/null \
+            | tr -d '\r' \
+            | tail -n 1
+    )"
+
+    case "$value" in
+        true|false)
+            printf '%s\n' "$value"
+            ;;
+        *)
+            return 4
+            ;;
+    esac
+}
+
+read_night_light_state() {
+    night_light_runtime_available || return 3
+
+    if ! night_light_running; then
+        printf 'false\n'
+        return 0
+    fi
+
+    local identity
+    identity="$(read_night_light_identity)" || return 4
+
+    if [[ "$identity" == "true" ]]; then
+        printf 'false\n'
+    else
+        printf 'true\n'
+    fi
+}
+
+wait_for_night_light_ipc() {
+    local identity=""
+
+    for _ in 1 2 3 4 5 6 7 8 9 10 \
+             11 12 13 14 15 16 17 18 19 20 \
+             21 22 23 24 25 26 27 28 29 30
+    do
+        identity="$(read_night_light_identity 2>/dev/null || true)"
+
+        if [[ "$identity" == "true" || "$identity" == "false" ]]; then
+            return 0
+        fi
+
+        sleep 0.10
+    done
+
+    return 1
+}
+
 status_json() {
     local dnd_binary=false
     local dnd_running=false
@@ -108,7 +194,9 @@ status_json() {
     local suspend_available=false
 
     local night_light_available=false
-    local night_light_running=false
+    local night_light_running_state=false
+    local night_light_managed=false
+    local night_light_enabled=""
 
     if command_available swaync-client; then
         dnd_binary=true
@@ -138,12 +226,17 @@ status_json() {
         suspend_available=true
     fi
 
-    if command_available hyprsunset; then
+    if night_light_runtime_available; then
         night_light_available=true
-    fi
+        night_light_managed=true
 
-    if process_running hyprsunset; then
-        night_light_running=true
+        if night_light_running; then
+            night_light_running_state=true
+        fi
+
+        night_light_enabled="$(
+            read_night_light_state 2>/dev/null || true
+        )"
     fi
 
     jq -n \
@@ -157,7 +250,10 @@ status_json() {
         --argjson suspendAvailable "$suspend_available" \
         --arg suspendBackend "suspend-session.sh" \
         --argjson nightLightAvailable "$night_light_available" \
-        --argjson nightLightRunning "$night_light_running" \
+        --argjson nightLightRunning "$night_light_running_state" \
+        --argjson nightLightManaged "$night_light_managed" \
+        --argjson nightLightEnabled "$(bool_json "$night_light_enabled")" \
+        --argjson nightLightTemperature "$night_light_temperature" \
         '{
             schemaVersion: $schemaVersion,
             status: "ok",
@@ -176,8 +272,9 @@ status_json() {
                 nightLight: {
                     available: $nightLightAvailable,
                     running: $nightLightRunning,
-                    managed: false,
-                    enabled: null,
+                    managed: $nightLightManaged,
+                    enabled: $nightLightEnabled,
+                    targetTemperature: $nightLightTemperature,
                     backend: "hyprsunset"
                 },
                 suspend: {
@@ -200,6 +297,7 @@ status_human() {
             else "unavailable"
             end
         ' <<< "$payload")"
+
     printf '  Lock:        %s\n' \
         "$(jq -r '
             if .capabilities.lock.available
@@ -207,13 +305,19 @@ status_human() {
             else "unavailable"
             end
         ' <<< "$payload")"
+
     printf '  Night Light: %s\n' \
         "$(jq -r '
-            if .capabilities.nightLight.available
-            then "detected (unmanaged in Phase 2D.1a)"
-            else "unavailable"
+            if !.capabilities.nightLight.available
+            then "unavailable"
+            elif !.capabilities.nightLight.managed
+            then "unmanaged"
+            elif .capabilities.nightLight.enabled
+            then "on"
+            else "off"
             end
         ' <<< "$payload")"
+
     printf '  Suspend:     %s\n' \
         "$(jq -r '
             if .capabilities.suspend.available
@@ -405,6 +509,321 @@ apply_dnd() {
     fi
 }
 
+night_light_status_json() {
+    local state=""
+    local running=false
+
+    if ! night_light_runtime_available; then
+        jq -n \
+            --argjson schemaVersion "$schema_version" \
+            --argjson targetTemperature "$night_light_temperature" \
+            '{
+                schemaVersion: $schemaVersion,
+                status: "unavailable",
+                capability: "night-light",
+                available: false,
+                running: false,
+                managed: false,
+                enabled: null,
+                targetTemperature: $targetTemperature,
+                backend: "hyprsunset"
+            }'
+        exit 3
+    fi
+
+    if night_light_running; then
+        running=true
+    fi
+
+    if ! state="$(read_night_light_state)"; then
+        jq -n \
+            --argjson schemaVersion "$schema_version" \
+            --argjson running "$running" \
+            --argjson targetTemperature "$night_light_temperature" \
+            '{
+                schemaVersion: $schemaVersion,
+                status: "failed",
+                capability: "night-light",
+                available: true,
+                running: $running,
+                managed: true,
+                enabled: null,
+                targetTemperature: $targetTemperature,
+                backend: "hyprsunset"
+            }'
+        exit 4
+    fi
+
+    jq -n \
+        --argjson schemaVersion "$schema_version" \
+        --argjson running "$running" \
+        --argjson enabled "$state" \
+        --argjson targetTemperature "$night_light_temperature" \
+        '{
+            schemaVersion: $schemaVersion,
+            status: "ok",
+            capability: "night-light",
+            available: true,
+            running: $running,
+            managed: true,
+            enabled: $enabled,
+            targetTemperature: $targetTemperature,
+            backend: "hyprsunset"
+        }'
+}
+
+night_light_status_human() {
+    local state
+
+    if ! night_light_runtime_available; then
+        printf 'Night Light: unavailable\n'
+        exit 3
+    fi
+
+    if ! state="$(read_night_light_state)"; then
+        printf 'ERROR: unable to read Night Light state\n' >&2
+        exit 4
+    fi
+
+    if [[ "$state" == "true" ]]; then
+        printf 'Night Light: on\n'
+    else
+        printf 'Night Light: off\n'
+    fi
+}
+
+night_light_failure_json() {
+    local status="$1"
+    local desired="$2"
+    local enabled="$3"
+    local changed="$4"
+    local message="$5"
+    local running=false
+
+    if night_light_running; then
+        running=true
+    fi
+
+    jq -n \
+        --argjson schemaVersion "$schema_version" \
+        --arg status "$status" \
+        --argjson requested "$desired" \
+        --argjson enabled "$(bool_json "$enabled")" \
+        --argjson changed "$changed" \
+        --argjson running "$running" \
+        --argjson targetTemperature "$night_light_temperature" \
+        --arg message "$message" \
+        '{
+            schemaVersion: $schemaVersion,
+            status: $status,
+            capability: "night-light",
+            requested: $requested,
+            enabled: $enabled,
+            verified: false,
+            changed: $changed,
+            available: true,
+            running: $running,
+            managed: true,
+            targetTemperature: $targetTemperature,
+            backend: "hyprsunset",
+            message: $message
+        }'
+}
+
+apply_night_light() {
+    local desired="$1"
+    local before=""
+    local after=""
+    local changed=false
+    local started_by_us=false
+
+    if ! night_light_runtime_available; then
+        if [[ "$json_output" == true ]]; then
+            jq -n \
+                --argjson schemaVersion "$schema_version" \
+                --argjson requested "$desired" \
+                --argjson targetTemperature "$night_light_temperature" \
+                '{
+                    schemaVersion: $schemaVersion,
+                    status: "unavailable",
+                    capability: "night-light",
+                    requested: $requested,
+                    enabled: null,
+                    verified: false,
+                    changed: false,
+                    available: false,
+                    running: false,
+                    managed: false,
+                    targetTemperature: $targetTemperature,
+                    backend: "hyprsunset"
+                }'
+        else
+            printf 'ERROR: Night Light capability is unavailable\n' >&2
+        fi
+        exit 3
+    fi
+
+    if ! before="$(read_night_light_state)"; then
+        if [[ "$json_output" == true ]]; then
+            night_light_failure_json \
+                "failed" \
+                "$desired" \
+                "" \
+                false \
+                "Unable to read Night Light state before mutation."
+        else
+            printf 'ERROR: unable to read Night Light state\n' >&2
+        fi
+        exit 4
+    fi
+
+    if [[ "$before" != "$desired" ]]; then
+        changed=true
+
+        if [[ "$desired" == "true" ]]; then
+            if ! night_light_running; then
+                systemctl --user start "$night_light_service" \
+                    >/dev/null 2>&1 || {
+                        if [[ "$json_output" == true ]]; then
+                            night_light_failure_json \
+                                "failed" \
+                                "$desired" \
+                                "$before" \
+                                "$changed" \
+                                "Unable to start hyprsunset.service."
+                        else
+                            printf 'ERROR: unable to start Night Light backend\n' >&2
+                        fi
+                        exit 4
+                    }
+
+                started_by_us=true
+
+                if ! wait_for_night_light_ipc; then
+                    systemctl --user stop "$night_light_service" \
+                        >/dev/null 2>&1 || true
+
+                    if [[ "$json_output" == true ]]; then
+                        night_light_failure_json \
+                            "failed" \
+                            "$desired" \
+                            "$before" \
+                            "$changed" \
+                            "hyprsunset IPC did not become ready."
+                    else
+                        printf 'ERROR: Night Light IPC did not become ready\n' >&2
+                    fi
+                    exit 4
+                fi
+            fi
+
+            if ! hyprctl hyprsunset temperature \
+                    "$night_light_temperature" >/dev/null 2>&1 \
+                    || ! hyprctl hyprsunset identity false \
+                        >/dev/null 2>&1
+            then
+                hyprctl hyprsunset identity true \
+                    >/dev/null 2>&1 || true
+
+                if [[ "$started_by_us" == "true" ]]; then
+                    systemctl --user stop "$night_light_service" \
+                        >/dev/null 2>&1 || true
+                fi
+
+                if [[ "$json_output" == true ]]; then
+                    night_light_failure_json \
+                        "failed" \
+                        "$desired" \
+                        "$before" \
+                        "$changed" \
+                        "hyprsunset rejected the Night Light ON mutation."
+                else
+                    printf 'ERROR: Night Light ON mutation failed\n' >&2
+                fi
+                exit 4
+            fi
+        else
+            if night_light_running; then
+                hyprctl hyprsunset identity true \
+                    >/dev/null 2>&1 || {
+                        if [[ "$json_output" == true ]]; then
+                            night_light_failure_json \
+                                "failed" \
+                                "$desired" \
+                                "$before" \
+                                "$changed" \
+                                "hyprsunset rejected the neutral identity mutation."
+                        else
+                            printf 'ERROR: Night Light OFF mutation failed\n' >&2
+                        fi
+                        exit 4
+                    }
+            fi
+        fi
+    fi
+
+    for _ in 1 2 3 4 5 6 7 8 9 10 \
+             11 12 13 14 15 16 17 18 19 20
+    do
+        after="$(read_night_light_state 2>/dev/null || true)"
+
+        if [[ "$after" == "$desired" ]]; then
+            break
+        fi
+
+        sleep 0.05
+    done
+
+    if [[ "$after" != "$desired" ]]; then
+        if [[ "$json_output" == true ]]; then
+            night_light_failure_json \
+                "verification-failed" \
+                "$desired" \
+                "$after" \
+                "$changed" \
+                "Night Light mutation could not be verified."
+        else
+            printf 'ERROR: Night Light mutation could not be verified\n' >&2
+        fi
+        exit 5
+    fi
+
+    local running=false
+    if night_light_running; then
+        running=true
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        jq -n \
+            --argjson schemaVersion "$schema_version" \
+            --argjson requested "$desired" \
+            --argjson enabled "$after" \
+            --argjson changed "$changed" \
+            --argjson running "$running" \
+            --argjson targetTemperature "$night_light_temperature" \
+            '{
+                schemaVersion: $schemaVersion,
+                status: "applied",
+                capability: "night-light",
+                requested: $requested,
+                enabled: $enabled,
+                verified: true,
+                changed: $changed,
+                available: true,
+                running: $running,
+                managed: true,
+                targetTemperature: $targetTemperature,
+                backend: "hyprsunset"
+            }'
+    else
+        if [[ "$after" == "true" ]]; then
+            printf 'Night Light: on\n'
+        else
+            printf 'Night Light: off\n'
+        fi
+    fi
+}
+
 args=()
 
 for arg in "$@"; do
@@ -451,6 +870,30 @@ case "${1:-}" in
                 ;;
             *)
                 die_usage "unknown dnd action: $2"
+                ;;
+        esac
+        ;;
+
+    night-light)
+        [[ $# -eq 2 ]] \
+            || die_usage "night-light requires status, on or off"
+
+        case "$2" in
+            status)
+                if [[ "$json_output" == true ]]; then
+                    night_light_status_json
+                else
+                    night_light_status_human
+                fi
+                ;;
+            on)
+                apply_night_light true
+                ;;
+            off)
+                apply_night_light false
+                ;;
+            *)
+                die_usage "unknown night-light action: $2"
                 ;;
         esac
         ;;

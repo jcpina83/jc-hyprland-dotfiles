@@ -1168,3 +1168,17 @@ df5fd2e  observed + draft transition state
 
 Phase 2B.7 is **CLOSED**. Further wallpaper work should start from the next
 planned phase rather than extending the 2B.7 contract implicitly.
+
+### Quick Settings — Phase 2D.2 Night Light
+
+Night Light is exposed through the same stable Quick Settings CLI:
+
+```bash
+jc-quick-settings night-light status --json
+jc-quick-settings night-light on --json
+jc-quick-settings night-light off --json
+```
+
+The current managed target is `4500 K`; OFF restores hyprsunset identity.
+Arch/Garuda install `hyprsunset` from the Arch package manifest. openSUSE
+remains capability-discovery only until its package path is validated.

@@ -375,3 +375,106 @@ recognizable as Quick Settings options.
 Each tile displays its observed availability below the control. The tiles
 remain intentionally read-only in Phase 2D.1d; this makes the future controls
 visible without bypassing the planned action-service/runtime boundaries.
+
+## Phase 2D.2 — Night Light / hyprsunset
+
+Phase 2D.2 promotes Night Light from observed-only discovery to an immediate,
+verified Quick Settings action.
+
+### Stable runtime API
+
+```bash
+jc-quick-settings night-light status --json
+jc-quick-settings night-light on --json
+jc-quick-settings night-light off --json
+```
+
+The backend remains entirely behind `jc-quick-settings`.
+
+```text
+QuickSettingsView
+        |
+        | nightLightRequested(bool)
+        v
+QuickSettingsActionService
+        |
+        | jc-quick-settings night-light on|off --json
+        v
+jc-quick-settings
+        |
+        +--> systemctl --user start hyprsunset.service
+        +--> hyprctl hyprsunset temperature 4500
+        +--> hyprctl hyprsunset identity false|true
+        |
+        v
+QuickSettingsService.refresh()
+```
+
+Presentation QML never invokes `hyprctl`, `systemctl` or `hyprsunset`
+directly.
+
+### Deterministic state
+
+Hyprsunset 0.4 exposes identity state through:
+
+```bash
+hyprctl hyprsunset identity get
+```
+
+The stable adapter interprets:
+
+- `identity=false` as Night Light **on**;
+- `identity=true` as Night Light **off**;
+- an inactive `hyprsunset.service` as Night Light **off**.
+
+The target ON temperature for this phase is `4500 K`. OFF restores the neutral
+identity matrix rather than approximating neutral output with a high color
+temperature.
+
+The service is started on demand but is not enabled automatically. This avoids
+an unexpected filter during login and keeps Quick Settings responsible for
+explicit session intent.
+
+### Mutation response
+
+A successful mutation follows the same verification shape as DND:
+
+```json
+{
+  "schemaVersion": 1,
+  "status": "applied",
+  "capability": "night-light",
+  "requested": true,
+  "enabled": true,
+  "verified": true,
+  "changed": true,
+  "available": true,
+  "running": true,
+  "managed": true,
+  "targetTemperature": 4500,
+  "backend": "hyprsunset"
+}
+```
+
+`changed=false` is a valid verified no-op.
+
+### UI behavior
+
+The existing Night Light capability tile becomes interactive. Its selected
+state always comes from `QuickSettingsService.nightLightEnabled`; the view does
+not keep an optimistic local copy.
+
+`QuickSettingsActionService` serializes DND and Night Light through its shared
+`busy` boundary. After every Night Light request it refreshes observed state
+before declaring success.
+
+Lock and Suspend remain observed-only for the next session-actions subphase.
+
+### Distribution portability
+
+`hyprsunset` is added to `distros/arch/packages.txt`; Garuda inherits the Arch
+package installer.
+
+The openSUSE package manifest is intentionally unchanged until equivalent
+package availability and lifecycle have been validated on openSUSE. Runtime
+discovery remains graceful when the backend is unavailable.

@@ -13,6 +13,7 @@ Item {
 
     signal refreshRequested()
     signal dndRequested(bool enabled)
+    signal nightLightRequested(bool enabled)
 
     readonly property bool interactionLocked:
         root.actionService
@@ -29,6 +30,35 @@ Item {
     readonly property bool dndControlEnabled:
         root.actionService
         && Boolean(root.actionService.canSetDnd)
+
+    readonly property bool nightLightEnabled:
+        root.serviceReady
+        && root.quickSettingsService.nightLightEnabled === true
+
+    readonly property bool nightLightControlEnabled:
+        root.actionService
+        && Boolean(root.actionService.canSetNightLight)
+
+    readonly property string nightLightStateLabel: {
+        if (!root.quickSettingsService)
+            return "Service unavailable";
+
+        if (root.quickSettingsService.loading)
+            return "Refreshing…";
+
+        if (!root.quickSettingsService.ready)
+            return "Waiting…";
+
+        if (!root.quickSettingsService.nightLightAvailable)
+            return "Unavailable";
+
+        if (!root.quickSettingsService.nightLightManaged)
+            return "Detected · unmanaged";
+
+        return root.nightLightEnabled
+            ? "Enabled"
+            : "Disabled";
+    }
 
     readonly property string operationError: {
         if (root.actionService
@@ -446,33 +476,29 @@ Item {
                                     text: "Night Light"
                                     iconName: "theme"
 
-                                    selected:
-                                        root.quickSettingsService
-                                        && root.quickSettingsService.ready
-                                        && root.quickSettingsService.nightLightEnabled === true
+                                    selected: root.nightLightEnabled
+                                    controlEnabled:
+                                        root.nightLightControlEnabled
 
-                                    controlEnabled: false
+                                    onClicked:
+                                        root.nightLightRequested(
+                                            !root.nightLightEnabled
+                                        )
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
 
-                                    text:
-                                        !root.quickSettingsService
-                                        || !root.quickSettingsService.ready
-                                            ? "Checking…"
-                                            : root.quickSettingsService.nightLightAvailable
-                                                ? root.quickSettingsService.nightLightRunning
-                                                    ? "Available · running"
-                                                    : "Available"
-                                                : "Unavailable"
+                                    text: root.nightLightStateLabel
 
                                     color:
-                                        root.quickSettingsService
-                                        && root.quickSettingsService.ready
-                                        && root.quickSettingsService.nightLightAvailable
+                                        root.nightLightEnabled
                                             ? root.theme.success
-                                            : root.theme.textMuted
+                                            : root.quickSettingsService
+                                                && root.quickSettingsService.ready
+                                                && root.quickSettingsService.nightLightAvailable
+                                                    ? root.theme.textSecondary
+                                                    : root.theme.textMuted
 
                                     font.family: root.theme.fontFamilySans
                                     font.pixelSize: root.theme.textSizeCaption
@@ -533,9 +559,8 @@ Item {
                             Layout.fillWidth: true
 
                             text:
-                                "Observed-only in Phase 2D.1d. "
-                                + "Actions are enabled in their dedicated "
-                                + "Quick Settings subphases."
+                                "Night Light is interactive in Phase 2D.2. "
+                                + "Lock and Suspend remain observed-only."
 
                             color: root.theme.textMuted
 
