@@ -9327,7 +9327,7 @@ for contract in \
     'root.dndRequested(value)' \
     'Components.JcSurface {' \
     'title: "Observed capabilities"' \
-    'Lock and Suspend remain observed-only.'
+    'Suspend remains observed-only.'
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "QuickSettingsView contract: $contract"
@@ -9504,7 +9504,7 @@ for contract in \
     'root.quickSettingsService.lockAvailable' \
     'root.quickSettingsService.nightLightAvailable' \
     'root.quickSettingsService.suspendAvailable' \
-    'Lock and Suspend remain observed-only.'
+    'Suspend remains observed-only.'
 do
     if grep -Fq -- "$contract" "$quick_settings_capability_view"; then
         ok "Quick Settings capability tile: $contract"
@@ -9524,25 +9524,13 @@ else
     fail "Quick Settings expected 3 observed capability tiles, got $capability_tile_count"
 fi
 
-capability_read_only_ok=true
-
-for capability_tile_id in \
-    lockCapabilityTile \
-    suspendCapabilityTile
-do
-    if grep -A32 -F "id: $capability_tile_id" \
-        "$quick_settings_capability_view" \
-        | grep -Fq 'controlEnabled: false'
-    then
-        ok "Observed capability tile is read-only: $capability_tile_id"
-    else
-        fail "Observed capability tile is not read-only: $capability_tile_id"
-        capability_read_only_ok=false
-    fi
-done
-
-if [[ "$capability_read_only_ok" == "true" ]]; then
-    ok "Observed capability tiles remain read-only in Phase 2D.1d"
+if grep -A32 -F 'id: suspendCapabilityTile' \
+    "$quick_settings_capability_view" \
+    | grep -Fq 'controlEnabled: false'
+then
+    ok "Observed capability tile remains read-only: suspendCapabilityTile"
+else
+    fail "Observed capability tile is not read-only: suspendCapabilityTile"
 fi
 
 # Markdown backticks are intentional literal documentation contracts.
@@ -9647,7 +9635,7 @@ for contract in \
     'controlEnabled:' \
     'root.nightLightControlEnabled' \
     'root.nightLightRequested(' \
-    'Lock and Suspend remain observed-only.'
+    'Suspend remains observed-only.'
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "Night Light view contract: $contract"
@@ -9674,7 +9662,7 @@ for contract in \
     'quickSettingsService.nightLightEnabled === true' \
     'onNightLightRequested: enabled =>' \
     'quickSettingsActionService.setNightLightEnabled(enabled)' \
-    'Use Do Not Disturb and Night Light now.'
+    'Use Do Not Disturb, Night Light and Lock now.'
 do
     if grep -Fq -- "$contract" "$quick_settings_main"; then
         ok "Main Night Light orchestration: $contract"
@@ -9726,6 +9714,151 @@ do
         ok "Night Light README: $contract"
     else
         fail "Night Light README missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2D.3a Lock quick action\n'
+
+quick_settings_cli="$repo_root/scripts/runtime/jc-quick-settings.sh"
+quick_settings_action_service="$repo_root/config/quickshell/jc-hyprland/services/QuickSettingsActionService.qml"
+quick_settings_view="$repo_root/config/quickshell/jc-hyprland/modules/quicksettings/QuickSettingsView.qml"
+quick_settings_main="$repo_root/config/quickshell/jc-hyprland/Main.qml"
+quick_settings_doc="$repo_root/docs/quick-settings.md"
+quick_settings_readme="$repo_root/README.md"
+
+# Literal source-code contracts; dollar signs must not expand.
+# shellcheck disable=SC2016
+for contract in \
+    'jc-quick-settings lock [--json]' \
+    'lock_runtime_wrapper() {' \
+    'lock_runtime_available() {' \
+    'lock_running() {' \
+    'apply_lock() {' \
+    'nohup "$wrapper"' \
+    'process_running hyprlock' \
+    'capability: "lock"' \
+    'backend: "lock-session.sh"' \
+    'verified: true' \
+    'changed: $changed' \
+    'apply_lock'
+do
+    if grep -Fq -- "$contract" "$quick_settings_cli"; then
+        ok "Lock runtime API: $contract"
+    else
+        fail "Lock runtime API missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool applyingLock: false' \
+    'readonly property bool canLock:' \
+    'signal lockApplied(bool stateChanged)' \
+    'function validLockAppliedResponse(payload) {' \
+    'function validateLockAction() {' \
+    'function lockSession(): void {' \
+    'id: lockProcess' \
+    '"lock",' \
+    'payload.capability === "lock"' \
+    'root.lockApplied(Boolean(response.changed));'
+do
+    if grep -Fq -- "$contract" "$quick_settings_action_service"; then
+        ok "Lock action service: $contract"
+    else
+        fail "Lock action service missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'hyprlock' \
+    'lock-session.sh' \
+    'systemctl' \
+    'loginctl'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_action_service"; then
+        fail "Lock action service owns backend detail: $forbidden"
+    else
+        ok "Lock action service excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'signal lockRequested()' \
+    'readonly property bool lockControlEnabled:' \
+    'readonly property string lockStateLabel:' \
+    'controlEnabled: root.lockControlEnabled' \
+    'onClicked: root.lockRequested()' \
+    'text: root.lockStateLabel' \
+    'Suspend remains observed-only.'
+do
+    if grep -Fq -- "$contract" "$quick_settings_view"; then
+        ok "Lock view contract: $contract"
+    else
+        fail "Lock view contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'hyprlock' \
+    'lock-session.sh' \
+    'jc-quick-settings'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_view"; then
+        fail "Lock view owns backend detail: $forbidden"
+    else
+        ok "Lock view excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'quickSettingsActionService.applyingLock' \
+    'property bool pendingSessionLock: false' \
+    'function requestSessionLock(): void {' \
+    'function dispatchPendingSessionLock(): void {' \
+    'if (controlCenterShell.mounted)' \
+    'Qt.callLater(root.dispatchPendingSessionLock);' \
+    'onLockRequested: root.requestSessionLock()' \
+    'onMountedChanged: {' \
+    'root.dispatchPendingSessionLock();' \
+    'Use Do Not Disturb, Night Light and Lock now.'
+do
+    if grep -Fq -- "$contract" "$quick_settings_main"; then
+        ok "Main Lock orchestration: $contract"
+    else
+        fail "Main Lock orchestration missing: $contract"
+    fi
+done
+
+# Markdown backticks are intentional literal documentation contracts.
+# shellcheck disable=SC2016
+for contract in \
+    '## Phase 2D.3a — Lock quick action' \
+    'jc-quick-settings lock --json' \
+    '`lock-session.sh`' \
+    '`hyprlock`' \
+    '`changed=false`' \
+    'Lock is intentionally modeled as an action, not a toggle.' \
+    'controlCenterShell.mounted === false' \
+    'No fixed sleep or animation' \
+    'duration is used.' \
+    'Suspend remains observed-only until Phase 2D.3b'
+do
+    if grep -Fq -- "$contract" "$quick_settings_doc"; then
+        ok "Lock documentation: $contract"
+    else
+        fail "Lock documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '### Quick Settings — Phase 2D.3a Lock' \
+    'jc-quick-settings lock --json' \
+    'controlCenterShell.mounted' \
+    'Suspend remains observed-only'
+do
+    if grep -Fq -- "$contract" "$quick_settings_readme"; then
+        ok "Lock README: $contract"
+    else
+        fail "Lock README missing: $contract"
     fi
 done
 

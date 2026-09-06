@@ -20,6 +20,7 @@ Usage:
   jc-quick-settings night-light status [--json]
   jc-quick-settings night-light on [--json]
   jc-quick-settings night-light off [--json]
+  jc-quick-settings lock [--json]
   jc-quick-settings --help
 
 Stable Quick Settings contract:
@@ -30,6 +31,7 @@ Stable Quick Settings contract:
   night-light status  Read managed hyprsunset state.
   night-light on      Start hyprsunset on demand, apply 4500 K and verify.
   night-light off     Restore the neutral identity matrix and verify.
+  lock                Lock the session through the managed Hyprlock wrapper.
 
 Night Light lifecycle:
   hyprsunset.service is started on demand and is never enabled by this CLI.
@@ -824,6 +826,123 @@ apply_night_light() {
     fi
 }
 
+
+lock_runtime_wrapper() {
+    resolve_runtime_wrapper \
+        "lock-session.sh" \
+        "lock-session.sh"
+}
+
+lock_runtime_available() {
+    local wrapper=""
+
+    wrapper="$(lock_runtime_wrapper 2>/dev/null || true)"
+
+    [[ -n "$wrapper" && -x "$wrapper" ]] \
+        && command_available hyprlock
+}
+
+lock_running() {
+    process_running hyprlock
+}
+
+apply_lock() {
+    local wrapper=""
+    local changed=false
+    local running=false
+
+    wrapper="$(lock_runtime_wrapper 2>/dev/null || true)"
+
+    if [[ -z "$wrapper" || ! -x "$wrapper" ]] \
+            || ! command_available hyprlock
+    then
+        if [[ "$json_output" == true ]]; then
+            jq -n \
+                --argjson schemaVersion "$schema_version" \
+                '{
+                    schemaVersion: $schemaVersion,
+                    status: "unavailable",
+                    capability: "lock",
+                    available: false,
+                    running: false,
+                    verified: false,
+                    changed: false,
+                    backend: "lock-session.sh"
+                }'
+        else
+            printf 'ERROR: Lock capability is unavailable\n' >&2
+        fi
+
+        exit 3
+    fi
+
+    if lock_running; then
+        running=true
+    else
+        changed=true
+
+        nohup "$wrapper" >/dev/null 2>&1 </dev/null &
+
+        for _ in 1 2 3 4 5 6 7 8 9 10 \
+                 11 12 13 14 15 16 17 18 19 20 \
+                 21 22 23 24 25 26 27 28 29 30 \
+                 31 32 33 34 35 36 37 38 39 40
+        do
+            if lock_running; then
+                running=true
+                break
+            fi
+
+            sleep 0.05
+        done
+    fi
+
+    if [[ "$running" != "true" ]]; then
+        if [[ "$json_output" == true ]]; then
+            jq -n \
+                --argjson schemaVersion "$schema_version" \
+                --argjson changed "$changed" \
+                '{
+                    schemaVersion: $schemaVersion,
+                    status: "verification-failed",
+                    capability: "lock",
+                    available: true,
+                    running: false,
+                    verified: false,
+                    changed: $changed,
+                    backend: "lock-session.sh",
+                    message: "Hyprlock did not become observable."
+                }'
+        else
+            printf 'ERROR: session lock could not be verified\n' >&2
+        fi
+
+        exit 5
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        jq -n \
+            --argjson schemaVersion "$schema_version" \
+            --argjson changed "$changed" \
+            '{
+                schemaVersion: $schemaVersion,
+                status: "applied",
+                capability: "lock",
+                available: true,
+                running: true,
+                verified: true,
+                changed: $changed,
+                backend: "lock-session.sh"
+            }'
+    else
+        if [[ "$changed" == "true" ]]; then
+            printf 'Lock: started\n'
+        else
+            printf 'Lock: already active\n'
+        fi
+    fi
+}
+
 args=()
 
 for arg in "$@"; do
@@ -872,6 +991,12 @@ case "${1:-}" in
                 die_usage "unknown dnd action: $2"
                 ;;
         esac
+        ;;
+
+    lock)
+        [[ $# -eq 1 ]]             || die_usage "lock accepts no extra arguments"
+
+        apply_lock
         ;;
 
     night-light)

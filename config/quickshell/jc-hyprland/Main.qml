@@ -16,6 +16,7 @@ Scope {
 
     property bool controlCenterVisible: false
     property bool galleryVisible: false
+    property bool pendingSessionLock: false
 
     property string controlCenterOutputName: ""
     property string activeModuleId: "displays"
@@ -69,6 +70,9 @@ Scope {
 
             if (quickSettingsActionService.applyingNightLight)
                 return "Updating Night Light…";
+
+            if (quickSettingsActionService.applyingLock)
+                return "Locking session…";
 
             if (quickSettingsActionService.awaitingRefresh
                     || quickSettingsActionService.awaitingNightLightRefresh) {
@@ -193,8 +197,8 @@ Scope {
                 return quickSettingsService.errorMessage;
 
             if (quickSettingsService.ready) {
-                return "Use Do Not Disturb and Night Light now. "
-                    + "Lock and Suspend remain observed-only.";
+                return "Use Do Not Disturb, Night Light and Lock now. "
+                    + "Suspend remains observed-only.";
             }
 
             return "Waiting for Quick Settings observed state.";
@@ -364,6 +368,40 @@ Scope {
             target && target.name === outputName ? outputName : "";
 
         root.showModule("displays");
+    }
+
+    function dispatchPendingSessionLock(): void {
+        if (!root.pendingSessionLock)
+            return;
+
+        // requestedVisible=false is only the logical close request.
+        // Do not launch Hyprlock until the PanelWindow has completed its
+        // exit motion and ControlCenterShell reports mounted=false.
+        if (controlCenterShell.mounted)
+            return;
+
+        root.pendingSessionLock = false;
+        quickSettingsActionService.lockSession();
+    }
+
+    function requestSessionLock(): void {
+        if (root.pendingSessionLock || quickSettingsActionService.busy)
+            return;
+
+        root.pendingSessionLock = true;
+        root.hideControlCenter();
+
+        // hideControlCenter() can be refused by an unrelated guarded
+        // transition. Never lock while the Control Center is still
+        // logically requested visible.
+        if (root.controlCenterVisible) {
+            root.pendingSessionLock = false;
+            return;
+        }
+
+        // Covers the already-unmounted case without depending on a fixed
+        // animation duration.
+        Qt.callLater(root.dispatchPendingSessionLock);
     }
 
     function hideControlCenter() {
@@ -630,6 +668,7 @@ Scope {
                 quickSettingsActionService.setDndEnabled(enabled)
             onNightLightRequested: enabled =>
                 quickSettingsActionService.setNightLightEnabled(enabled)
+            onLockRequested: root.requestSessionLock()
         }
     }
 
@@ -699,6 +738,11 @@ Scope {
 
         onModuleRequested: moduleId =>
             root.showModule(moduleId)
+
+        onMountedChanged: {
+            if (!mounted)
+                root.dispatchPendingSessionLock();
+        }
     }
 
     Dev.ComponentGallery {

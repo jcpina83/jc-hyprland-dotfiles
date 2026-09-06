@@ -478,3 +478,77 @@ package installer.
 The openSUSE package manifest is intentionally unchanged until equivalent
 package availability and lifecycle have been validated on openSUSE. Runtime
 discovery remains graceful when the backend is unavailable.
+
+## Phase 2D.3a — Lock quick action
+
+Lock is promoted from capability discovery to a one-shot Quick Settings action.
+
+### Stable runtime API
+
+```bash
+jc-quick-settings lock --json
+```
+
+The runtime adapter resolves the existing managed `lock-session.sh` wrapper,
+launches it detached, and verifies that `hyprlock` becomes observable before
+returning success.
+
+A successful response is:
+
+```json
+{
+  "schemaVersion": 1,
+  "status": "applied",
+  "capability": "lock",
+  "available": true,
+  "running": true,
+  "verified": true,
+  "changed": true,
+  "backend": "lock-session.sh"
+}
+```
+
+`changed=false` is a valid verified no-op when Hyprlock is already active.
+
+The presentation boundary remains:
+
+```text
+QuickSettingsView
+        |
+        | lockRequested()
+        v
+Main.qml
+        |
+        | request Control Center close
+        v
+ControlCenterShell
+        |
+        | await mounted=false
+        v
+QuickSettingsActionService.lockSession()
+        |
+        | jc-quick-settings lock --json
+        v
+jc-quick-settings
+        |
+        v
+lock-session.sh
+        |
+        v
+hyprlock
+```
+
+Neither `QuickSettingsView.qml` nor `QuickSettingsActionService.qml` owns
+Hyprlock commands or wrapper paths.
+
+Lock is intentionally modeled as an action, not a toggle. There is no draft,
+Apply workflow or optimistic locked-state model in QML.
+
+The Lock handoff also distinguishes the logical close request from physical
+presentation teardown: `Main.qml` requests the Control Center to close and
+waits for `controlCenterShell.mounted === false` before invoking
+`QuickSettingsActionService.lockSession()`. No fixed sleep or animation
+duration is used.
+
+Suspend remains observed-only until Phase 2D.3b because validating Suspend
+requires an explicit real sleep/resume gate.

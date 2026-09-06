@@ -12,6 +12,7 @@ Scope {
     //
     //   jc-quick-settings dnd on|off --json
     //   jc-quick-settings night-light on|off --json
+    //   jc-quick-settings lock --json
     //
     // It never invokes desktop backends directly.
     // Successful and failed mutations reconcile through QuickSettingsService.
@@ -31,6 +32,8 @@ Scope {
     property bool pendingNightLightMutationSucceeded: false
     property bool pendingNightLightChanged: false
 
+    property bool applyingLock: false
+
     property string errorMessage: ""
     property string statusMessage: ""
     property var lastResult: null
@@ -40,6 +43,7 @@ Scope {
         || root.awaitingRefresh
         || root.applyingNightLight
         || root.awaitingNightLightRefresh
+        || root.applyingLock
 
     readonly property bool canSetDnd:
         !root.busy
@@ -58,8 +62,16 @@ Scope {
         && root.quickSettingsService.nightLightAvailable
         && root.quickSettingsService.nightLightManaged
 
+    readonly property bool canLock:
+        !root.busy
+        && root.quickSettingsService
+        && root.quickSettingsService.ready
+        && !root.quickSettingsService.loading
+        && root.quickSettingsService.lockAvailable
+
     signal dndApplied(bool desiredEnabled, bool stateChanged)
     signal nightLightApplied(bool desiredEnabled, bool stateChanged)
+    signal lockApplied(bool stateChanged)
     signal failed(string message)
 
     function quickSettingsCommandPath() {
@@ -124,6 +136,21 @@ Scope {
             && payload.managed;
     }
 
+    function validLockAppliedResponse(payload) {
+        return payload
+            && Number(payload.schemaVersion) === 1
+            && payload.status === "applied"
+            && payload.capability === "lock"
+            && typeof payload.available === "boolean"
+            && typeof payload.running === "boolean"
+            && typeof payload.verified === "boolean"
+            && typeof payload.changed === "boolean"
+            && typeof payload.backend === "string"
+            && payload.available
+            && payload.running
+            && payload.verified;
+    }
+
     function validateDndMutation() {
         if (!root.quickSettingsService)
             return "Quick Settings observed-state service is unavailable.";
@@ -161,6 +188,22 @@ Scope {
 
         if (!root.quickSettingsService.nightLightManaged)
             return "Night Light backend is detected but not managed.";
+
+        return "";
+    }
+
+    function validateLockAction() {
+        if (!root.quickSettingsService)
+            return "Quick Settings observed-state service is unavailable.";
+
+        if (!root.quickSettingsService.ready)
+            return "Quick Settings observed state is not ready.";
+
+        if (root.quickSettingsService.loading)
+            return "Quick Settings observed state is still refreshing.";
+
+        if (!root.quickSettingsService.lockAvailable)
+            return "Lock is unavailable.";
 
         return "";
     }
@@ -276,6 +319,33 @@ Scope {
             "--json"
         ];
         nightLightProcess.running = true;
+    }
+
+    function lockSession(): void {
+        root.errorMessage = "";
+        root.statusMessage = "";
+        root.lastResult = null;
+
+        if (root.busy)
+            return;
+
+        const validationError = root.validateLockAction();
+
+        if (validationError.length > 0) {
+            root.errorMessage = validationError;
+            root.failed(root.errorMessage);
+            return;
+        }
+
+        root.applyingLock = true;
+        root.statusMessage = "Locking session…";
+
+        lockProcess.command = [
+            root.quickSettingsCommandPath(),
+            "lock",
+            "--json"
+        ];
+        lockProcess.running = true;
     }
 
     function finishObservedReconciliation(): void {
@@ -585,6 +655,58 @@ Scope {
                 + "Refreshing observed state…";
 
             root.beginNightLightObservedReconciliation();
+        }
+    }
+
+
+    Process {
+        id: lockProcess
+
+        stdout: StdioCollector {
+            id: lockStdout
+        }
+
+        stderr: StdioCollector {
+            id: lockStderr
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const stdoutText = String(lockStdout.text || "").trim();
+            const stderrText = String(lockStderr.text || "").trim();
+            const response = root.parseResponse(stdoutText);
+
+            root.applyingLock = false;
+            root.lastResult = response;
+
+            if (exitCode !== 0) {
+                const details = stderrText.length > 0
+                    ? stderrText
+                    : stdoutText;
+
+                root.errorMessage =
+                    "Lock request failed"
+                    + (details.length > 0 ? ": " + details : "");
+                root.statusMessage = "";
+                root.failed(root.errorMessage);
+                return;
+            }
+
+            if (!root.validLockAppliedResponse(response)) {
+                root.errorMessage =
+                    "Unexpected jc-quick-settings Lock response: "
+                    + (stdoutText.length > 0 ? stdoutText : "<empty>");
+                root.statusMessage = "";
+                root.failed(root.errorMessage);
+                return;
+            }
+
+            root.errorMessage = "";
+            root.statusMessage =
+                Boolean(response.changed)
+                    ? "Session lock started."
+                    : "Session lock was already active.";
+
+            root.lockApplied(Boolean(response.changed));
         }
     }
 

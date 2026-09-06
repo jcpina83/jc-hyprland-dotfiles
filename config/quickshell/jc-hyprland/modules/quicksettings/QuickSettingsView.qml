@@ -14,6 +14,7 @@ Item {
     signal refreshRequested()
     signal dndRequested(bool enabled)
     signal nightLightRequested(bool enabled)
+    signal lockRequested()
 
     readonly property bool interactionLocked:
         root.actionService
@@ -30,6 +31,30 @@ Item {
     readonly property bool dndControlEnabled:
         root.actionService
         && Boolean(root.actionService.canSetDnd)
+
+    readonly property bool lockControlEnabled:
+        root.actionService
+        && Boolean(root.actionService.canLock)
+
+    readonly property string lockStateLabel: {
+        if (root.actionService
+                && root.actionService.applyingLock) {
+            return "Locking…";
+        }
+
+        if (!root.quickSettingsService)
+            return "Service unavailable";
+
+        if (root.quickSettingsService.loading)
+            return "Refreshing…";
+
+        if (!root.quickSettingsService.ready)
+            return "Waiting…";
+
+        return root.quickSettingsService.lockAvailable
+            ? "Ready"
+            : "Unavailable";
+    }
 
     readonly property bool nightLightEnabled:
         root.serviceReady
@@ -432,19 +457,15 @@ Item {
                                     iconName: "settings"
 
                                     selected: false
-                                    controlEnabled: false
+                                    controlEnabled: root.lockControlEnabled
+
+                                    onClicked: root.lockRequested()
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
 
-                                    text:
-                                        !root.quickSettingsService
-                                        || !root.quickSettingsService.ready
-                                            ? "Checking…"
-                                            : root.quickSettingsService.lockAvailable
-                                                ? "Available"
-                                                : "Unavailable"
+                                    text: root.lockStateLabel
 
                                     color:
                                         root.quickSettingsService
@@ -559,8 +580,8 @@ Item {
                             Layout.fillWidth: true
 
                             text:
-                                "Night Light is interactive in Phase 2D.2. "
-                                + "Lock and Suspend remain observed-only."
+                                "Lock and Night Light are interactive. "
+                                + "Suspend remains observed-only."
 
                             color: root.theme.textMuted
 

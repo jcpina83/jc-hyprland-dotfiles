@@ -1182,3 +1182,19 @@ jc-quick-settings night-light off --json
 The current managed target is `4500 K`; OFF restores hyprsunset identity.
 Arch/Garuda install `hyprsunset` from the Arch package manifest. openSUSE
 remains capability-discovery only until its package path is validated.
+
+### Quick Settings — Phase 2D.3a Lock
+
+The managed Quick Settings CLI exposes Lock as a one-shot action:
+
+```bash
+jc-quick-settings lock --json
+```
+
+The runtime launches the existing lock wrapper and verifies Hyprlock startup.
+QML delegates intent through `QuickSettingsActionService`; it never invokes
+Hyprlock or the wrapper directly. Before dispatching Lock, `Main.qml` waits
+until the Control Center has completed its exit motion and
+`controlCenterShell.mounted` is false; this prevents Hyprlock from freezing a
+half-closed panel underneath the lock screen. Suspend remains observed-only
+until its dedicated sleep/resume gate.
