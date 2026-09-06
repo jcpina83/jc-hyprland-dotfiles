@@ -1224,3 +1224,29 @@ Return / Enter / Space activation contract.
 This phase is presentation-only: the stable `jc-quick-settings` API,
 `QuickSettingsService`, `QuickSettingsActionService`, Lock ordering and Suspend
 ordering remain unchanged.
+
+### Quick Settings — Phase 2D CLOSED
+
+Phase 2D Quick Settings is formally closed.
+
+The completed module provides:
+
+- observed state plus deterministic DND control;
+- managed Night Light at 4500 K;
+- Lock through the managed session wrapper;
+- Suspend through the managed session wrapper;
+- keyboard navigation and activation;
+- semantic holographic icon treatment;
+- backend-neutral presentation QML;
+- stable `jc-quick-settings` runtime boundary.
+
+The final Phase 2D.5 cold-runtime E2E validated DND and Night Light
+reversibility, Control Center lifecycle, stable API state and runtime health.
+Lock and Suspend were not re-executed during closure because their one-shot
+flows were already validated in Phase 2D.3.
+
+The known deep/S3 xHCI/Bluetooth resume issue remains a separate platform
+track and is not considered a Quick Settings defect.
+
+See `docs/quick-settings.md` for the complete architecture, contracts and
+Phase 2D.5 closure record.

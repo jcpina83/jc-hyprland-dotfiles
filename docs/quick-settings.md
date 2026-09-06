@@ -638,3 +638,74 @@ Suspend row while preserving normal Tab traversal.
 
 The visual layer remains backend-neutral. `QuickSettingsView.qml` owns no
 SwayNC, Hyprsunset, Hyprlock, systemd, loginctl or stable-CLI command details.
+
+## Phase 2D.5 — Runtime E2E and formal closure
+
+Phase 2D.5 completes the Quick Settings track with a clean cold-runtime
+end-to-end validation over the final Phase 2D implementation.
+
+The closure gate verified:
+
+- the stable `jc-quick-settings` status contract and all four capabilities;
+- managed executable wrappers for Lock and Suspend;
+- a clean Quickshell cold start;
+- Control Center routing to Quick Settings;
+- observed-state refresh behavior;
+- reversible DND mutation through the UI, with the original state restored;
+- reversible Night Light mutation through the UI at the managed 4500 K target,
+  with the original state restored;
+- Lock and Suspend visual/availability non-regression;
+- Control Center close/reopen lifecycle;
+- Quickshell, SwayNC and Hyprland runtime health;
+- final stable API state;
+- no repository mutation during the E2E gate.
+
+Lock and Suspend were intentionally **not executed again** during Phase 2D.5.
+Their one-shot action paths were already validated in Phase 2D.3. Suspend also
+has a separately diagnosed platform deep/S3 xHCI/Bluetooth resume issue, which
+is outside the Quick Settings implementation and must remain a separate track.
+
+### Final Phase 2D architecture
+
+```text
+QuickSettingsView
+        |
+        +--> QuickSettingsService
+        |      observed state
+        |
+        +--> QuickSettingsActionService
+               immediate intent
+                    |
+                    v
+          jc-quick-settings
+                    |
+        +-----------+-----------+-------------+
+        |           |           |             |
+      SwayNC     Hyprlock   hyprsunset      systemd
+       DND         Lock     Night Light      Suspend
+```
+
+The presentation layer remains backend-neutral. DND and Night Light are
+reversible immediate controls; Lock and Suspend remain one-shot session
+actions. No global DraftStore or Apply workflow is introduced for Quick
+Settings.
+
+### Phase status
+
+**Phase 2D — Quick Settings: CLOSED**
+
+Completed scope:
+
+- 2D.1a — stable runtime API;
+- 2D.1b — observed-state QML service;
+- 2D.1c — DND action service;
+- 2D.1d — Quick Settings view foundation;
+- 2D.2 — Night Light;
+- 2D.3 — Lock and Suspend session quick actions;
+- 2D.4 — visual, keyboard and icon polish;
+- 2D.5 — runtime E2E and formal closure.
+
+Additional session actions such as Logout, Reboot or Shutdown are not part of
+Phase 2D. Broader Notifications / Calendar / Power capabilities remain deferred
+to their later planned phase rather than expanding this closed Quick Settings
+scope.
