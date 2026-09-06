@@ -149,178 +149,245 @@ Item {
 
         spacing: root.theme.spaceLg
 
-        Column {
-            id: headerColumn
+        Components.JcSurface {
+            id: themeHeaderSurface
 
             width: parent.width
-            spacing: root.theme.spaceSm
+            height:
+                headerColumn.implicitHeight
+                + (root.theme.spaceMd * 2)
 
-            Text {
-                width: parent.width
-                text: "Themes"
-                color: root.theme.textPrimary
-                font.pixelSize: root.theme.textSizeSection
-                font.weight: Font.DemiBold
+            theme: root.theme
+            surfaceRole: "glass-raised"
+            fillEnabled: false
+            bordered: false
+
+            Components.JcHudFrame {
+                id: themeHeaderHudFrame
+
+                anchors.fill: parent
+                anchors.margins: root.theme.space2Xs
+
+                theme: root.theme
+                surfaceRole: "glass-raised"
+
+                fillEnabled: true
+                fillColor: root.theme.hudSurface
+                contentPadding: 0
+
+                cutSize: root.theme.spaceMd
+                accentLength: root.theme.controlHeightLarge
+
+                glowEnabled: false
+                showInnerFrame: true
+                showCornerAccents: true
+                showSecondaryAccent: false
             }
 
-            Text {
-                width: parent.width
-                text: "Preview a theme, stage a draft, then choose Apply or Reset."
-                color: root.theme.textSecondary
-                font.pixelSize: root.theme.textSizeBody
-                wrapMode: Text.WordWrap
-            }
+            Column {
+                id: headerColumn
 
-            Text {
-                width: parent.width
-                text: root.serviceReady
-                    ? "Observed theme: " + root.activeThemeId
-                        + " · Installed: " + root.installedThemeCount
-                    : "Loading observed theme state…"
-                color: root.serviceReady
-                    ? root.theme.textPrimary
-                    : root.theme.textMuted
-                font.pixelSize: root.theme.textSizeBody
-                wrapMode: Text.WordWrap
-            }
-
-            Text {
-                width: parent.width
-                text: root.draftDirty
-                    ? "Draft pending: " + root.draftThemeId
-                    : "Draft synchronized with observed state"
-                color: root.draftDirty
-                    ? root.theme.warning
-                    : root.theme.success
-                font.pixelSize: root.theme.textSizeBody
-                wrapMode: Text.WordWrap
-            }
-
-            Row {
-                width: parent.width
+                width: parent.width - root.theme.spaceMd * 2
+                x: root.theme.spaceMd
+                y: root.theme.spaceMd
                 spacing: root.theme.spaceSm
 
-                Components.JcButton {
-                    visible: root.draftDirty
+                Text {
+                    width: parent.width
+                    text: "Themes"
+                    color: root.theme.textPrimary
+                    font.pixelSize: root.theme.textSizeSection
+                    font.weight: Font.DemiBold
+                }
 
-                    theme: root.theme
-                    iconName: "apply"
+                Text {
+                    width: parent.width
+                    text: "Preview a theme, stage a draft, then choose Apply or Reset."
+                    color: root.theme.textSecondary
+                    font.pixelSize: root.theme.textSizeBody
+                    wrapMode: Text.WordWrap
+                }
 
+                Text {
+                    width: parent.width
+                    text: root.serviceReady
+                        ? "Observed theme: " + root.activeThemeId
+                            + " · Installed: " + root.installedThemeCount
+                        : "Loading observed theme state…"
+                    color: root.serviceReady
+                        ? root.theme.textPrimary
+                        : root.theme.textMuted
+                    font.pixelSize: root.theme.textSizeBody
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+                    text: root.draftDirty
+                        ? "Draft pending: " + root.draftThemeId
+                        : "Draft synchronized with observed state"
+                    color: root.draftDirty
+                        ? root.theme.warning
+                        : root.theme.success
+                    font.pixelSize: root.theme.textSizeBody
+                    wrapMode: Text.WordWrap
+                }
+
+                Row {
+                    width: parent.width
+                    spacing: root.theme.spaceSm
+
+                    Components.JcButton {
+                        visible: root.draftDirty
+
+                        theme: root.theme
+                        iconName: "apply"
+
+                        text:
+                            root.applyService
+                            && root.applyService.applying
+                                ? "Applying…"
+                                : root.applyService
+                                    && root.applyService.awaitingRefresh
+                                        ? "Reconciling…"
+                                        : "Apply"
+
+                        controlEnabled:
+                            root.applyService
+                            && root.applyService.canApply
+
+                        onClicked: root.applyRequested()
+                    }
+
+                    Components.JcButton {
+                        visible:
+                            root.draftDirty
+                            || root.observedConflict
+
+                        theme: root.theme
+                        iconName: "reset"
+                        text: "Reset"
+
+                        controlEnabled:
+                            !root.interactionLocked
+                            && root.draftStore
+
+                        onClicked: root.resetRequested()
+                    }
+
+                    Components.JcButton {
+                        visible: root.recoveryRequired
+
+                        theme: root.theme
+                        iconName: "refresh"
+
+                        text:
+                            root.applyService
+                            && root.applyService.recovering
+                                ? "Recovering…"
+                                : "Recover Runtime"
+
+                        controlEnabled:
+                            root.applyService
+                            && root.applyService.canRecover
+
+                        onClicked: root.recoverRequested()
+                    }
+
+                    Components.JcButton {
+                        theme: root.theme
+                        iconName: "refresh"
+
+                        text:
+                            root.themeService
+                            && root.themeService.loading
+                                ? "Refreshing…"
+                                : "Refresh"
+
+                        controlEnabled:
+                            !root.interactionLocked
+                            && root.themeService
+                            && !root.themeService.loading
+                            && !root.draftDirty
+                            && !root.observedConflict
+
+                        onClicked: root.refreshRequested()
+                    }
+                }
+
+                Text {
+                    width: parent.width
+
+                    visible: root.operationError.length > 0
+                    text: root.operationError
+                    color: root.theme.danger
+                    font.pixelSize: root.theme.textSizeBody
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+
+                    visible: root.observedConflict
                     text:
-                        root.applyService
-                        && root.applyService.applying
-                            ? "Applying…"
-                            : root.applyService
-                                && root.applyService.awaitingRefresh
-                                    ? "Reconciling…"
-                                    : "Apply"
-
-                    controlEnabled:
-                        root.applyService
-                        && root.applyService.canApply
-
-                    onClicked: root.applyRequested()
+                        "Observed theme state changed while a draft was pending. "
+                        + "Reset the draft before continuing."
+                    color: root.theme.warning
+                    font.pixelSize: root.theme.textSizeBody
+                    wrapMode: Text.WordWrap
                 }
 
-                Components.JcButton {
-                    visible:
-                        root.draftDirty
-                        || root.observedConflict
+                Text {
+                    width: parent.width
 
-                    theme: root.theme
-                    iconName: "reset"
-                    text: "Reset"
-
-                    controlEnabled:
-                        !root.interactionLocked
-                        && root.draftStore
-
-                    onClicked: root.resetRequested()
-                }
-
-                Components.JcButton {
                     visible: root.recoveryRequired
-
-                    theme: root.theme
-                    iconName: "refresh"
-
                     text:
-                        root.applyService
-                        && root.applyService.recovering
-                            ? "Recovering…"
-                            : "Recover Runtime"
-
-                    controlEnabled:
-                        root.applyService
-                        && root.applyService.canRecover
-
-                    onClicked: root.recoverRequested()
+                        "Theme runtime recovery is required before another Apply. "
+                        + "Recovery preserves the pending draft."
+                    color: root.theme.warning
+                    font.pixelSize: root.theme.textSizeBody
+                    wrapMode: Text.WordWrap
                 }
-
-                Components.JcButton {
-                    theme: root.theme
-                    iconName: "refresh"
-
-                    text:
-                        root.themeService
-                        && root.themeService.loading
-                            ? "Refreshing…"
-                            : "Refresh"
-
-                    controlEnabled:
-                        !root.interactionLocked
-                        && root.themeService
-                        && !root.themeService.loading
-                        && !root.draftDirty
-                        && !root.observedConflict
-
-                    onClicked: root.refreshRequested()
-                }
-            }
-
-            Text {
-                width: parent.width
-
-                visible: root.operationError.length > 0
-                text: root.operationError
-                color: root.theme.danger
-                font.pixelSize: root.theme.textSizeBody
-                wrapMode: Text.WordWrap
-            }
-
-            Text {
-                width: parent.width
-
-                visible: root.observedConflict
-                text:
-                    "Observed theme state changed while a draft was pending. "
-                    + "Reset the draft before continuing."
-                color: root.theme.warning
-                font.pixelSize: root.theme.textSizeBody
-                wrapMode: Text.WordWrap
-            }
-
-            Text {
-                width: parent.width
-
-                visible: root.recoveryRequired
-                text:
-                    "Theme runtime recovery is required before another Apply. "
-                    + "Recovery preserves the pending draft."
-                color: root.theme.warning
-                font.pixelSize: root.theme.textSizeBody
-                wrapMode: Text.WordWrap
             }
         }
 
-        Item {
+        Components.JcSurface {
+            id: themeGallerySurface
+
             width: parent.width
             height: Math.max(
                 0,
                 parent.height
-                    - headerColumn.height
+                    - themeHeaderSurface.height
                     - parent.spacing
             )
+
+            theme: root.theme
+            surfaceRole: "glass"
+            fillEnabled: false
+            bordered: false
+
+            Components.JcHudFrame {
+                id: themeGalleryHudFrame
+
+                anchors.fill: parent
+                anchors.margins: root.theme.space2Xs
+
+                theme: root.theme
+                surfaceRole: "glass"
+
+                fillEnabled: true
+                fillColor: root.theme.hudSurface
+                contentPadding: 0
+
+                cutSize: root.theme.spaceMd
+                accentLength: root.theme.controlHeightLarge
+
+                glowEnabled: false
+                showInnerFrame: true
+                showCornerAccents: true
+                showSecondaryAccent: false
+            }
 
             Text {
                 anchors.centerIn: parent
@@ -341,6 +408,7 @@ Item {
                 id: themeGrid
 
                 anchors.fill: parent
+                anchors.margins: root.theme.spaceMd
 
                 model: root.themes
                 visible: root.installedThemeCount > 0

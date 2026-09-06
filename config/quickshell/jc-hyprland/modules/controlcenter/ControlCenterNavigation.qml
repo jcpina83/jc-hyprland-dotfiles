@@ -113,7 +113,7 @@ Item {
             id: "quick-settings",
             label: "Quick Settings",
             iconName: "settings",
-            enabled: false
+            enabled: true
         },
         {
             id: "performance",

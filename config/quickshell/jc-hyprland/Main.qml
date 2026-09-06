@@ -7,6 +7,7 @@ import qs.theme as Theme
 import qs.modules.displays as Displays
 import qs.modules.wallpapers as Wallpapers
 import qs.modules.themes as Themes
+import qs.modules.quicksettings as QuickSettings
 import qs.modules.dev as Dev
 import qs.modules.controlcenter as ControlCenter
 
@@ -60,6 +61,28 @@ Scope {
 
             if (themeService.ready)
                 return themeService.themeCount + " themes available";
+        }
+
+        if (root.activeModuleId === "quick-settings") {
+            if (quickSettingsActionService.applyingDnd)
+                return "Updating Do Not Disturb…";
+
+            if (quickSettingsActionService.awaitingRefresh)
+                return "Reconciling Quick Settings…";
+
+            if (quickSettingsActionService.errorMessage.length > 0)
+                return "Quick Settings action error";
+
+            if (quickSettingsService.loading)
+                return "Refreshing Quick Settings…";
+
+            if (quickSettingsService.errorMessage.length > 0)
+                return "Quick Settings service error";
+
+            if (quickSettingsService.ready)
+                return quickSettingsService.dndEnabled
+                    ? "Do Not Disturb enabled"
+                    : "Quick Settings ready";
         }
 
         if (root.activeModuleId === "wallpapers") {
@@ -147,6 +170,24 @@ Scope {
                 return "Select a theme to preview and stage a new draft.";
 
             return "Waiting for theme observed state.";
+        }
+
+        if (root.activeModuleId === "quick-settings") {
+            if (quickSettingsActionService.busy)
+                return quickSettingsActionService.statusMessage;
+
+            if (quickSettingsActionService.errorMessage.length > 0)
+                return quickSettingsActionService.errorMessage;
+
+            if (quickSettingsService.errorMessage.length > 0)
+                return quickSettingsService.errorMessage;
+
+            if (quickSettingsService.ready) {
+                return "Use Do Not Disturb now. Lock, Night Light and "
+                    + "Suspend remain observed-only in this foundation.";
+            }
+
+            return "Waiting for Quick Settings observed state.";
         }
 
         if (root.activeModuleId === "wallpapers") {
@@ -253,9 +294,18 @@ Scope {
         }
     }
 
+    function prepareQuickSettings() {
+        if (!quickSettingsActionService.busy) {
+            quickSettingsActionService.clearTransientFeedback();
+            quickSettingsService.refresh();
+        }
+    }
+
     function moduleIsAvailable(moduleId) {
-        if (moduleId === "themes")
+        if (moduleId === "themes"
+                || moduleId === "quick-settings") {
             return true;
+        }
 
         return moduleId === "displays"
             || moduleId === "wallpapers";
@@ -285,6 +335,11 @@ Scope {
 
         if (moduleId === "themes" && (!wasVisible || moduleChanged))
             root.prepareThemes();
+
+        if (moduleId === "quick-settings"
+                && (!wasVisible || moduleChanged)) {
+            root.prepareQuickSettings();
+        }
     }
 
     function showControlCenter() {
@@ -314,6 +369,7 @@ Scope {
         wallpaperDraftStore.reset();
         themeDraftStore.reset();
         themeApplyService.clearTransientFeedback();
+        quickSettingsActionService.clearTransientFeedback();
     }
 
     function toggleControlCenter() {
@@ -350,6 +406,13 @@ Scope {
         if (root.activeModuleId === "wallpapers") {
             if (!wallpaperDraftStore.hasDirty)
                 wallpaperService.refresh();
+
+            return;
+        }
+
+        if (root.activeModuleId === "quick-settings") {
+            if (!quickSettingsActionService.busy)
+                quickSettingsService.refresh();
 
             return;
         }
@@ -545,6 +608,21 @@ Scope {
 
 
     Component {
+        id: shellQuickSettingsComponent
+
+        QuickSettings.QuickSettingsView {
+            theme: root.themeHandle
+            quickSettingsService: root.quickSettingsServiceHandle
+            actionService: root.quickSettingsActionServiceHandle
+
+            onRefreshRequested: quickSettingsService.refresh()
+            onDndRequested: enabled =>
+                quickSettingsActionService.setDndEnabled(enabled)
+        }
+    }
+
+
+    Component {
         id: shellDisplaysComponent
 
         Displays.DisplayView {
@@ -587,7 +665,9 @@ Scope {
                 ? "Displays"
                 : root.activeModuleId === "wallpapers"
                     ? "Wallpapers"
-                    : root.activeModuleId
+                    : root.activeModuleId === "quick-settings"
+                        ? "Quick Settings"
+                        : root.activeModuleId
         transitionLocked: root.controlCenterTransitionLocked
         statusText: root.controlCenterStatusText
         statusDetail: root.controlCenterStatusDetail
@@ -599,7 +679,9 @@ Scope {
                     ? shellWallpapersComponent
                     : root.activeModuleId === "themes"
                         ? shellThemesComponent
-                        : null
+                        : root.activeModuleId === "quick-settings"
+                            ? shellQuickSettingsComponent
+                            : null
 
         onCloseRequested: root.hideControlCenter()
 

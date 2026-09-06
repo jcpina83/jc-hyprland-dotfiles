@@ -1161,6 +1161,14 @@ else
     fail "Displays navigation entry must be enabled"
 fi
 
+if grep -A4 -F 'id: "quick-settings"' "$control_center_navigation" \
+    | grep -Fq 'enabled: true'
+then
+    ok "Quick Settings navigation entry is enabled"
+else
+    fail "Quick Settings navigation entry must be enabled"
+fi
+
 for future_module in \
     themes \
     quick-settings \
@@ -1169,7 +1177,8 @@ for future_module in \
     network \
     notifications
 do
-    if [[ "$future_module" == "themes" ]]; then
+    if [[ "$future_module" == "themes"
+            || "$future_module" == "quick-settings" ]]; then
         continue
     fi
     if grep -A4 -F "id: \"$future_module\"" "$control_center_navigation" \
@@ -9182,14 +9191,7 @@ do
     fi
 done
 
-if grep -Fq -- \
-    '|| moduleId === "quick-settings";' \
-    "$quick_settings_main"
-then
-    fail "Phase 2D.1b must not enable Quick Settings navigation"
-else
-    ok "Phase 2D.1b keeps Quick Settings unavailable in Main"
-fi
+# Quick Settings navigation lifecycle is validated by Phase 2D.1d.
 
 for contract in \
     '## Phase 2D.1b — Observed-state service' \
@@ -9286,14 +9288,7 @@ do
     fi
 done
 
-if grep -Fq -- \
-    '|| moduleId === "quick-settings";' \
-    "$quick_settings_main"
-then
-    fail "Phase 2D.1c must not enable Quick Settings navigation"
-else
-    ok "Phase 2D.1c keeps Quick Settings unavailable in Main"
-fi
+# Quick Settings navigation lifecycle is validated by Phase 2D.1d.
 
 for contract in \
     '## Phase 2D.1c — Immediate DND action service' \
@@ -9308,6 +9303,272 @@ do
         ok "Quick Settings 2D.1c documentation: $contract"
     else
         fail "Quick Settings 2D.1c documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2D.1d Quick Settings view foundation\n'
+
+quick_settings_view="$repo_root/config/quickshell/jc-hyprland/modules/quicksettings/QuickSettingsView.qml"
+
+if [[ -f "$quick_settings_view" ]]; then
+    ok "QuickSettingsView.qml exists"
+else
+    fail "missing QuickSettingsView.qml"
+fi
+
+for contract in \
+    'Item {' \
+    'required property var theme' \
+    'property var quickSettingsService' \
+    'property var actionService' \
+    'signal refreshRequested()' \
+    'signal dndRequested(bool enabled)' \
+    'readonly property bool interactionLocked:' \
+    'readonly property bool dndEnabled:' \
+    'readonly property bool dndControlEnabled:' \
+    'Components.JcSectionHeader {' \
+    'title: "Quick Settings"' \
+    'Components.JcSettingTile {' \
+    'text: "Do Not Disturb"' \
+    'iconName: "notifications"' \
+    'selected: root.dndEnabled' \
+    'Components.JcToggle {' \
+    'checked: root.dndEnabled' \
+    'controlEnabled: root.dndControlEnabled' \
+    'root.dndRequested(value)' \
+    'Components.JcSurface {' \
+    'title: "Observed capabilities"' \
+    'Observed-only in Phase 2D.1d.'
+do
+    if grep -Fq -- "$contract" "$quick_settings_view"; then
+        ok "QuickSettingsView contract: $contract"
+    else
+        fail "QuickSettingsView contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'swaync-client' \
+    'hyprsunset' \
+    'lock-session.sh' \
+    'suspend-session.sh' \
+    'systemctl' \
+    'jc-quick-settings'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_view"; then
+        fail "QuickSettingsView owns backend/mutation detail: $forbidden"
+    else
+        ok "QuickSettingsView excludes backend/mutation detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'import qs.modules.quicksettings as QuickSettings' \
+    'function prepareQuickSettings() {' \
+    'moduleId === "quick-settings"' \
+    'root.prepareQuickSettings();' \
+    'id: shellQuickSettingsComponent' \
+    'QuickSettings.QuickSettingsView {' \
+    'quickSettingsService: root.quickSettingsServiceHandle' \
+    'actionService: root.quickSettingsActionServiceHandle' \
+    'onRefreshRequested: quickSettingsService.refresh()' \
+    'quickSettingsActionService.setDndEnabled(enabled)' \
+    '? "Quick Settings"' \
+    '? shellQuickSettingsComponent' \
+    'root.activeModuleId === "quick-settings"'
+do
+    if grep -Fq -- "$contract" "$quick_settings_main"; then
+        ok "Main Quick Settings view wiring: $contract"
+    else
+        fail "Main Quick Settings view wiring missing: $contract"
+    fi
+done
+
+if grep -A4 -F 'id: "quick-settings"' "$control_center_navigation" \
+    | grep -Fq 'enabled: true'
+then
+    ok "Phase 2D.1d Quick Settings navigation enabled"
+else
+    fail "Phase 2D.1d Quick Settings navigation not enabled"
+fi
+
+for contract in \
+    '## Phase 2D.1d — Quick Settings view foundation' \
+    'QuickSettingsView.qml' \
+    'dndRequested(enabled)' \
+    'quickSettingsActionService.setDndEnabled(enabled)' \
+    'Lock, Night Light and Suspend are displayed only' \
+    'navigation entry changes from disabled to enabled'
+do
+    if grep -Fq -- "$contract" "$quick_settings_doc"; then
+        ok "Quick Settings 2D.1d documentation: $contract"
+    else
+        fail "Quick Settings 2D.1d documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2D.1d visual consistency correction\n'
+
+quick_settings_visual="$repo_root/config/quickshell/jc-hyprland/modules/quicksettings/QuickSettingsView.qml"
+theme_view_visual="$repo_root/config/quickshell/jc-hyprland/modules/themes/ThemeView.qml"
+
+for contract in \
+    'Layout.alignment: Qt.AlignVCenter' \
+    'text: "DND"' \
+    'compact: true' \
+    'id: dndHudFrame' \
+    'id: capabilityHudFrame' \
+    'Components.JcHudFrame {' \
+    'fillColor: root.theme.hudSurface'
+do
+    if grep -Fq -- "$contract" "$quick_settings_visual"; then
+        ok "Quick Settings visual correction: $contract"
+    else
+        fail "Quick Settings visual correction missing: $contract"
+    fi
+done
+
+quick_settings_hud_count="$(
+    grep -Fc 'Components.JcHudFrame {' \
+        "$quick_settings_visual" 2>/dev/null || true
+)"
+
+if [[ "$quick_settings_hud_count" -ge 2 ]]; then
+    ok "Quick Settings uses HUD framing for both primary surfaces"
+else
+    fail "Quick Settings requires at least 2 JcHudFrame surfaces"
+fi
+
+for contract in \
+    'id: themeHeaderSurface' \
+    'id: themeHeaderHudFrame' \
+    'id: themeGallerySurface' \
+    'id: themeGalleryHudFrame' \
+    'fillColor: root.theme.hudSurface' \
+    'anchors.margins: root.theme.spaceMd'
+do
+    if grep -Fq -- "$contract" "$theme_view_visual"; then
+        ok "Themes HUD consistency: $contract"
+    else
+        fail "Themes HUD consistency missing: $contract"
+    fi
+done
+
+theme_view_hud_count="$(
+    grep -Fc 'Components.JcHudFrame {' \
+        "$theme_view_visual" 2>/dev/null || true
+)"
+
+if [[ "$theme_view_hud_count" -ge 2 ]]; then
+    ok "Themes restores HUD framing on main header and gallery"
+else
+    fail "Themes requires at least 2 main JcHudFrame surfaces"
+fi
+
+for behavior_contract in \
+    'signal applyRequested()' \
+    'signal resetRequested()' \
+    'signal recoverRequested()' \
+    'onClicked: root.applyRequested()' \
+    'onClicked: root.resetRequested()' \
+    'onClicked: root.recoverRequested()' \
+    'root.selectTheme(themeId);'
+do
+    if grep -Fq -- "$behavior_contract" "$theme_view_visual"; then
+        ok "Themes behavior preserved: $behavior_contract"
+    else
+        fail "Themes behavior regression: $behavior_contract"
+    fi
+done
+
+# Markdown backticks are intentional literal documentation contracts.
+# shellcheck disable=SC2016
+for doc_contract in \
+    '### 2D.1d visual-gate correction' \
+    '`Do Not Disturb` label did not fit' \
+    '`JcSettingTile`' \
+    '`ThemeView.qml` had drifted from the HUD framing' \
+    'Theme draft/apply/recovery behavior is'
+do
+    if grep -Fq -- "$doc_contract" "$quick_settings_doc"; then
+        ok "2D.1d visual correction documentation: $doc_contract"
+    else
+        fail "2D.1d visual correction documentation missing: $doc_contract"
+    fi
+done
+
+printf '\n==> Phase 2D.1d observed capability tiles\n'
+
+quick_settings_capability_view="$repo_root/config/quickshell/jc-hyprland/modules/quicksettings/QuickSettingsView.qml"
+
+for contract in \
+    'id: capabilityTiles' \
+    'id: lockCapabilityTile' \
+    'text: "Lock"' \
+    'id: nightLightCapabilityTile' \
+    'text: "Night Light"' \
+    'id: suspendCapabilityTile' \
+    'text: "Suspend"' \
+    'iconName: "theme"' \
+    'iconName: "power"' \
+    'root.quickSettingsService.lockAvailable' \
+    'root.quickSettingsService.nightLightAvailable' \
+    'root.quickSettingsService.suspendAvailable' \
+    'Observed-only in Phase 2D.1d.'
+do
+    if grep -Fq -- "$contract" "$quick_settings_capability_view"; then
+        ok "Quick Settings capability tile: $contract"
+    else
+        fail "Quick Settings capability tile missing: $contract"
+    fi
+done
+
+capability_tile_count="$(
+    grep -Ec 'id: (lock|nightLight|suspend)CapabilityTile' \
+        "$quick_settings_capability_view" 2>/dev/null || true
+)"
+
+if [[ "$capability_tile_count" -eq 3 ]]; then
+    ok "Quick Settings renders exactly 3 observed capability tiles"
+else
+    fail "Quick Settings expected 3 observed capability tiles, got $capability_tile_count"
+fi
+
+capability_read_only_ok=true
+
+for capability_tile_id in \
+    lockCapabilityTile \
+    nightLightCapabilityTile \
+    suspendCapabilityTile
+do
+    if grep -A32 -F "id: $capability_tile_id" \
+        "$quick_settings_capability_view" \
+        | grep -Fq 'controlEnabled: false'
+    then
+        ok "Observed capability tile is read-only: $capability_tile_id"
+    else
+        fail "Observed capability tile is not read-only: $capability_tile_id"
+        capability_read_only_ok=false
+    fi
+done
+
+if [[ "$capability_read_only_ok" == "true" ]]; then
+    ok "Observed capability tiles remain read-only in Phase 2D.1d"
+fi
+
+# Markdown backticks are intentional literal documentation contracts.
+# shellcheck disable=SC2016
+for doc_contract in \
+    '### 2D.1d observed capability tiles' \
+    'Lock, Night Light and Suspend existed only as summary text' \
+    '`JcSettingTile` capability options' \
+    'remain intentionally read-only in Phase 2D.1d'
+do
+    if grep -Fq -- "$doc_contract" "$quick_settings_doc"; then
+        ok "Observed capability tile documentation: $doc_contract"
+    else
+        fail "Observed capability tile documentation missing: $doc_contract"
     fi
 done
 

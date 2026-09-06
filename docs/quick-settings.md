@@ -271,3 +271,107 @@ Quick Settings draft, or a global Apply button.
 
 The `quick-settings` navigation item remains disabled until the module
 presentation foundation is introduced.
+
+## Phase 2D.1d — Quick Settings view foundation
+
+`QuickSettingsView.qml` introduces the first production presentation surface
+for Phase 2D and enables the `quick-settings` Control Center navigation entry.
+
+The presentation contract remains layered:
+
+```text
+QuickSettingsView
+        |
+        +--> QuickSettingsService
+        |      observed state
+        |
+        +--> QuickSettingsActionService
+               immediate DND intent
+                    |
+                    v
+              jc-quick-settings
+```
+
+The view contains no `Process` object and no backend command ownership.
+
+### First interactive control
+
+Do Not Disturb is the only mutable control in this foundation.
+
+The view emits:
+
+```text
+dndRequested(enabled)
+```
+
+and `Main.qml` delegates that intent to:
+
+```qml
+quickSettingsActionService.setDndEnabled(enabled)
+```
+
+The toggle is bound to `QuickSettingsService.dndEnabled`, so presentation state
+comes from the observed desktop snapshot rather than an optimistic local copy.
+
+While the action service is applying or reconciling, the DND tile and toggle
+are disabled by `QuickSettingsActionService.canSetDnd`.
+
+### Observed-only capabilities
+
+Lock, Night Light and Suspend are displayed only as discovered capabilities in
+Phase 2D.1d. The view does not expose actions for them yet.
+
+Night Light mutation and lifecycle belong to Phase 2D.2. Session-oriented
+actions remain separately scoped.
+
+### Control Center integration
+
+Phase 2D.1d adds:
+
+```text
+prepareQuickSettings()
+shellQuickSettingsComponent
+Quick Settings active-module title
+Quick Settings content routing
+Quick Settings status text/detail
+refreshControlCenter() routing
+```
+
+The navigation entry changes from disabled to enabled only after both the
+observed-state service and DND action service have already been committed and
+runtime-tested.
+
+### 2D.1d visual-gate correction
+
+The manual visual gate identified two presentation regressions before commit:
+
+- the long `Do Not Disturb` label did not fit the fixed-width
+  `JcSettingTile`, so the compact tile now uses `DND` while the full label
+  remains in the descriptive text column;
+- `ThemeView.qml` had drifted from the HUD framing used by Displays and
+  Wallpapers, so its main header/action area and theme gallery are again
+  framed with `JcHudFrame`.
+
+Quick Settings also uses HUD framing for its DND and observed-capability
+surfaces, and the Refresh action is explicitly vertically aligned.
+
+These corrections are presentation-only. DND still flows through
+`QuickSettingsActionService`, and Theme draft/apply/recovery behavior is
+unchanged.
+
+### 2D.1d observed capability tiles
+
+The visual gate confirmed that capability discovery alone was insufficient:
+Lock, Night Light and Suspend existed only as summary text and were not
+recognizable as Quick Settings options.
+
+`QuickSettingsView.qml` now renders three explicit, equal-width
+`JcSettingTile` capability options:
+
+- Lock
+- Night Light
+- Suspend
+
+Each tile displays its observed availability below the control. The tiles
+remain intentionally read-only in Phase 2D.1d; this makes the future controls
+visible without bypassing the planned action-service/runtime boundaries.
