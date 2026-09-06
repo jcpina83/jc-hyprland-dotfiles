@@ -9205,6 +9205,112 @@ do
     fi
 done
 
+printf '\n==> Phase 2D.1c Quick Settings DND action service\n'
+
+quick_settings_action_service="$repo_root/config/quickshell/jc-hyprland/services/QuickSettingsActionService.qml"
+
+if [[ -f "$quick_settings_action_service" ]]; then
+    ok "QuickSettingsActionService.qml exists"
+else
+    fail "missing QuickSettingsActionService.qml"
+fi
+
+for contract in \
+    'Scope {' \
+    'property var quickSettingsService' \
+    'property bool applyingDnd: false' \
+    'property bool awaitingRefresh: false' \
+    'property bool pendingDndEnabled: false' \
+    'property bool pendingMutationSucceeded: false' \
+    'property bool pendingChanged: false' \
+    'property string errorMessage: ""' \
+    'property string statusMessage: ""' \
+    'property var lastResult: null' \
+    'readonly property bool busy:' \
+    'readonly property bool canSetDnd:' \
+    'signal dndApplied(bool desiredEnabled, bool stateChanged)' \
+    'signal failed(string message)' \
+    'function validAppliedResponse(payload, desiredEnabled) {' \
+    'function validateDndMutation() {' \
+    'function beginObservedReconciliation(): void {' \
+    'function setDndEnabled(desiredEnabled): void {' \
+    'function finishObservedReconciliation(): void {' \
+    '"dnd",' \
+    '? "on" : "off",' \
+    '"--json"' \
+    'payload.status === "applied"' \
+    'payload.requested === desiredEnabled' \
+    'payload.enabled === desiredEnabled' \
+    'payload.verified' \
+    'typeof payload.changed === "boolean"' \
+    'root.quickSettingsService.refresh();' \
+    'Process {' \
+    'StdioCollector {' \
+    'Connections {' \
+    'function onRefreshed() {' \
+    'function onRefreshFailed(message) {'
+do
+    if grep -Fq -- "$contract" "$quick_settings_action_service"; then
+        ok "QuickSettingsActionService contract: $contract"
+    else
+        fail "QuickSettingsActionService contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'swaync-client' \
+    'hyprsunset' \
+    'lock-session.sh' \
+    'suspend-session.sh' \
+    'systemctl' \
+    '--toggle-dnd'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_action_service"; then
+        fail "QuickSettingsActionService contains backend/premature action: $forbidden"
+    else
+        ok "QuickSettingsActionService excludes backend/premature action: $forbidden"
+    fi
+done
+
+for contract in \
+    '|| quickSettingsActionService.busy' \
+    'readonly property var quickSettingsActionServiceHandle:' \
+    'Services.QuickSettingsActionService {' \
+    'id: quickSettingsActionService' \
+    'quickSettingsService: quickSettingsService'
+do
+    if grep -Fq -- "$contract" "$quick_settings_main"; then
+        ok "Main Quick Settings action wiring: $contract"
+    else
+        fail "Main Quick Settings action wiring missing: $contract"
+    fi
+done
+
+if grep -Fq -- \
+    '|| moduleId === "quick-settings";' \
+    "$quick_settings_main"
+then
+    fail "Phase 2D.1c must not enable Quick Settings navigation"
+else
+    ok "Phase 2D.1c keeps Quick Settings unavailable in Main"
+fi
+
+for contract in \
+    '## Phase 2D.1c — Immediate DND action service' \
+    'QuickSettingsActionService.qml' \
+    'jc-quick-settings dnd on --json' \
+    'jc-quick-settings dnd off --json' \
+    'changed=false' \
+    'quickSettingsActionServiceHandle' \
+    'navigation item remains disabled'
+do
+    if grep -Fq -- "$contract" "$quick_settings_doc"; then
+        ok "Quick Settings 2D.1c documentation: $contract"
+    else
+        fail "Quick Settings 2D.1c documentation missing: $contract"
+    fi
+done
+
 printf '\nQuickshell validation summary: %d error(s)\n' "$errors"
 
 if ((errors > 0)); then

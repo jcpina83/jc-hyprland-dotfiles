@@ -201,3 +201,73 @@ Those operations belong outside the observed-state service.
 The `quick-settings` navigation item remains disabled in Phase 2D.1b. The
 module is enabled only after the action service and presentation foundation are
 both available.
+
+## Phase 2D.1c — Immediate DND action service
+
+`QuickSettingsActionService.qml` is the QML mutation boundary for the first
+Quick Settings action: Do Not Disturb.
+
+Its public runtime calls are limited to deterministic desired-state commands:
+
+```bash
+jc-quick-settings dnd on --json
+jc-quick-settings dnd off --json
+```
+
+The QML service never calls `swaync-client` directly and never owns SwayNC
+lifecycle. The stable runtime API remains responsible for backend mutation and
+post-mutation verification.
+
+The action lifecycle is:
+
+```text
+validate observed capability
+        ↓
+request explicit DND on/off
+        ↓
+validate mutation JSON
+        ↓
+QuickSettingsService.refresh()
+        ↓
+verify observed dndEnabled == requested state
+        ↓
+dndApplied(desiredEnabled, stateChanged)
+```
+
+`changed=false` is a successful no-op. It means the observed state already
+matched the requested desired state.
+
+The service exposes:
+
+```text
+quickSettingsService
+
+applyingDnd
+awaitingRefresh
+busy
+canSetDnd
+
+errorMessage
+statusMessage
+lastResult
+
+setDndEnabled(desiredEnabled)
+clearTransientFeedback()
+
+dndApplied(desiredEnabled, stateChanged)
+failed(message)
+```
+
+Both successful and failed runtime requests are followed by observed-state
+reconciliation whenever possible. This prevents the presentation layer from
+assuming that a command result alone is the current desktop state.
+
+`Main.qml` owns one `QuickSettingsActionService`, injects the existing
+`QuickSettingsService`, exposes `quickSettingsActionServiceHandle`, and includes
+the action service in the Control Center transition lock while it is busy.
+
+Phase 2D.1c intentionally does not add Lock, Suspend, Night Light, a global
+Quick Settings draft, or a global Apply button.
+
+The `quick-settings` navigation item remains disabled until the module
+presentation foundation is introduced.

@@ -26,6 +26,7 @@ Scope {
         || wallpaperApplyService.busy
         || wallpaperRotationApplyService.busy
         || themeApplyService.busy
+        || quickSettingsActionService.busy
 
     readonly property string controlCenterStatusText: {
         if (root.activeModuleId === "themes") {
@@ -214,6 +215,8 @@ Scope {
     readonly property var themeHandle: theme
     readonly property var themeServiceHandle: themeService
     readonly property var quickSettingsServiceHandle: quickSettingsService
+    readonly property var quickSettingsActionServiceHandle:
+        quickSettingsActionService
     readonly property var themeDraftStoreHandle: themeDraftStore
     readonly property var themeApplyServiceHandle: themeApplyService
 
@@ -406,6 +409,12 @@ Scope {
 
     Services.QuickSettingsService {
         id: quickSettingsService
+    }
+
+
+    Services.QuickSettingsActionService {
+        id: quickSettingsActionService
+        quickSettingsService: quickSettingsService
     }
 
 
