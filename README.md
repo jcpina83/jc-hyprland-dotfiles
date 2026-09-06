@@ -1196,5 +1196,19 @@ QML delegates intent through `QuickSettingsActionService`; it never invokes
 Hyprlock or the wrapper directly. Before dispatching Lock, `Main.qml` waits
 until the Control Center has completed its exit motion and
 `controlCenterShell.mounted` is false; this prevents Hyprlock from freezing a
-half-closed panel underneath the lock screen. Suspend remains observed-only
+half-closed panel underneath the lock screen. Suspend is promoted in Phase 2D.3b below
 until its dedicated sleep/resume gate.
+
+### Quick Settings — Phase 2D.3b Suspend
+
+Quick Settings now exposes Suspend as a one-shot action through:
+
+```bash
+jc-quick-settings suspend --json
+```
+
+The CLI returns `status: "accepted"` after verifying the detached handoff to
+`suspend-session.sh`; it does not claim that the later sleep/resume cycle is
+already verified. `Main.qml` waits for `controlCenterShell.mounted` to become
+false before dispatching Suspend, matching the presentation-order contract used
+by Lock. The existing wrapper remains the sole owner of `systemctl suspend`.

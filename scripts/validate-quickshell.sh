@@ -9327,7 +9327,7 @@ for contract in \
     'root.dndRequested(value)' \
     'Components.JcSurface {' \
     'title: "Observed capabilities"' \
-    'Suspend remains observed-only.'
+    'Lock, Night Light and Suspend are interactive.'
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "QuickSettingsView contract: $contract"
@@ -9504,7 +9504,7 @@ for contract in \
     'root.quickSettingsService.lockAvailable' \
     'root.quickSettingsService.nightLightAvailable' \
     'root.quickSettingsService.suspendAvailable' \
-    'Suspend remains observed-only.'
+    'Lock, Night Light and Suspend are interactive.'
 do
     if grep -Fq -- "$contract" "$quick_settings_capability_view"; then
         ok "Quick Settings capability tile: $contract"
@@ -9524,13 +9524,16 @@ else
     fail "Quick Settings expected 3 observed capability tiles, got $capability_tile_count"
 fi
 
-if grep -A32 -F 'id: suspendCapabilityTile' \
+if grep -A40 -F 'id: suspendCapabilityTile' \
     "$quick_settings_capability_view" \
-    | grep -Fq 'controlEnabled: false'
+    | grep -Fq 'controlEnabled: root.suspendControlEnabled' \
+    && grep -A40 -F 'id: suspendCapabilityTile' \
+        "$quick_settings_capability_view" \
+        | grep -Fq 'onClicked: root.suspendRequested()'
 then
-    ok "Observed capability tile remains read-only: suspendCapabilityTile"
+    ok "Suspend capability tile is interactive in Phase 2D.3b"
 else
-    fail "Observed capability tile is not read-only: suspendCapabilityTile"
+    fail "Suspend capability tile is not interactive in Phase 2D.3b"
 fi
 
 # Markdown backticks are intentional literal documentation contracts.
@@ -9635,7 +9638,7 @@ for contract in \
     'controlEnabled:' \
     'root.nightLightControlEnabled' \
     'root.nightLightRequested(' \
-    'Suspend remains observed-only.'
+    'Lock, Night Light and Suspend are interactive.'
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "Night Light view contract: $contract"
@@ -9662,7 +9665,7 @@ for contract in \
     'quickSettingsService.nightLightEnabled === true' \
     'onNightLightRequested: enabled =>' \
     'quickSettingsActionService.setNightLightEnabled(enabled)' \
-    'Use Do Not Disturb, Night Light and Lock now.'
+    'Use Do Not Disturb, Night Light, Lock and Suspend now.'
 do
     if grep -Fq -- "$contract" "$quick_settings_main"; then
         ok "Main Night Light orchestration: $contract"
@@ -9788,7 +9791,7 @@ for contract in \
     'controlEnabled: root.lockControlEnabled' \
     'onClicked: root.lockRequested()' \
     'text: root.lockStateLabel' \
-    'Suspend remains observed-only.'
+    'Lock, Night Light and Suspend are interactive.'
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "Lock view contract: $contract"
@@ -9819,7 +9822,7 @@ for contract in \
     'onLockRequested: root.requestSessionLock()' \
     'onMountedChanged: {' \
     'root.dispatchPendingSessionLock();' \
-    'Use Do Not Disturb, Night Light and Lock now.'
+    'Use Do Not Disturb, Night Light, Lock and Suspend now.'
 do
     if grep -Fq -- "$contract" "$quick_settings_main"; then
         ok "Main Lock orchestration: $contract"
@@ -9840,7 +9843,7 @@ for contract in \
     'controlCenterShell.mounted === false' \
     'No fixed sleep or animation' \
     'duration is used.' \
-    'Suspend remains observed-only until Phase 2D.3b'
+    'Phase 2D.3b — Suspend quick action'
 do
     if grep -Fq -- "$contract" "$quick_settings_doc"; then
         ok "Lock documentation: $contract"
@@ -9853,12 +9856,145 @@ for contract in \
     '### Quick Settings — Phase 2D.3a Lock' \
     'jc-quick-settings lock --json' \
     'controlCenterShell.mounted' \
-    'Suspend remains observed-only'
+    'Quick Settings — Phase 2D.3b Suspend'
 do
     if grep -Fq -- "$contract" "$quick_settings_readme"; then
         ok "Lock README: $contract"
     else
         fail "Lock README missing: $contract"
+    fi
+done
+
+
+printf '\n==> Phase 2D.3b Suspend quick action\n'
+
+quick_settings_cli="$repo_root/scripts/runtime/jc-quick-settings.sh"
+quick_settings_action_service="$config_dir/services/QuickSettingsActionService.qml"
+quick_settings_view="$config_dir/modules/quicksettings/QuickSettingsView.qml"
+quick_settings_doc="$repo_root/docs/quick-settings.md"
+readme="$repo_root/README.md"
+
+for contract in \
+    'jc-quick-settings suspend [--json]' \
+    'suspend_runtime_wrapper() {' \
+    'apply_suspend() {' \
+    'status: "accepted"' \
+    'capability: "suspend"' \
+    'accepted: true' \
+    'handoffVerified: true' \
+    'backend: "suspend-session.sh"' \
+    "nohup \"\$wrapper\""
+do
+    if grep -Fq -- "$contract" "$quick_settings_cli"; then
+        ok "Suspend runtime contract: $contract"
+    else
+        fail "Suspend runtime contract missing: $contract"
+    fi
+done
+
+if grep -Fq 'systemctl suspend' "$quick_settings_cli"; then
+    fail "Suspend stable CLI bypasses managed wrapper"
+else
+    ok "Suspend stable CLI preserves managed wrapper boundary"
+fi
+
+for contract in \
+    'property bool applyingSuspend: false' \
+    'readonly property bool canSuspend:' \
+    'signal suspendAccepted()' \
+    'function validSuspendAcceptedResponse(payload) {' \
+    'payload.status === "accepted"' \
+    'payload.capability === "suspend"' \
+    'payload.handoffVerified' \
+    'function validateSuspendAction() {' \
+    'function suspendSession(): void {' \
+    'id: suspendProcess'
+do
+    if grep -Fq -- "$contract" "$quick_settings_action_service"; then
+        ok "Suspend ActionService contract: $contract"
+    else
+        fail "Suspend ActionService contract missing: $contract"
+    fi
+done
+
+for forbidden in 'suspend-session.sh' 'systemctl suspend' 'loginctl suspend' 'systemd-run'; do
+    if grep -Fq -- "$forbidden" "$quick_settings_action_service"; then
+        fail "Suspend ActionService leaks backend: $forbidden"
+    else
+        ok "Suspend ActionService excludes backend: $forbidden"
+    fi
+done
+
+for contract in \
+    'signal suspendRequested()' \
+    'readonly property bool suspendControlEnabled:' \
+    'Boolean(root.actionService.canSuspend)' \
+    'readonly property string suspendStateLabel:' \
+    'root.actionService.applyingSuspend' \
+    'controlEnabled: root.suspendControlEnabled' \
+    'onClicked: root.suspendRequested()' \
+    'text: root.suspendStateLabel' \
+    'Lock, Night Light and Suspend are interactive.'
+do
+    if grep -Fq -- "$contract" "$quick_settings_view"; then
+        ok "Suspend View contract: $contract"
+    else
+        fail "Suspend View contract missing: $contract"
+    fi
+done
+
+for forbidden in 'suspend-session.sh' 'systemctl suspend' 'loginctl suspend' 'jc-quick-settings'; do
+    if grep -Fq -- "$forbidden" "$quick_settings_view"; then
+        fail "Suspend View leaks backend: $forbidden"
+    else
+        ok "Suspend View excludes backend: $forbidden"
+    fi
+done
+
+for contract in \
+    'property bool pendingSessionSuspend: false' \
+    'function requestSessionSuspend(): void {' \
+    'function dispatchPendingSessionSuspend(): void {' \
+    'if (controlCenterShell.mounted)' \
+    'quickSettingsActionService.suspendSession();' \
+    'Qt.callLater(root.dispatchPendingSessionSuspend);' \
+    'onSuspendRequested: root.requestSessionSuspend()' \
+    'root.dispatchPendingSessionSuspend();' \
+    'Use Do Not Disturb, Night Light, Lock and Suspend now.'
+do
+    if grep -Fq -- "$contract" "$main_qml"; then
+        ok "Suspend Main contract: $contract"
+    else
+        fail "Suspend Main contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2D.3b — Suspend quick action' \
+    'jc-quick-settings suspend --json' \
+    '"status": "accepted"' \
+    'handoffVerified' \
+    'controlCenterShell.mounted === false' \
+    'does **not** claim that the later system sleep or resume cycle'
+do
+    if grep -Fq -- "$contract" "$quick_settings_doc"; then
+        ok "Suspend documentation: $contract"
+    else
+        fail "Suspend documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '### Quick Settings — Phase 2D.3b Suspend' \
+    'jc-quick-settings suspend --json' \
+    'status: "accepted"' \
+    'suspend-session.sh' \
+    'controlCenterShell.mounted'
+do
+    if grep -Fq -- "$contract" "$readme"; then
+        ok "Suspend README: $contract"
+    else
+        fail "Suspend README missing: $contract"
     fi
 done
 

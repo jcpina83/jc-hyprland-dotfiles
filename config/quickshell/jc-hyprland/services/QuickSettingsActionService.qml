@@ -13,6 +13,7 @@ Scope {
     //   jc-quick-settings dnd on|off --json
     //   jc-quick-settings night-light on|off --json
     //   jc-quick-settings lock --json
+    //   jc-quick-settings suspend --json
     //
     // It never invokes desktop backends directly.
     // Successful and failed mutations reconcile through QuickSettingsService.
@@ -33,6 +34,7 @@ Scope {
     property bool pendingNightLightChanged: false
 
     property bool applyingLock: false
+    property bool applyingSuspend: false
 
     property string errorMessage: ""
     property string statusMessage: ""
@@ -44,6 +46,7 @@ Scope {
         || root.applyingNightLight
         || root.awaitingNightLightRefresh
         || root.applyingLock
+        || root.applyingSuspend
 
     readonly property bool canSetDnd:
         !root.busy
@@ -69,9 +72,17 @@ Scope {
         && !root.quickSettingsService.loading
         && root.quickSettingsService.lockAvailable
 
+    readonly property bool canSuspend:
+        !root.busy
+        && root.quickSettingsService
+        && root.quickSettingsService.ready
+        && !root.quickSettingsService.loading
+        && root.quickSettingsService.suspendAvailable
+
     signal dndApplied(bool desiredEnabled, bool stateChanged)
     signal nightLightApplied(bool desiredEnabled, bool stateChanged)
     signal lockApplied(bool stateChanged)
+    signal suspendAccepted()
     signal failed(string message)
 
     function quickSettingsCommandPath() {
@@ -151,6 +162,21 @@ Scope {
             && payload.verified;
     }
 
+
+    function validSuspendAcceptedResponse(payload) {
+        return payload
+            && Number(payload.schemaVersion) === 1
+            && payload.status === "accepted"
+            && payload.capability === "suspend"
+            && typeof payload.available === "boolean"
+            && typeof payload.accepted === "boolean"
+            && typeof payload.handoffVerified === "boolean"
+            && typeof payload.backend === "string"
+            && payload.available
+            && payload.accepted
+            && payload.handoffVerified;
+    }
+
     function validateDndMutation() {
         if (!root.quickSettingsService)
             return "Quick Settings observed-state service is unavailable.";
@@ -204,6 +230,23 @@ Scope {
 
         if (!root.quickSettingsService.lockAvailable)
             return "Lock is unavailable.";
+
+        return "";
+    }
+
+
+    function validateSuspendAction() {
+        if (!root.quickSettingsService)
+            return "Quick Settings observed-state service is unavailable.";
+
+        if (!root.quickSettingsService.ready)
+            return "Quick Settings observed state is not ready.";
+
+        if (root.quickSettingsService.loading)
+            return "Quick Settings observed state is still refreshing.";
+
+        if (!root.quickSettingsService.suspendAvailable)
+            return "Suspend is unavailable.";
 
         return "";
     }
@@ -346,6 +389,34 @@ Scope {
             "--json"
         ];
         lockProcess.running = true;
+    }
+
+
+    function suspendSession(): void {
+        root.errorMessage = "";
+        root.statusMessage = "";
+        root.lastResult = null;
+
+        if (root.busy)
+            return;
+
+        const validationError = root.validateSuspendAction();
+
+        if (validationError.length > 0) {
+            root.errorMessage = validationError;
+            root.failed(root.errorMessage);
+            return;
+        }
+
+        root.applyingSuspend = true;
+        root.statusMessage = "Suspending session…";
+
+        suspendProcess.command = [
+            root.quickSettingsCommandPath(),
+            "suspend",
+            "--json"
+        ];
+        suspendProcess.running = true;
     }
 
     function finishObservedReconciliation(): void {
@@ -709,6 +780,57 @@ Scope {
             root.lockApplied(Boolean(response.changed));
         }
     }
+
+
+
+    Process {
+        id: suspendProcess
+
+        stdout: StdioCollector {
+            id: suspendStdout
+        }
+
+        stderr: StdioCollector {
+            id: suspendStderr
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const stdoutText = String(suspendStdout.text || "").trim();
+            const stderrText = String(suspendStderr.text || "").trim();
+            const response = root.parseResponse(stdoutText);
+
+            root.applyingSuspend = false;
+            root.lastResult = response;
+
+            if (exitCode !== 0) {
+                const details = stderrText.length > 0
+                    ? stderrText
+                    : stdoutText;
+
+                root.errorMessage =
+                    "Suspend request failed"
+                    + (details.length > 0 ? ": " + details : "");
+                root.statusMessage = "";
+                root.failed(root.errorMessage);
+                return;
+            }
+
+            if (!root.validSuspendAcceptedResponse(response)) {
+                root.errorMessage =
+                    "Unexpected jc-quick-settings Suspend response: "
+                    + (stdoutText.length > 0 ? stdoutText : "<empty>");
+                root.statusMessage = "";
+                root.failed(root.errorMessage);
+                return;
+            }
+
+            root.errorMessage = "";
+            root.statusMessage =
+                "Suspend request accepted; waiting for system sleep.";
+            root.suspendAccepted();
+        }
+    }
+
 
     Connections {
         target: root.quickSettingsService

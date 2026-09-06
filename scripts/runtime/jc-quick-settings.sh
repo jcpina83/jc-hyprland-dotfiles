@@ -21,6 +21,7 @@ Usage:
   jc-quick-settings night-light on [--json]
   jc-quick-settings night-light off [--json]
   jc-quick-settings lock [--json]
+  jc-quick-settings suspend [--json]
   jc-quick-settings --help
 
 Stable Quick Settings contract:
@@ -32,6 +33,11 @@ Stable Quick Settings contract:
   night-light on      Start hyprsunset on demand, apply 4500 K and verify.
   night-light off     Restore the neutral identity matrix and verify.
   lock                Lock the session through the managed Hyprlock wrapper.
+  suspend             Accept a detached handoff to the managed Suspend wrapper.
+
+Suspend lifecycle:
+  The CLI verifies only that suspend-session.sh was handed off successfully.
+  It returns before system sleep and does not claim resume-cycle verification.
 
 Night Light lifecycle:
   hyprsunset.service is started on demand and is never enabled by this CLI.
@@ -943,6 +949,96 @@ apply_lock() {
     fi
 }
 
+suspend_runtime_wrapper() {
+    resolve_runtime_wrapper \
+        "suspend-session.sh" \
+        "suspend-session.sh"
+}
+
+suspend_runtime_available() {
+    local wrapper=""
+
+    wrapper="$(suspend_runtime_wrapper 2>/dev/null || true)"
+
+    [[ -n "$wrapper" && -x "$wrapper" ]] \
+        && command_available systemctl
+}
+
+apply_suspend() {
+    local wrapper=""
+    local handoff_pid=""
+    local handoff_verified=false
+
+    wrapper="$(suspend_runtime_wrapper 2>/dev/null || true)"
+
+    if [[ -z "$wrapper" || ! -x "$wrapper" ]] \
+            || ! command_available systemctl
+    then
+        if [[ "$json_output" == true ]]; then
+            jq -n \
+                --argjson schemaVersion "$schema_version" \
+                '{
+                    schemaVersion: $schemaVersion,
+                    status: "unavailable",
+                    capability: "suspend",
+                    available: false,
+                    accepted: false,
+                    handoffVerified: false,
+                    backend: "suspend-session.sh"
+                }'
+        else
+            printf 'ERROR: Suspend capability is unavailable\n' >&2
+        fi
+        exit 3
+    fi
+
+    # The existing managed wrapper owns the actual system sleep command and
+    # begins with its one-second input-settle delay. Detach it so this CLI can
+    # complete acknowledgement before the machine enters sleep.
+    nohup "$wrapper" >/dev/null 2>&1 </dev/null &
+    handoff_pid=$!
+
+    if kill -0 "$handoff_pid" 2>/dev/null; then
+        handoff_verified=true
+    fi
+
+    if [[ "$handoff_verified" != "true" ]]; then
+        if [[ "$json_output" == true ]]; then
+            jq -n \
+                --argjson schemaVersion "$schema_version" \
+                '{
+                    schemaVersion: $schemaVersion,
+                    status: "failed",
+                    capability: "suspend",
+                    available: true,
+                    accepted: false,
+                    handoffVerified: false,
+                    backend: "suspend-session.sh",
+                    message: "Suspend wrapper handoff could not be started."
+                }'
+        else
+            printf 'ERROR: Suspend wrapper handoff could not be started\n' >&2
+        fi
+        exit 4
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        jq -n \
+            --argjson schemaVersion "$schema_version" \
+            '{
+                schemaVersion: $schemaVersion,
+                status: "accepted",
+                capability: "suspend",
+                available: true,
+                accepted: true,
+                handoffVerified: true,
+                backend: "suspend-session.sh"
+            }'
+    else
+        printf 'Suspend: accepted\n'
+    fi
+}
+
 args=()
 
 for arg in "$@"; do
@@ -997,6 +1093,13 @@ case "${1:-}" in
         [[ $# -eq 1 ]]             || die_usage "lock accepts no extra arguments"
 
         apply_lock
+        ;;
+
+    suspend)
+        [[ $# -eq 1 ]] \
+            || die_usage "suspend accepts no extra arguments"
+
+        apply_suspend
         ;;
 
     night-light)

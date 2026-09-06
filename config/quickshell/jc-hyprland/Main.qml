@@ -17,6 +17,7 @@ Scope {
     property bool controlCenterVisible: false
     property bool galleryVisible: false
     property bool pendingSessionLock: false
+    property bool pendingSessionSuspend: false
 
     property string controlCenterOutputName: ""
     property string activeModuleId: "displays"
@@ -73,6 +74,9 @@ Scope {
 
             if (quickSettingsActionService.applyingLock)
                 return "Locking session…";
+
+            if (quickSettingsActionService.applyingSuspend)
+                return "Suspending session…";
 
             if (quickSettingsActionService.awaitingRefresh
                     || quickSettingsActionService.awaitingNightLightRefresh) {
@@ -197,8 +201,7 @@ Scope {
                 return quickSettingsService.errorMessage;
 
             if (quickSettingsService.ready) {
-                return "Use Do Not Disturb, Night Light and Lock now. "
-                    + "Suspend remains observed-only.";
+                return "Use Do Not Disturb, Night Light, Lock and Suspend now.";
             }
 
             return "Waiting for Quick Settings observed state.";
@@ -385,8 +388,11 @@ Scope {
     }
 
     function requestSessionLock(): void {
-        if (root.pendingSessionLock || quickSettingsActionService.busy)
+        if (root.pendingSessionLock
+                || root.pendingSessionSuspend
+                || quickSettingsActionService.busy) {
             return;
+        }
 
         root.pendingSessionLock = true;
         root.hideControlCenter();
@@ -402,6 +408,36 @@ Scope {
         // Covers the already-unmounted case without depending on a fixed
         // animation duration.
         Qt.callLater(root.dispatchPendingSessionLock);
+    }
+
+
+    function dispatchPendingSessionSuspend(): void {
+        if (!root.pendingSessionSuspend)
+            return;
+
+        if (controlCenterShell.mounted)
+            return;
+
+        root.pendingSessionSuspend = false;
+        quickSettingsActionService.suspendSession();
+    }
+
+    function requestSessionSuspend(): void {
+        if (root.pendingSessionLock
+                || root.pendingSessionSuspend
+                || quickSettingsActionService.busy) {
+            return;
+        }
+
+        root.pendingSessionSuspend = true;
+        root.hideControlCenter();
+
+        if (root.controlCenterVisible) {
+            root.pendingSessionSuspend = false;
+            return;
+        }
+
+        Qt.callLater(root.dispatchPendingSessionSuspend);
     }
 
     function hideControlCenter() {
@@ -669,6 +705,7 @@ Scope {
             onNightLightRequested: enabled =>
                 quickSettingsActionService.setNightLightEnabled(enabled)
             onLockRequested: root.requestSessionLock()
+            onSuspendRequested: root.requestSessionSuspend()
         }
     }
 
@@ -740,8 +777,10 @@ Scope {
             root.showModule(moduleId)
 
         onMountedChanged: {
-            if (!mounted)
+            if (!mounted) {
                 root.dispatchPendingSessionLock();
+                root.dispatchPendingSessionSuspend();
+            }
         }
     }
 

@@ -550,5 +550,64 @@ waits for `controlCenterShell.mounted === false` before invoking
 `QuickSettingsActionService.lockSession()`. No fixed sleep or animation
 duration is used.
 
-Suspend remains observed-only until Phase 2D.3b because validating Suspend
+Suspend is promoted to an action in Phase 2D.3b because validating Suspend
 requires an explicit real sleep/resume gate.
+
+## Phase 2D.3b — Suspend quick action
+
+Suspend is promoted from capability discovery to a one-shot Quick Settings
+action while preserving the existing managed boundary:
+
+```text
+QuickSettingsView
+        |
+        | suspendRequested()
+        v
+Main.qml
+        |
+        | close Control Center
+        v
+ControlCenterShell
+        |
+        | await mounted=false
+        v
+QuickSettingsActionService.suspendSession()
+        |
+        | jc-quick-settings suspend --json
+        v
+jc-quick-settings
+        |
+        | detached handoff
+        v
+suspend-session.sh
+        |
+        | existing input-settle delay
+        v
+systemctl suspend
+```
+
+The stable runtime response uses acceptance semantics:
+
+```json
+{
+  "schemaVersion": 1,
+  "status": "accepted",
+  "capability": "suspend",
+  "available": true,
+  "accepted": true,
+  "handoffVerified": true,
+  "backend": "suspend-session.sh"
+}
+```
+
+`handoffVerified=true` means the managed detached wrapper process was created
+successfully. It does **not** claim that the later system sleep or resume cycle
+has already been verified. The CLI returns before the machine enters sleep so
+QML can consume a complete response first.
+
+Suspend uses the same presentation-order rule established by Lock:
+`Main.qml` waits for `controlCenterShell.mounted === false` before delegating the
+runtime action. Presentation QML contains no direct session backend commands and
+uses no fixed animation sleep.
+
+Logout, reboot and shutdown remain outside this Quick Settings subphase.

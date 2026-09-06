@@ -15,6 +15,7 @@ Item {
     signal dndRequested(bool enabled)
     signal nightLightRequested(bool enabled)
     signal lockRequested()
+    signal suspendRequested()
 
     readonly property bool interactionLocked:
         root.actionService
@@ -52,6 +53,31 @@ Item {
             return "Waiting…";
 
         return root.quickSettingsService.lockAvailable
+            ? "Ready"
+            : "Unavailable";
+    }
+
+
+    readonly property bool suspendControlEnabled:
+        root.actionService
+        && Boolean(root.actionService.canSuspend)
+
+    readonly property string suspendStateLabel: {
+        if (root.actionService
+                && root.actionService.applyingSuspend) {
+            return "Suspending…";
+        }
+
+        if (!root.quickSettingsService)
+            return "Service unavailable";
+
+        if (root.quickSettingsService.loading)
+            return "Refreshing…";
+
+        if (!root.quickSettingsService.ready)
+            return "Waiting…";
+
+        return root.quickSettingsService.suspendAvailable
             ? "Ready"
             : "Unavailable";
     }
@@ -545,19 +571,15 @@ Item {
                                     iconName: "power"
 
                                     selected: false
-                                    controlEnabled: false
+                                    controlEnabled: root.suspendControlEnabled
+
+                                    onClicked: root.suspendRequested()
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
 
-                                    text:
-                                        !root.quickSettingsService
-                                        || !root.quickSettingsService.ready
-                                            ? "Checking…"
-                                            : root.quickSettingsService.suspendAvailable
-                                                ? "Available"
-                                                : "Unavailable"
+                                    text: root.suspendStateLabel
 
                                     color:
                                         root.quickSettingsService
@@ -580,8 +602,7 @@ Item {
                             Layout.fillWidth: true
 
                             text:
-                                "Lock and Night Light are interactive. "
-                                + "Suspend remains observed-only."
+                                "Lock, Night Light and Suspend are interactive."
 
                             color: root.theme.textMuted
 
