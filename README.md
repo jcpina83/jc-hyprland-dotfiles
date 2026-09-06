@@ -1212,3 +1212,15 @@ The CLI returns `status: "accepted"` after verifying the detached handoff to
 already verified. `Main.qml` waits for `controlCenterShell.mounted` to become
 false before dispatching Suspend, matching the presentation-order contract used
 by Lock. The existing wrapper remains the sole owner of `systemctl suspend`.
+
+### Quick Settings — Phase 2D.4 Visual / keyboard / icon polish
+
+Quick Settings now uses dedicated semantic vector icons for DND, Lock and Night Light. Lock is represented by a closed padlock, while Night Light uses a combined sun/crescent symbol. Suspend keeps the established Power icon.
+
+The lower action surface is labeled **Quick actions**, and the setting tiles
+expose explicit directional focus movement in addition to their existing
+Return / Enter / Space activation contract.
+
+This phase is presentation-only: the stable `jc-quick-settings` API,
+`QuickSettingsService`, `QuickSettingsActionService`, Lock ordering and Suspend
+ordering remain unchanged.

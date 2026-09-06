@@ -611,3 +611,30 @@ runtime action. Presentation QML contains no direct session backend commands and
 uses no fixed animation sleep.
 
 Logout, reboot and shutdown remain outside this Quick Settings subphase.
+
+## Phase 2D.4 — Visual, keyboard and icon polish
+
+Phase 2D.4 is presentation-only polish over the completed immediate-action
+contracts. It does not change the stable runtime API, observed-state service,
+action service, Lock ordering or Suspend ordering.
+
+The final Quick Settings icon treatment is intentionally hybrid:
+
+- DND uses the dedicated semantic `dnd` vector icon;
+- Night Light uses a dedicated `night-light` vector icon combining sun and crescent moon geometry;
+- Lock uses a dedicated closed-padlock `lock` vector icon;
+- Suspend keeps the established `power` icon for the same visual reason.
+
+The generic `notifications`, `settings` and `theme` mappings are replaced for DND, Lock and Night Light respectively.
+
+The action surface is titled **Quick actions** rather than **Observed
+capabilities**, because DND, Night Light, Lock and Suspend are all interactive
+at this phase.
+
+Keyboard activation continues to use the canonical `JcSettingTile` contract:
+Return, Enter and Space activate the focused tile. Phase 2D.4 adds explicit
+directional focus navigation between the DND tile and the Lock / Night Light /
+Suspend row while preserving normal Tab traversal.
+
+The visual layer remains backend-neutral. `QuickSettingsView.qml` owns no
+SwayNC, Hyprsunset, Hyprlock, systemd, loginctl or stable-CLI command details.

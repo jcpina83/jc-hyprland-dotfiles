@@ -206,6 +206,8 @@ Item {
             }
 
             Components.JcButton {
+                id: refreshAction
+
                 Layout.alignment: Qt.AlignVCenter
 
                 theme: root.theme
@@ -221,6 +223,8 @@ Item {
                     !root.interactionLocked
                     && root.quickSettingsService
                     && !root.quickSettingsService.loading
+
+                KeyNavigation.down: dndQuickTile
 
                 onClicked: root.refreshRequested()
             }
@@ -323,15 +327,20 @@ Item {
                         spacing: root.theme.spaceLg
 
                         Components.JcSettingTile {
+                            id: dndQuickTile
+
                             Layout.alignment: Qt.AlignVCenter
 
                             theme: root.theme
                             text: "DND"
-                            iconName: "notifications"
+                            iconName: "dnd"
                             compact: true
 
                             selected: root.dndEnabled
                             controlEnabled: root.dndControlEnabled
+
+                            KeyNavigation.up: refreshAction
+                            KeyNavigation.down: lockCapabilityTile
 
                             onClicked:
                                 root.dndRequested(!root.dndEnabled)
@@ -451,10 +460,9 @@ Item {
                             Layout.fillWidth: true
 
                             theme: root.theme
-                            title: "Observed capabilities"
+                            title: "Quick actions"
                             subtitle:
-                                "Read-only discovery for upcoming "
-                                + "Quick Settings controls"
+                                "Immediate session and display controls"
                         }
 
                         Components.JcDivider {
@@ -480,10 +488,14 @@ Item {
 
                                     theme: root.theme
                                     text: "Lock"
-                                    iconName: "settings"
+                                    iconName: "lock"
 
                                     selected: false
                                     controlEnabled: root.lockControlEnabled
+
+                                    KeyNavigation.up: dndQuickTile
+                                    KeyNavigation.right:
+                                        nightLightCapabilityTile
 
                                     onClicked: root.lockRequested()
                                 }
@@ -521,11 +533,15 @@ Item {
 
                                     theme: root.theme
                                     text: "Night Light"
-                                    iconName: "theme"
+                                    iconName: "night-light"
 
                                     selected: root.nightLightEnabled
                                     controlEnabled:
                                         root.nightLightControlEnabled
+
+                                    KeyNavigation.up: dndQuickTile
+                                    KeyNavigation.left: lockCapabilityTile
+                                    KeyNavigation.right: suspendCapabilityTile
 
                                     onClicked:
                                         root.nightLightRequested(
@@ -573,6 +589,10 @@ Item {
                                     selected: false
                                     controlEnabled: root.suspendControlEnabled
 
+                                    KeyNavigation.up: dndQuickTile
+                                    KeyNavigation.left:
+                                        nightLightCapabilityTile
+
                                     onClicked: root.suspendRequested()
                                 }
 
@@ -602,7 +622,8 @@ Item {
                             Layout.fillWidth: true
 
                             text:
-                                "Lock, Night Light and Suspend are interactive."
+                                "Tab moves focus · Enter or Space activates "
+                                + "the focused quick action."
 
                             color: root.theme.textMuted
 

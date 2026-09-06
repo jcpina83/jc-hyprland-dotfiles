@@ -39,7 +39,10 @@ Item {
         "library",
         "chevron-down",
         "favorite",
-        "power"
+        "power",
+        "dnd",
+        "lock",
+        "night-light"
     ]
 
     readonly property bool vectorKnown:
@@ -84,6 +87,9 @@ Item {
         case "chevron-down": return "⌄";
         case "favorite": return "★";
         case "power": return "⏻";
+        case "dnd": return "⊘";
+        case "lock": return "🔒";
+        case "night-light": return "◐";
         default: return "";
         }
     }
@@ -408,6 +414,54 @@ Item {
             ctx.lineTo(6.3, 16.4);
             ctx.stroke();
             root.strokePolyline(ctx, [[10.3, 19], [13.7, 19]], false);
+            break;
+
+        case "dnd":
+            // Do Not Disturb: notification bell with a deterministic slash.
+            root.beginStroke(ctx);
+            ctx.moveTo(6.3, 16.4);
+            ctx.quadraticCurveTo(8.0, 14.5, 8.0, 10.4);
+            ctx.quadraticCurveTo(8.0, 6.4, 12.0, 5.4);
+            ctx.quadraticCurveTo(16.0, 6.4, 16.0, 10.4);
+            ctx.quadraticCurveTo(16.0, 14.5, 17.7, 16.4);
+            ctx.lineTo(6.3, 16.4);
+            ctx.stroke();
+            root.strokePolyline(ctx, [[10.3, 19], [13.7, 19]], false);
+            root.strokePolyline(ctx, [[4.6, 4.6], [19.4, 19.4]], false);
+            break;
+
+        case "lock":
+            // Lock: clear closed shackle and compact lock body.
+            root.beginStroke(ctx);
+            ctx.arc(12.0, 9.0, 4.0, Math.PI, 0, false);
+            ctx.stroke();
+            root.beginStroke(ctx);
+            ctx.rect(6.0, 9.0, 12.0, 10.0);
+            ctx.stroke();
+            root.beginStroke(ctx);
+            ctx.arc(12.0, 13.5, 1.15, 0, Math.PI * 2, false);
+            ctx.fill();
+            root.strokePolyline(ctx, [[12.0, 14.7], [12.0, 17.0]], false);
+            break;
+
+        case "night-light":
+            // Night Light: explicit day/night mark — sun + crescent.
+            root.beginStroke(ctx);
+            ctx.arc(7.0, 8.5, 2.8, 0, Math.PI * 2, false);
+            ctx.stroke();
+            root.strokePolyline(ctx, [[7.0, 3.2], [7.0, 4.8]], false);
+            root.strokePolyline(ctx, [[7.0, 12.2], [7.0, 13.8]], false);
+            root.strokePolyline(ctx, [[1.8, 8.5], [3.4, 8.5]], false);
+            root.strokePolyline(ctx, [[10.6, 8.5], [12.2, 8.5]], false);
+            root.strokePolyline(ctx, [[3.2, 4.7], [4.4, 5.9]], false);
+            root.strokePolyline(ctx, [[9.6, 11.1], [10.8, 12.3]], false);
+
+            root.beginStroke(ctx);
+            ctx.arc(16.2, 14.2, 5.2, -1.12, 1.12, false);
+            ctx.stroke();
+            root.beginStroke(ctx);
+            ctx.arc(18.9, 14.2, 3.9, 1.12, -1.12, true);
+            ctx.stroke();
             break;
 
         case "all":

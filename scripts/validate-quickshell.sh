@@ -9319,15 +9319,15 @@ for contract in \
     'title: "Quick Settings"' \
     'Components.JcSettingTile {' \
     'text: "Do Not Disturb"' \
-    'iconName: "notifications"' \
+    'iconName: "dnd"' \
     'selected: root.dndEnabled' \
     'Components.JcToggle {' \
     'checked: root.dndEnabled' \
     'controlEnabled: root.dndControlEnabled' \
     'root.dndRequested(value)' \
     'Components.JcSurface {' \
-    'title: "Observed capabilities"' \
-    'Lock, Night Light and Suspend are interactive.'
+    'title: "Quick actions"' \
+    'Tab moves focus · Enter or Space activates '
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "QuickSettingsView contract: $contract"
@@ -9499,12 +9499,12 @@ for contract in \
     'text: "Night Light"' \
     'id: suspendCapabilityTile' \
     'text: "Suspend"' \
-    'iconName: "theme"' \
+    'iconName: "night-light"' \
     'iconName: "power"' \
     'root.quickSettingsService.lockAvailable' \
     'root.quickSettingsService.nightLightAvailable' \
     'root.quickSettingsService.suspendAvailable' \
-    'Lock, Night Light and Suspend are interactive.'
+    'Tab moves focus · Enter or Space activates '
 do
     if grep -Fq -- "$contract" "$quick_settings_capability_view"; then
         ok "Quick Settings capability tile: $contract"
@@ -9638,7 +9638,7 @@ for contract in \
     'controlEnabled:' \
     'root.nightLightControlEnabled' \
     'root.nightLightRequested(' \
-    'Lock, Night Light and Suspend are interactive.'
+    'Tab moves focus · Enter or Space activates '
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "Night Light view contract: $contract"
@@ -9791,7 +9791,7 @@ for contract in \
     'controlEnabled: root.lockControlEnabled' \
     'onClicked: root.lockRequested()' \
     'text: root.lockStateLabel' \
-    'Lock, Night Light and Suspend are interactive.'
+    'Tab moves focus · Enter or Space activates '
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "Lock view contract: $contract"
@@ -9934,7 +9934,7 @@ for contract in \
     'controlEnabled: root.suspendControlEnabled' \
     'onClicked: root.suspendRequested()' \
     'text: root.suspendStateLabel' \
-    'Lock, Night Light and Suspend are interactive.'
+    'Tab moves focus · Enter or Space activates '
 do
     if grep -Fq -- "$contract" "$quick_settings_view"; then
         ok "Suspend View contract: $contract"
@@ -10199,5 +10199,116 @@ do
         ok "H1.4.4b3 architecture contract: $contract"
     else
         fail "H1.4.4b3 architecture contract missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2D.4 Quick Settings visual / keyboard / icon polish\n'
+
+quick_settings_polish_view="$config_dir/modules/quicksettings/QuickSettingsView.qml"
+quick_settings_polish_icon="$config_dir/components/JcIcon.qml"
+quick_settings_polish_doc="$repo_root/docs/quick-settings.md"
+
+for contract in \
+    '"dnd"' \
+    '"night-light"' \
+    'case "dnd":' \
+    'case "night-light":'
+do
+    if grep -Fq -- "$contract" "$quick_settings_polish_icon"; then
+        ok "Quick Settings semantic icon contract: $contract"
+    else
+        fail "Quick Settings semantic icon missing: $contract"
+    fi
+done
+
+for removed_icon in \
+    '"lock"' \
+    '"suspend"' \
+    'case "lock":' \
+    'case "suspend":'
+do
+    if grep -Fq -- "$removed_icon" "$quick_settings_polish_icon"; then
+        fail "Quick Settings retains unused rejected semantic icon: $removed_icon"
+    else
+        ok "Quick Settings excludes unused rejected semantic icon: $removed_icon"
+    fi
+done
+
+for contract in \
+    'id: refreshAction' \
+    'id: dndQuickTile' \
+    'iconName: "dnd"' \
+    'iconName: "settings"' \
+    'iconName: "night-light"' \
+    'iconName: "power"' \
+    'title: "Quick actions"' \
+    'KeyNavigation.down: dndQuickTile' \
+    'KeyNavigation.down: lockCapabilityTile' \
+    'nightLightCapabilityTile' \
+    'KeyNavigation.left: lockCapabilityTile' \
+    'KeyNavigation.right: suspendCapabilityTile' \
+    'Tab moves focus · Enter or Space activates '
+do
+    if grep -Fq -- "$contract" "$quick_settings_polish_view"; then
+        ok "Quick Settings polish view contract: $contract"
+    else
+        fail "Quick Settings polish view contract missing: $contract"
+    fi
+done
+
+for replaced_mapping in \
+    'iconName: "notifications"' \
+    'iconName: "theme"'
+do
+    if grep -Fq -- "$replaced_mapping" "$quick_settings_polish_view"; then
+        fail "Quick Settings still uses replaced icon mapping: $replaced_mapping"
+    else
+        ok "Quick Settings excludes replaced icon mapping: $replaced_mapping"
+    fi
+done
+
+for forbidden in \
+    'swaync-client' \
+    'hyprsunset' \
+    'lock-session.sh' \
+    'suspend-session.sh' \
+    'systemctl' \
+    'loginctl' \
+    'systemd-run' \
+    'jc-quick-settings'
+do
+    if grep -Fq -- "$forbidden" "$quick_settings_polish_view"; then
+        fail "Quick Settings polish leaks backend detail: $forbidden"
+    else
+        ok "Quick Settings polish excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Phase 2D.4 — Visual, keyboard and icon polish' \
+    'The final Quick Settings icon treatment is intentionally hybrid:' \
+    "Lock keeps the established \`settings\` icon" \
+    "Suspend keeps the established \`power\` icon" \
+    'presentation-only'
+do
+    if grep -Fq -- "$contract" "$quick_settings_polish_doc"; then
+        ok "Quick Settings 2D.4 documentation: $contract"
+    else
+        fail "Quick Settings 2D.4 documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '### Quick Settings — Phase 2D.4 Visual / keyboard / icon polish' \
+    'dedicated semantic vector icons for DND and Night' \
+    'retaining the established Settings icon for Lock' \
+    'Power icon for Suspend' \
+    'directional focus movement' \
+    'presentation-only'
+do
+    if grep -Fq -- "$contract" "$repo_root/README.md"; then
+        ok "Quick Settings 2D.4 README: $contract"
+    else
+        fail "Quick Settings 2D.4 README missing: $contract"
     fi
 done
