@@ -73,7 +73,7 @@ path = pathlib.Path(sys.argv[1])
 lines = path.read_text().splitlines()
 
 python_open = re.compile(
-    r"""^\s*(?:python|python3)\s+-\s+<<-?['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?\s*$"""
+    r"""^\s*(?:python|python3)\b[^<\n]*<<-?['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?\s*$"""
 )
 shell_open = re.compile(
     r"""^\s*(?:bash|sh)\s+(?:-[A-Za-z]+\s+)?<<-?['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?\s*$"""
