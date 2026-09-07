@@ -9210,6 +9210,97 @@ do
     fi
 done
 
+printf '\n==> Phase 2E.1b Performance observed-state service\n'
+
+performance_service="$repo_root/config/quickshell/jc-hyprland/services/PerformanceService.qml"
+performance_docs="$repo_root/docs/performance.md"
+
+if [[ -f "$performance_service" ]]; then
+    ok "PerformanceService.qml exists"
+else
+    fail "missing PerformanceService.qml"
+fi
+
+for contract in \
+    'Scope {' \
+    'property int snapshotSchemaVersion: 0' \
+    'property string status: "unknown"' \
+    'property bool readOnly: true' \
+    'property bool loading: false' \
+    'property bool ready: false' \
+    'property string errorMessage: ""' \
+    'property string lastRefresh: ""' \
+    'property bool liveUpdatesEnabled: false' \
+    'property int refreshIntervalMs: 2000' \
+    'readonly property bool observedHealthy:' \
+    'signal refreshed()' \
+    'signal refreshFailed(string message)' \
+    'function performanceCommandPath() {' \
+    'function validStatus(payload) {' \
+    'function commitSnapshot(payload) {' \
+    'function refresh(): void {' \
+    '"status",' \
+    '"--json"' \
+    'Process {' \
+    'StdioCollector {' \
+    'Timer {' \
+    'running: root.liveUpdatesEnabled' \
+    'Component.onCompleted: root.refresh()'
+do
+    if grep -Fq -- "$contract" "$performance_service"; then
+        ok "PerformanceService contract: $contract"
+    else
+        fail "PerformanceService contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    '/proc/' \
+    '/sys/' \
+    'GPU_PCI' \
+    'hwmonN' \
+    'cardN' \
+    'amdgpu_top' \
+    'radeontop' \
+    'nvtop' \
+    'smartctl' \
+    'systemctl' \
+    'hyprctl'
+do
+    if grep -Fq -- "$forbidden" "$performance_service"; then
+        fail "PerformanceService violates backend-neutral boundary: $forbidden"
+    else
+        ok "PerformanceService excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'readonly property var performanceServiceHandle: performanceService' \
+    'Services.PerformanceService {' \
+    'id: performanceService'
+do
+    if grep -Fq -- "$contract" "$repo_root/config/quickshell/jc-hyprland/Main.qml"; then
+        ok "Main PerformanceService wiring: $contract"
+    else
+        fail "Main PerformanceService wiring missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2E.1b — Observed-state service' \
+    "\`PerformanceService.qml\` is the read-only QML projection" \
+    'jc-performance status --json' \
+    'liveUpdatesEnabled' \
+    'performanceServiceHandle' \
+    "Performance navigation entry or create \`PerformanceView.qml\`."
+do
+    if grep -Fq -- "$contract" "$performance_docs"; then
+        ok "Performance 2E.1b documentation: $contract"
+    else
+        fail "Performance 2E.1b documentation missing: $contract"
+    fi
+done
+
 printf '\n==> Phase 2D.1b Quick Settings observed-state service\n'
 
 quick_settings_service="$repo_root/config/quickshell/jc-hyprland/services/QuickSettingsService.qml"

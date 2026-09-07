@@ -87,3 +87,37 @@ jc-performance status --json
 
 Presentation QML must not read `/proc`, `/sys`, `GPU_PCI`, `hwmonN`, `cardN` or
 invoke diagnostic utilities directly.
+
+## Phase 2E.1b — Observed-state service
+
+`PerformanceService.qml` is the read-only QML projection of:
+
+```bash
+jc-performance status --json
+```
+
+The service atomically commits one validated schema-v1 snapshot containing
+system load/uptime, CPU, memory, AMD GPU, temperature and root-storage state.
+Both `status: "ok"` and `status: "partial"` are accepted because optional
+telemetry is allowed to degrade without invalidating the complete snapshot.
+
+The QML service does not read `/proc`, `/sys`, `GPU_PCI`, `hwmonN` or `cardN`
+directly and does not invoke hardware diagnostic tools. Those details remain
+behind `jc-performance`.
+
+The service exposes:
+
+- `loading`, `ready`, `errorMessage`, `lastRefresh`;
+- normalized CPU, memory, GPU, temperature and root-storage properties;
+- `observedHealthy`;
+- `refresh()`;
+- opt-in live refresh through `liveUpdatesEnabled`;
+- `refreshIntervalMs`, defaulting to 2000 ms.
+
+Live refresh is intentionally disabled by default. `Main.qml` composes the
+service and exposes `performanceServiceHandle`, but Phase 2E.1b does not enable
+the Performance navigation entry or create `PerformanceView.qml`.
+
+The first snapshot is requested on service completion. A later Performance
+view can enable live updates only while the module is visible, avoiding
+continuous telemetry polling while the feature is inactive.
