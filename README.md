@@ -1250,3 +1250,25 @@ track and is not considered a Quick Settings defect.
 
 See `docs/quick-settings.md` for the complete architecture, contracts and
 Phase 2D.5 closure record.
+
+### Performance / Hardware — Phase 2E.1a stable runtime API
+
+Phase 2E starts with a read-only runtime boundary:
+
+```bash
+jc-performance status
+jc-performance status --json
+```
+
+`jc-performance` collects CPU, memory, load, AMD GPU, temperature and root
+storage telemetry from Linux `/proc` and `/sys` interfaces. It does not change
+CPU governors, GPU settings, services or storage state.
+
+GPU discovery is hardware-aware rather than card-index-bound. A valid
+machine-local `GPU_PCI` wins; otherwise the runtime selects the AMDGPU device
+with the largest reported VRAM. `cardN` and `hwmonN` identifiers are never part
+of the stable contract.
+
+Optional sensors degrade to `null` or `available=false`. Phase 2E.1a does not
+require `amdgpu_top`, `radeontop`, `nvtop`, `sysstat` or `smartmontools`, and it
+does not enable the Performance Control Center module yet.

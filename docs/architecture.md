@@ -2323,3 +2323,39 @@ Phase 2C is **CLOSED**. New Theme capabilities must preserve these ownership
 boundaries rather than extending the closed contract implicitly.
 
 The global Control Center roadmap now advances to **Phase 2D — Quick Settings**.
+
+## Phase 2E.1a stable Performance runtime API
+
+Phase 2E preserves the same service boundary used by the other Control Center
+modules:
+
+```text
+PerformanceView          (future Phase 2E UI)
+        |
+        v
+PerformanceService.qml   (future observed-state adapter)
+        |
+        v
+jc-performance status --json
+        |
+        +--> /proc/stat + /proc/loadavg
+        +--> /proc/meminfo
+        +--> /sys/devices/system/cpu/cpufreq
+        +--> /sys/bus/pci + amdgpu sysfs
+        +--> /sys/class/hwmon
+        +--> df for root filesystem capacity
+```
+
+Phase 2E.1a implements only the stable runtime API. The API is read-only and
+has no Apply / DraftStore semantics.
+
+Hardware discovery rules:
+
+1. prefer a valid machine-local `GPU_PCI`;
+2. otherwise choose the AMDGPU PCI device with the largest VRAM;
+3. never persist `cardN` or `hwmonN` identifiers;
+4. optional or unsupported telemetry is represented as unavailable rather
+   than causing the whole status request to fail.
+
+This allows later GPU backends to be added without exposing hardware-specific
+paths to QML.

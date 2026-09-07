@@ -9018,6 +9018,112 @@ do
     fi
 done
 
+printf '\n==> Phase 2E.1a stable Performance runtime API\n'
+
+performance_cli="$repo_root/scripts/runtime/jc-performance.sh"
+performance_docs="$repo_root/docs/performance.md"
+
+if [[ -x "$performance_cli" ]]; then
+    ok "Performance runtime API executable"
+else
+    fail "Performance runtime API missing or not executable"
+fi
+
+for contract in \
+    'jc-performance status [--json]' \
+    'schema_version=1' \
+    '/proc/stat' \
+    '/proc/loadavg' \
+    '/proc/meminfo' \
+    '/sys/devices/system/cpu/cpufreq/policy*' \
+    '/sys/bus/pci/drivers/amdgpu/' \
+    'GPU_PCI' \
+    'configured-pci' \
+    'largest-vram' \
+    'fallback-largest-vram' \
+    'readOnly: true' \
+    "status: \$status"
+do
+    if grep -Fq -- "$contract" "$performance_cli"; then
+        ok "Performance runtime API: $contract"
+    else
+        fail "Performance runtime API missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'amdgpu_top' \
+    'radeontop' \
+    'nvtop' \
+    'smartctl' \
+    'systemctl ' \
+    'hyprctl ' \
+    'tee /sys' \
+    '> /sys'
+do
+    if grep -Fq -- "$forbidden" "$performance_cli"; then
+        fail "Performance runtime API contains forbidden dependency/mutation: $forbidden"
+    else
+        ok "Performance runtime API excludes: $forbidden"
+    fi
+done
+
+for contract in \
+    "\"\$repo_root/scripts/runtime/jc-performance.sh\"" \
+    "\"\$bin_dir/jc-performance\"" \
+    "\"\$public_bin_dir/jc-performance\""
+do
+    if grep -Fq -- "$contract" "$repo_root/scripts/install.sh"; then
+        ok "Performance install integration: $contract"
+    else
+        fail "Performance install integration missing: $contract"
+    fi
+done
+
+for contract in \
+    'jc-performance:scripts/runtime/jc-performance.sh' \
+    '"jc-performance"'
+do
+    if grep -Fq -- "$contract" "$repo_root/scripts/doctor.sh"; then
+        ok "Performance doctor integration: $contract"
+    else
+        fail "Performance doctor integration missing: $contract"
+    fi
+done
+
+for contract in \
+    '# Performance / Hardware' \
+    '## Phase 2E.1a — Stable runtime API' \
+    'jc-performance status --json' \
+    'GPU_PCI' \
+    'hwmonN' \
+    'cardN'
+do
+    if grep -Fq -- "$contract" "$performance_docs"; then
+        ok "Performance documentation: $contract"
+    else
+        fail "Performance documentation missing: $contract"
+    fi
+done
+
+performance_readme_contract='### Performance / Hardware — Phase 2E.1a stable runtime API'
+
+if grep -Fq -- "$performance_readme_contract" "$repo_root/README.md"; then
+    ok "Performance README contract: $performance_readme_contract"
+else
+    fail "Performance README contract missing: $performance_readme_contract"
+fi
+
+performance_architecture_contract='## Phase 2E.1a stable Performance runtime API'
+
+if grep -Fq -- "$performance_architecture_contract" \
+    "$repo_root/docs/architecture.md"
+then
+    ok "Performance architecture contract: $performance_architecture_contract"
+else
+    fail "Performance architecture contract missing: $performance_architecture_contract"
+fi
+
 printf '\n==> Phase 2D.1a stable Quick Settings runtime API\n'
 
 quick_settings_cli="$repo_root/scripts/runtime/jc-quick-settings.sh"
