@@ -8,6 +8,7 @@ import qs.modules.displays as Displays
 import qs.modules.wallpapers as Wallpapers
 import qs.modules.themes as Themes
 import qs.modules.quicksettings as QuickSettings
+import qs.modules.performance as Performance
 import qs.modules.dev as Dev
 import qs.modules.controlcenter as ControlCenter
 
@@ -716,6 +717,17 @@ Scope {
 
 
     Component {
+        id: shellPerformanceComponent
+
+        Performance.PerformanceView {
+            theme: controlCenterShell.theme
+            performanceService: root.performanceServiceHandle
+
+            onRefreshRequested: performanceService.refresh()
+        }
+    }
+
+    Component {
         id: shellDisplaysComponent
 
         Displays.DisplayView {
@@ -774,7 +786,9 @@ Scope {
                         ? shellThemesComponent
                         : root.activeModuleId === "quick-settings"
                             ? shellQuickSettingsComponent
-                            : null
+                            : root.activeModuleId === "performance"
+                                ? shellPerformanceComponent
+                                : null
 
         onCloseRequested: root.hideControlCenter()
 

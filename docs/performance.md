@@ -121,3 +121,30 @@ the Performance navigation entry or create `PerformanceView.qml`.
 The first snapshot is requested on service completion. A later Performance
 view can enable live updates only while the module is visible, avoiding
 continuous telemetry polling while the feature is inactive.
+
+## Phase 2E.2 — PerformanceView foundation
+
+PerformanceView.qml introduces the read-only visual projection of
+PerformanceService.qml.
+
+The foundation presents CPU, memory and GPU utilization through canonical
+JcMetricRing components, plus detail surfaces for CPU policy/temperature,
+memory and swap, AMD GPU VRAM/temperature/power/fan telemetry, and system
+storage/load/uptime.
+
+Formatting helpers for bytes, frequency, temperature and uptime remain local
+to PerformanceView.qml because the repository does not yet have a shared
+formatter contract for these values.
+
+The view owns no runtime or hardware discovery. It consumes only
+performanceService properties and emits refreshRequested() for a manual
+observed-state refresh.
+
+Main.qml imports the Performance module and defines shellPerformanceComponent.
+The content host can resolve that component, but moduleIsAvailable("performance")
+and the Performance navigation entry remain disabled in Phase 2E.2. The view is
+therefore available for runtime validation without becoming user-accessible.
+
+Live polling also remains disabled. Activation and deactivation of
+PerformanceService.liveUpdatesEnabled is deferred to the navigation lifecycle
+phase after the foundation passes cold-runtime validation.

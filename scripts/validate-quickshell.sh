@@ -9492,6 +9492,123 @@ do
     fi
 done
 
+printf '\n==> Phase 2E.2 PerformanceView foundation\n'
+
+performance_view="$config_dir/modules/performance/PerformanceView.qml"
+performance_docs="$repo_root/docs/performance.md"
+main_qml="$config_dir/Main.qml"
+navigation_qml="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+
+if [[ -f "$performance_view" ]]; then
+    ok "PerformanceView foundation file"
+else
+    fail "PerformanceView.qml missing"
+fi
+
+for contract in \
+    'Item {' \
+    'required property var theme' \
+    'property var performanceService' \
+    'signal refreshRequested()' \
+    'function formatBytes(value) {' \
+    'function formatFrequency(value) {' \
+    'function formatTemperature(value) {' \
+    'function formatDuration(value) {' \
+    'function utilizationStatus(value) {' \
+    'title: "Performance"' \
+    'title: "CPU"' \
+    'title: "Memory"' \
+    'title: "GPU"' \
+    'title: "System"' \
+    'onClicked: root.refreshRequested()' \
+    'Live refresh remains disabled'
+do
+    if grep -Fq -- "$contract" "$performance_view"; then
+        ok "PerformanceView foundation contract: $contract"
+    else
+        fail "PerformanceView foundation contract missing: $contract"
+    fi
+done
+
+metric_ring_count="$(
+    grep -Fc 'Components.JcMetricRing {' "$performance_view" || true
+)"
+
+if ((metric_ring_count >= 3)); then
+    ok "PerformanceView uses canonical metric rings"
+else
+    fail "PerformanceView requires at least three JcMetricRing instances"
+fi
+
+for forbidden in \
+    'Process {' \
+    'jc-performance' \
+    '/proc/' \
+    '/sys/' \
+    'GPU_PCI' \
+    'hwmonN' \
+    'cardN' \
+    'amdgpu_top' \
+    'radeontop' \
+    'nvtop' \
+    'smartctl' \
+    'systemctl' \
+    'hyprctl'
+do
+    if grep -Fq -- "$forbidden" "$performance_view"; then
+        fail "PerformanceView owns forbidden backend detail: $forbidden"
+    else
+        ok "PerformanceView excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'import qs.modules.performance as Performance' \
+    'id: shellPerformanceComponent' \
+    'Performance.PerformanceView {' \
+    'performanceService: root.performanceServiceHandle' \
+    'onRefreshRequested: performanceService.refresh()' \
+    'root.activeModuleId === "performance"' \
+    '? shellPerformanceComponent'
+do
+    if grep -Fq -- "$contract" "$main_qml"; then
+        ok "Main PerformanceView wiring: $contract"
+    else
+        fail "Main PerformanceView wiring missing: $contract"
+    fi
+done
+
+if grep -Fq 'moduleId === "performance"' "$main_qml"; then
+    fail "Phase 2E.2 unexpectedly enables Performance module availability"
+else
+    ok "Performance module availability remains disabled"
+fi
+
+performance_nav_block="$(
+    grep -A5 -F 'id: "performance"' "$navigation_qml" || true
+)"
+
+if grep -Fq 'enabled: false' <<< "$performance_nav_block"; then
+    ok "Performance navigation entry remains disabled"
+else
+    fail "Performance navigation entry must remain disabled in Phase 2E.2"
+fi
+
+for contract in \
+    '## Phase 2E.2 — PerformanceView foundation' \
+    'PerformanceView.qml' \
+    'JcMetricRing' \
+    'shellPerformanceComponent' \
+    'remain disabled in Phase 2E.2' \
+    'Live polling also remains disabled'
+do
+    if grep -Fq -- "$contract" "$performance_docs"; then
+        ok "PerformanceView documentation: $contract"
+    else
+        fail "PerformanceView documentation missing: $contract"
+    fi
+done
+
 printf '\n==> Phase 2D.1d Quick Settings view foundation\n'
 
 quick_settings_view="$repo_root/config/quickshell/jc-hyprland/modules/quicksettings/QuickSettingsView.qml"
