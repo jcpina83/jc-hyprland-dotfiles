@@ -634,8 +634,14 @@ Item {
 
                         text:
                             "Read-only observed telemetry · "
-                            + "Live refresh remains disabled until "
-                            + "Performance navigation is activated."
+                            + "Live refresh every "
+                            + (
+                                root.performanceService
+                                    ? root.performanceService
+                                        .refreshIntervalMs / 1000
+                                    : 2
+                            )
+                            + "s while Performance is visible."
 
                         color: root.theme.textMuted
 

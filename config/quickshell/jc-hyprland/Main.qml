@@ -33,6 +33,22 @@ Scope {
         || quickSettingsActionService.busy
 
     readonly property string controlCenterStatusText: {
+        if (root.activeModuleId === "performance") {
+            if (performanceService.loading)
+                return "Refreshing Performance telemetry…";
+
+            if (performanceService.errorMessage.length > 0)
+                return "Performance telemetry error";
+
+            if (performanceService.ready) {
+                return performanceService.status === "partial"
+                    ? "Performance telemetry partial"
+                    : "Performance telemetry live";
+            }
+
+            return "Waiting for Performance telemetry…";
+        }
+
         if (root.activeModuleId === "themes") {
             if (themeApplyService.applying)
                 return "Applying theme…";
@@ -164,6 +180,19 @@ Scope {
     }
 
     readonly property string controlCenterStatusDetail: {
+        if (root.activeModuleId === "performance") {
+            if (performanceService.errorMessage.length > 0)
+                return performanceService.errorMessage;
+
+            if (performanceService.ready) {
+                return "Read-only telemetry refreshes every "
+                    + (performanceService.refreshIntervalMs / 1000)
+                    + " seconds while Performance is visible.";
+            }
+
+            return "Waiting for Performance observed state.";
+        }
+
         if (root.activeModuleId === "themes") {
             if (themeApplyService.busy)
                 return themeApplyService.statusMessage;
@@ -322,7 +351,8 @@ Scope {
 
     function moduleIsAvailable(moduleId) {
         if (moduleId === "themes"
-                || moduleId === "quick-settings") {
+                || moduleId === "quick-settings"
+                || moduleId === "performance") {
             return true;
         }
 
@@ -503,6 +533,11 @@ Scope {
             return;
         }
 
+        if (root.activeModuleId === "performance") {
+            performanceService.refresh();
+            return;
+        }
+
         if (root.activeModuleId !== "displays")
             return;
 
@@ -563,6 +598,10 @@ Scope {
 
     Services.PerformanceService {
         id: performanceService
+
+        liveUpdatesEnabled:
+            root.controlCenterVisible
+            && root.activeModuleId === "performance"
     }
 
     Services.QuickSettingsActionService {
@@ -772,7 +811,9 @@ Scope {
                     ? "Wallpapers"
                     : root.activeModuleId === "quick-settings"
                         ? "Quick Settings"
-                        : root.activeModuleId
+                        : root.activeModuleId === "performance"
+                            ? "Performance"
+                            : root.activeModuleId
         transitionLocked: root.controlCenterTransitionLocked
         statusText: root.controlCenterStatusText
         statusDetail: root.controlCenterStatusDetail

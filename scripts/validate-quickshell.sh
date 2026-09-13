@@ -1177,6 +1177,9 @@ for future_module in \
     network \
     notifications
 do
+    if [[ "$future_module" == "performance" ]]; then
+        continue
+    fi
     if [[ "$future_module" == "themes"
             || "$future_module" == "quick-settings" ]]; then
         continue
@@ -9520,8 +9523,7 @@ for contract in \
     'title: "Memory"' \
     'title: "GPU"' \
     'title: "System"' \
-    'onClicked: root.refreshRequested()' \
-    'Live refresh remains disabled'
+    'onClicked: root.refreshRequested()'
 do
     if grep -Fq -- "$contract" "$performance_view"; then
         ok "PerformanceView foundation contract: $contract"
@@ -9578,21 +9580,8 @@ do
     fi
 done
 
-if grep -Fq 'moduleId === "performance"' "$main_qml"; then
-    fail "Phase 2E.2 unexpectedly enables Performance module availability"
-else
-    ok "Performance module availability remains disabled"
-fi
-
-performance_nav_block="$(
-    grep -A5 -F 'id: "performance"' "$navigation_qml" || true
-)"
-
-if grep -Fq 'enabled: false' <<< "$performance_nav_block"; then
-    ok "Performance navigation entry remains disabled"
-else
-    fail "Performance navigation entry must remain disabled in Phase 2E.2"
-fi
+# Current Performance availability and navigation state are validated by
+# Phase 2E.3. Phase 2E.2 retains only the visual foundation contracts.
 
 for contract in \
     '## Phase 2E.2 — PerformanceView foundation' \
@@ -9606,6 +9595,111 @@ do
         ok "PerformanceView documentation: $contract"
     else
         fail "PerformanceView documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2E.3 Performance navigation + live telemetry lifecycle\n'
+
+performance_service="$config_dir/services/PerformanceService.qml"
+performance_view="$config_dir/modules/performance/PerformanceView.qml"
+performance_docs="$repo_root/docs/performance.md"
+main_qml="$config_dir/Main.qml"
+navigation_qml="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+
+for contract in \
+    '|| moduleId === "performance") {' \
+    'liveUpdatesEnabled:' \
+    'root.controlCenterVisible' \
+    '&& root.activeModuleId === "performance"' \
+    'if (root.activeModuleId === "performance") {' \
+    'performanceService.refresh();' \
+    '? "Performance"' \
+    'Performance telemetry'
+do
+    if grep -Fq -- "$contract" "$main_qml"; then
+        ok "Performance lifecycle Main contract: $contract"
+    else
+        fail "Performance lifecycle Main contract missing: $contract"
+    fi
+done
+
+performance_nav_block="$(
+    grep -A5 -F 'id: "performance"' "$navigation_qml" || true
+)"
+
+if grep -Fq 'enabled: true' <<< "$performance_nav_block"; then
+    ok "Performance navigation entry is enabled"
+else
+    fail "Performance navigation entry must be enabled in Phase 2E.3"
+fi
+
+for future_module in media network notifications; do
+    future_block="$(
+        grep -A5 -F "id: \"$future_module\"" "$navigation_qml" || true
+    )"
+
+    if grep -Fq 'enabled: false' <<< "$future_block"; then
+        ok "future navigation entry remains disabled: $future_module"
+    else
+        fail "future navigation entry unexpectedly enabled: $future_module"
+    fi
+done
+
+for contract in \
+    'property bool liveUpdatesEnabled: false' \
+    'property int refreshIntervalMs: 2000' \
+    'onLiveUpdatesEnabledChanged:' \
+    'running: root.liveUpdatesEnabled'
+do
+    if grep -Fq -- "$contract" "$performance_service"; then
+        ok "Performance lifecycle service contract: $contract"
+    else
+        fail "Performance lifecycle service contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'Read-only observed telemetry' \
+    'Live refresh every ' \
+    'refreshIntervalMs / 1000' \
+    'while Performance is visible.'
+do
+    if grep -Fq -- "$contract" "$performance_view"; then
+        ok "Performance live view contract: $contract"
+    else
+        fail "Performance live view contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'Process {' \
+    'jc-performance' \
+    '/proc/' \
+    '/sys/' \
+    'GPU_PCI' \
+    'hwmonN' \
+    'cardN' \
+    'systemctl' \
+    'hyprctl'
+do
+    if grep -Fq -- "$forbidden" "$performance_view"; then
+        fail "Performance live view owns forbidden backend detail: $forbidden"
+    else
+        ok "Performance live view excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    '## Phase 2E.3 — Navigation and live telemetry lifecycle' \
+    'PerformanceService.liveUpdatesEnabled' \
+    'activeModuleId is "performance"' \
+    'Switching to another module or closing the Control Center' \
+    'Performance navigation item is enabled'
+do
+    if grep -Fq -- "$contract" "$performance_docs"; then
+        ok "Performance 2E.3 documentation: $contract"
+    else
+        fail "Performance 2E.3 documentation missing: $contract"
     fi
 done
 

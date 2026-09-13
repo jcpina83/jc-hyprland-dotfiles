@@ -148,3 +148,27 @@ therefore available for runtime validation without becoming user-accessible.
 Live polling also remains disabled. Activation and deactivation of
 PerformanceService.liveUpdatesEnabled is deferred to the navigation lifecycle
 phase after the foundation passes cold-runtime validation.
+
+## Phase 2E.3 — Navigation and live telemetry lifecycle
+
+Performance is now an enabled Control Center module.
+
+The polling lifecycle is declarative and centralized in Main.qml.
+PerformanceService.liveUpdatesEnabled is true only when the Control Center is
+logically visible and activeModuleId is "performance". The service Timer keeps
+ownership of the 2000 ms cadence.
+
+Entering Performance therefore enables live observed-state updates and triggers
+an immediate refresh through the existing onLiveUpdatesEnabledChanged contract.
+Switching to another module or closing the Control Center makes
+liveUpdatesEnabled false and stops periodic telemetry.
+
+The generic refreshControlCenter() route also refreshes Performance explicitly
+when it is the active module.
+
+PerformanceView.qml remains read-only. It owns no Process, kernel path, hardware
+identifier or backend command. Its footer reports the live-refresh cadence while
+Performance is visible.
+
+The Performance navigation item is enabled in ControlCenterNavigation.qml.
+Media, Network and Notifications remain future disabled entries.

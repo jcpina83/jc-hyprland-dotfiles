@@ -119,7 +119,7 @@ Item {
             id: "performance",
             label: "Performance",
             iconName: "performance",
-            enabled: false
+            enabled: true
         },
         {
             id: "media",
