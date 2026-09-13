@@ -173,6 +173,55 @@ hwmon_temp_by_label() {
     return 1
 }
 
+hwmon_temp_attribute_by_label() {
+    local root="$1"
+    local wanted_label="$2"
+    local attribute="$3"
+    local input=""
+    local stem=""
+    local label_file=""
+    local attribute_file=""
+    local label=""
+    local raw=""
+
+    for input in "$root"/temp*_input; do
+        [[ -r "$input" ]] || continue
+
+        stem="${input%_input}"
+        label_file="${stem}_label"
+        attribute_file="${stem}_${attribute}"
+        label=""
+
+        [[ -r "$attribute_file" ]] || continue
+
+        if [[ -r "$label_file" ]]; then
+            label="$(<"$label_file")"
+        fi
+
+        if [[ "${label,,}" == "${wanted_label,,}" ]]; then
+            raw="$(<"$attribute_file")"
+
+            if [[ "$raw" =~ ^-?[0-9]+$ ]]; then
+                awk -v raw="$raw" 'BEGIN { printf "%.2f", raw / 1000.0 }'
+                return 0
+            fi
+        fi
+    done
+
+    return 1
+}
+
+hwmon_microunits_to_units() {
+    local path="$1"
+    local raw=""
+
+    [[ -r "$path" ]] || return 1
+    raw="$(<"$path")"
+    [[ "$raw" =~ ^[0-9]+$ ]] || return 1
+
+    awk -v raw="$raw" 'BEGIN { printf "%.2f", raw / 1000000.0 }'
+}
+
 first_hwmon_temp() {
     local root="$1"
     local input=""
@@ -243,6 +292,67 @@ nvme_max_temperature() {
 
     [[ -n "$max_raw" ]] || return 1
     awk -v raw="$max_raw" 'BEGIN { printf "%.1f", raw / 1000.0 }'
+}
+
+cpu_temperature_attribute() {
+    local attribute="$1"
+    local hwmon=""
+    local name=""
+    local value=""
+
+    for hwmon in /sys/class/hwmon/hwmon*; do
+        [[ -d "$hwmon" && -r "$hwmon/name" ]] || continue
+        name="$(<"$hwmon/name")"
+        [[ "$name" == "k10temp" ]] || continue
+
+        if value="$(
+            hwmon_temp_attribute_by_label \
+                "$hwmon" \
+                "Tctl" \
+                "$attribute" \
+                2>/dev/null
+        )"; then
+            printf '%s' "$value"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+nvme_min_temperature_threshold() {
+    local attribute="$1"
+    local hwmon=""
+    local name=""
+    local input=""
+    local stem=""
+    local threshold_file=""
+    local raw=""
+    local min_raw=""
+
+    for hwmon in /sys/class/hwmon/hwmon*; do
+        [[ -d "$hwmon" && -r "$hwmon/name" ]] || continue
+        name="$(<"$hwmon/name")"
+        [[ "$name" == nvme* ]] || continue
+
+        for input in "$hwmon"/temp*_input; do
+            [[ -r "$input" ]] || continue
+
+            stem="${input%_input}"
+            threshold_file="${stem}_${attribute}"
+            [[ -r "$threshold_file" ]] || continue
+
+            raw="$(<"$threshold_file")"
+            [[ "$raw" =~ ^[0-9]+$ ]] || continue
+
+            if [[ -z "$min_raw" ]] || ((raw < min_raw)); then
+                min_raw="$raw"
+            fi
+        done
+    done
+
+    [[ -n "$min_raw" ]] || return 1
+    awk -v raw="$min_raw" 'BEGIN { printf "%.2f", raw / 1000.0 }'
 }
 
 amdgpu_device_valid() {
@@ -402,7 +512,16 @@ collect_status_json() {
     fi
 
     local cpu_temp=""
+    local cpu_temp_max_threshold=""
+    local cpu_temp_critical_threshold=""
+    local cpu_temp_emergency_threshold=""
+
     cpu_temp="$(cpu_temperature || true)"
+    cpu_temp_max_threshold="$(cpu_temperature_attribute max || true)"
+    cpu_temp_critical_threshold="$(cpu_temperature_attribute crit || true)"
+    cpu_temp_emergency_threshold="$(
+        cpu_temperature_attribute emergency || true
+    )"
 
     local mem_total_kb=""
     local mem_available_kb=""
@@ -492,7 +611,15 @@ collect_status_json() {
     local gpu_junction_temp=""
     local gpu_memory_temp=""
     local gpu_fan_rpm=""
+    local gpu_fan_max_rpm=""
     local gpu_power_watts=""
+    local gpu_power_cap_watts=""
+    local gpu_edge_critical_temp=""
+    local gpu_edge_emergency_temp=""
+    local gpu_junction_critical_temp=""
+    local gpu_junction_emergency_temp=""
+    local gpu_memory_critical_temp=""
+    local gpu_memory_emergency_temp=""
 
     if select_amdgpu_pci; then
         gpu_pci="$selected_gpu_pci"
@@ -526,19 +653,61 @@ collect_status_json() {
             )"
             gpu_junction_temp="$(hwmon_temp_by_label "$gpu_hwmon" junction || true)"
             gpu_memory_temp="$(hwmon_temp_by_label "$gpu_hwmon" mem || true)"
-            gpu_fan_rpm="$(read_first_line "$gpu_hwmon/fan1_input" 2>/dev/null || true)"
 
-            value="$(read_first_line "$gpu_hwmon/power1_average" 2>/dev/null || true)"
-            if [[ "$value" =~ ^[0-9]+$ ]]; then
-                gpu_power_watts="$(
-                    awk -v raw="$value" 'BEGIN { printf "%.2f", raw / 1000000.0 }'
-                )"
-            fi
+            gpu_edge_critical_temp="$(
+                hwmon_temp_attribute_by_label \
+                    "$gpu_hwmon" edge crit 2>/dev/null || true
+            )"
+            gpu_edge_emergency_temp="$(
+                hwmon_temp_attribute_by_label \
+                    "$gpu_hwmon" edge emergency 2>/dev/null || true
+            )"
+            gpu_junction_critical_temp="$(
+                hwmon_temp_attribute_by_label \
+                    "$gpu_hwmon" junction crit 2>/dev/null || true
+            )"
+            gpu_junction_emergency_temp="$(
+                hwmon_temp_attribute_by_label \
+                    "$gpu_hwmon" junction emergency 2>/dev/null || true
+            )"
+            gpu_memory_critical_temp="$(
+                hwmon_temp_attribute_by_label \
+                    "$gpu_hwmon" mem crit 2>/dev/null || true
+            )"
+            gpu_memory_emergency_temp="$(
+                hwmon_temp_attribute_by_label \
+                    "$gpu_hwmon" mem emergency 2>/dev/null || true
+            )"
+
+            gpu_fan_rpm="$(
+                read_first_line "$gpu_hwmon/fan1_input" 2>/dev/null || true
+            )"
+            gpu_fan_max_rpm="$(
+                read_first_line "$gpu_hwmon/fan1_max" 2>/dev/null || true
+            )"
+
+            gpu_power_watts="$(
+                hwmon_microunits_to_units \
+                    "$gpu_hwmon/power1_average" \
+                    2>/dev/null || true
+            )"
+            gpu_power_cap_watts="$(
+                hwmon_microunits_to_units \
+                    "$gpu_hwmon/power1_cap" \
+                    2>/dev/null || true
+            )"
         fi
     fi
 
     local nvme_temp=""
+    local nvme_max_threshold=""
+    local nvme_critical_threshold=""
+
     nvme_temp="$(nvme_max_temperature || true)"
+    nvme_max_threshold="$(nvme_min_temperature_threshold max || true)"
+    nvme_critical_threshold="$(
+        nvme_min_temperature_threshold crit || true
+    )"
 
     local storage_available=false
     local storage_source=""
@@ -590,6 +759,9 @@ collect_status_json() {
         --argjson cpuFreqMinKHz "$(json_number "$cpu_freq_min_khz")" \
         --argjson cpuFreqMaxKHz "$(json_number "$cpu_freq_max_khz")" \
         --argjson cpuTemperature "$(json_number "$cpu_temp")" \
+        --argjson cpuTemperatureMaxThreshold "$(json_number "$cpu_temp_max_threshold")" \
+        --argjson cpuTemperatureCriticalThreshold "$(json_number "$cpu_temp_critical_threshold")" \
+        --argjson cpuTemperatureEmergencyThreshold "$(json_number "$cpu_temp_emergency_threshold")" \
         --argjson memoryTotal "$mem_total_bytes" \
         --argjson memoryUsed "$mem_used_bytes" \
         --argjson memoryAvailable "$mem_available_bytes" \
@@ -613,8 +785,18 @@ collect_status_json() {
         --argjson gpuJunctionTemperature "$(json_number "$gpu_junction_temp")" \
         --argjson gpuMemoryTemperature "$(json_number "$gpu_memory_temp")" \
         --argjson gpuFanRpm "$(json_number "$gpu_fan_rpm")" \
+        --argjson gpuFanMaxRpm "$(json_number "$gpu_fan_max_rpm")" \
         --argjson gpuPowerWatts "$(json_number "$gpu_power_watts")" \
+        --argjson gpuPowerCapWatts "$(json_number "$gpu_power_cap_watts")" \
+        --argjson gpuEdgeCriticalTemperature "$(json_number "$gpu_edge_critical_temp")" \
+        --argjson gpuEdgeEmergencyTemperature "$(json_number "$gpu_edge_emergency_temp")" \
+        --argjson gpuJunctionCriticalTemperature "$(json_number "$gpu_junction_critical_temp")" \
+        --argjson gpuJunctionEmergencyTemperature "$(json_number "$gpu_junction_emergency_temp")" \
+        --argjson gpuMemoryCriticalTemperature "$(json_number "$gpu_memory_critical_temp")" \
+        --argjson gpuMemoryEmergencyTemperature "$(json_number "$gpu_memory_emergency_temp")" \
         --argjson nvmeTemperature "$(json_number "$nvme_temp")" \
+        --argjson nvmeMaxThreshold "$(json_number "$nvme_max_threshold")" \
+        --argjson nvmeCriticalThreshold "$(json_number "$nvme_critical_threshold")" \
         --argjson storageAvailable "$storage_available" \
         --arg storageSource "$storage_source" \
         --arg storageFilesystem "$storage_fstype" \
@@ -650,7 +832,12 @@ collect_status_json() {
                     minimumKHz: $cpuFreqMinKHz,
                     maximumKHz: $cpuFreqMaxKHz
                 },
-                temperatureCelsius: $cpuTemperature
+                temperatureCelsius: $cpuTemperature,
+                temperatureThresholds: {
+                    maxCelsius: $cpuTemperatureMaxThreshold,
+                    criticalCelsius: $cpuTemperatureCriticalThreshold,
+                    emergencyCelsius: $cpuTemperatureEmergencyThreshold
+                }
             },
             memory: {
                 available: true,
@@ -710,14 +897,28 @@ collect_status_json() {
                 temperature: {
                     edgeCelsius: $gpuEdgeTemperature,
                     junctionCelsius: $gpuJunctionTemperature,
-                    memoryCelsius: $gpuMemoryTemperature
+                    memoryCelsius: $gpuMemoryTemperature,
+                    edgeCriticalCelsius: $gpuEdgeCriticalTemperature,
+                    edgeEmergencyCelsius: $gpuEdgeEmergencyTemperature,
+                    junctionCriticalCelsius:
+                        $gpuJunctionCriticalTemperature,
+                    junctionEmergencyCelsius:
+                        $gpuJunctionEmergencyTemperature,
+                    memoryCriticalCelsius:
+                        $gpuMemoryCriticalTemperature,
+                    memoryEmergencyCelsius:
+                        $gpuMemoryEmergencyTemperature
                 },
                 fanRpm: $gpuFanRpm,
-                powerWatts: $gpuPowerWatts
+                fanMaxRpm: $gpuFanMaxRpm,
+                powerWatts: $gpuPowerWatts,
+                powerCapWatts: $gpuPowerCapWatts
             },
             temperatures: {
                 cpuCelsius: $cpuTemperature,
-                nvmeMaxCelsius: $nvmeTemperature
+                nvmeMaxCelsius: $nvmeTemperature,
+                nvmeMaxThresholdCelsius: $nvmeMaxThreshold,
+                nvmeCriticalThresholdCelsius: $nvmeCriticalThreshold
             },
             storage: {
                 root: {

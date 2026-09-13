@@ -25,6 +25,19 @@ Item {
             ? String(root.performanceService.errorMessage)
             : ""
 
+    readonly property string footerStatusText:
+        "Read-only observed telemetry · "
+        + "Live refresh every 2s while Performance is visible."
+
+    // CPU k10temp does not expose a critical threshold on every platform.
+    // These are UX fallbacks only; hardware-published limits always win.
+    readonly property real fallbackCpuWarningCelsius: 80
+    readonly property real fallbackCpuCriticalCelsius: 90
+    readonly property real fallbackGpuWarningCelsius: 85
+    readonly property real fallbackGpuCriticalCelsius: 100
+    readonly property real fallbackNvmeWarningCelsius: 70
+    readonly property real fallbackNvmeCriticalCelsius: 85
+
     function isNumeric(value) {
         return typeof value === "number" && isFinite(value);
     }
@@ -140,6 +153,94 @@ Item {
         return "normal";
     }
 
+    function temperatureStatus(
+        value,
+        warningThreshold,
+        criticalThreshold,
+        fallbackWarning,
+        fallbackCritical
+    ) {
+        if (!root.isNumeric(value))
+            return "info";
+
+        const critical = root.isNumeric(criticalThreshold)
+            ? Number(criticalThreshold)
+            : Number(fallbackCritical);
+        const warning = root.isNumeric(warningThreshold)
+            ? Number(warningThreshold)
+            : Number(fallbackWarning);
+
+        if (Number(value) >= critical)
+            return "critical";
+
+        if (Number(value) >= warning)
+            return "warning";
+
+        return "normal";
+    }
+
+    function derivedGpuWarning(criticalThreshold) {
+        if (!root.isNumeric(criticalThreshold))
+            return root.fallbackGpuWarningCelsius;
+
+        return Number(criticalThreshold) * 0.85;
+    }
+
+    function worstStatus(first, second) {
+        const rank = {
+            normal: 0,
+            success: 0,
+            info: 1,
+            warning: 2,
+            critical: 3,
+            danger: 3
+        };
+
+        return Number(rank[String(first)] || 0)
+            >= Number(rank[String(second)] || 0)
+                ? String(first)
+                : String(second);
+    }
+
+    function statusColor(status, available) {
+        if (!available)
+            return root.theme.textMuted;
+
+        switch (String(status || "normal")) {
+        case "warning":
+            return root.theme.warning;
+
+        case "danger":
+        case "critical":
+            return root.theme.danger;
+
+        case "info":
+            return root.theme.info;
+
+        default:
+            return root.theme.textPrimary;
+        }
+    }
+
+    function thresholdPairText(
+        warningThreshold,
+        criticalThreshold,
+        fallbackWarning,
+        fallbackCritical
+    ) {
+        const warning = root.isNumeric(warningThreshold)
+            ? Number(warningThreshold)
+            : Number(fallbackWarning);
+        const critical = root.isNumeric(criticalThreshold)
+            ? Number(criticalThreshold)
+            : Number(fallbackCritical);
+
+        return warning.toFixed(1)
+            + " / "
+            + critical.toFixed(1)
+            + " °C";
+    }
+
     function textOrUnavailable(value) {
         const text = String(value || "").trim();
 
@@ -158,7 +259,28 @@ Item {
                     label: "Temperature",
                     value: root.formatTemperature(
                         service.cpuTemperatureCelsius
+                    ),
+                    available: root.isNumeric(
+                        service.cpuTemperatureCelsius
+                    ),
+                    status: root.temperatureStatus(
+                        service.cpuTemperatureCelsius,
+                        service.cpuTemperatureMaxThresholdCelsius,
+                        service.cpuTemperatureCriticalThresholdCelsius,
+                        root.fallbackCpuWarningCelsius,
+                        root.fallbackCpuCriticalCelsius
                     )
+                },
+                {
+                    label: "Thermal policy",
+                    value: root.thresholdPairText(
+                        service.cpuTemperatureMaxThresholdCelsius,
+                        service.cpuTemperatureCriticalThresholdCelsius,
+                        root.fallbackCpuWarningCelsius,
+                        root.fallbackCpuCriticalCelsius
+                    ),
+                    available: true,
+                    status: "info"
                 },
                 {
                     label: "Average frequency",
@@ -183,7 +305,11 @@ Item {
             return [
                 {
                     label: "Used",
-                    value: root.formatBytes(service.memoryUsedBytes)
+                    value: root.formatBytes(service.memoryUsedBytes),
+                    available: root.isNumeric(service.memoryUsedBytes),
+                    status: root.utilizationStatus(
+                        service.memoryUsagePercent
+                    )
                 },
                 {
                     label: "Available",
@@ -198,6 +324,10 @@ Item {
                     value: root.formatPercent(
                         service.swapUsagePercent,
                         1
+                    ),
+                    available: root.isNumeric(service.swapUsagePercent),
+                    status: root.utilizationStatus(
+                        service.swapUsagePercent
                     )
                 }
             ];
@@ -210,6 +340,11 @@ Item {
                     value: root.formatUsagePair(
                         service.gpuVramUsedBytes,
                         service.gpuVramTotalBytes
+                    ),
+                    available:
+                        root.isNumeric(service.gpuVramUsagePercent),
+                    status: root.utilizationStatus(
+                        service.gpuVramUsagePercent
                     )
                 },
                 {
@@ -219,13 +354,80 @@ Item {
                     ) + " / "
                         + root.formatTemperature(
                             service.gpuJunctionTemperatureCelsius
+                        ),
+                    available:
+                        root.isNumeric(
+                            service.gpuEdgeTemperatureCelsius
                         )
+                        || root.isNumeric(
+                            service.gpuJunctionTemperatureCelsius
+                        ),
+                    status: root.worstStatus(
+                        root.temperatureStatus(
+                            service.gpuEdgeTemperatureCelsius,
+                            root.derivedGpuWarning(
+                                service.gpuEdgeCriticalTemperatureCelsius
+                            ),
+                            service.gpuEdgeCriticalTemperatureCelsius,
+                            root.fallbackGpuWarningCelsius,
+                            root.fallbackGpuCriticalCelsius
+                        ),
+                        root.temperatureStatus(
+                            service.gpuJunctionTemperatureCelsius,
+                            root.derivedGpuWarning(
+                                service
+                                    .gpuJunctionCriticalTemperatureCelsius
+                            ),
+                            service
+                                .gpuJunctionCriticalTemperatureCelsius,
+                            root.fallbackGpuWarningCelsius,
+                            root.fallbackGpuCriticalCelsius
+                        )
+                    )
                 },
                 {
                     label: "Memory temp",
                     value: root.formatTemperature(
                         service.gpuMemoryTemperatureCelsius
+                    ),
+                    available: root.isNumeric(
+                        service.gpuMemoryTemperatureCelsius
+                    ),
+                    status: root.temperatureStatus(
+                        service.gpuMemoryTemperatureCelsius,
+                        root.derivedGpuWarning(
+                            service.gpuMemoryCriticalTemperatureCelsius
+                        ),
+                        service.gpuMemoryCriticalTemperatureCelsius,
+                        root.fallbackGpuWarningCelsius,
+                        root.fallbackGpuCriticalCelsius
                     )
+                },
+                {
+                    label: "Thermal critical",
+                    value:
+                        root.formatTemperature(
+                            service.gpuEdgeCriticalTemperatureCelsius
+                        ) + " / "
+                        + root.formatTemperature(
+                            service
+                                .gpuJunctionCriticalTemperatureCelsius
+                        ) + " / "
+                        + root.formatTemperature(
+                            service.gpuMemoryCriticalTemperatureCelsius
+                        ),
+                    available:
+                        root.isNumeric(
+                            service.gpuEdgeCriticalTemperatureCelsius
+                        )
+                        || root.isNumeric(
+                            service
+                                .gpuJunctionCriticalTemperatureCelsius
+                        )
+                        || root.isNumeric(
+                            service.gpuMemoryCriticalTemperatureCelsius
+                        ),
+                    status: "info"
                 },
                 {
                     label: "Power / Fan",
@@ -238,7 +440,28 @@ Item {
                             service.gpuFanRpm,
                             " RPM",
                             0
-                        )
+                        ),
+                    available:
+                        root.isNumeric(service.gpuPowerWatts)
+                        || root.isNumeric(service.gpuFanRpm),
+                    status: "normal"
+                },
+                {
+                    label: "Cap / Fan max",
+                    value: root.formatOptionalNumber(
+                        service.gpuPowerCapWatts,
+                        " W",
+                        1
+                    ) + " / "
+                        + root.formatOptionalNumber(
+                            service.gpuFanMaxRpm,
+                            " RPM",
+                            0
+                        ),
+                    available:
+                        root.isNumeric(service.gpuPowerCapWatts)
+                        || root.isNumeric(service.gpuFanMaxRpm),
+                    status: "info"
                 }
             ];
         }
@@ -249,13 +472,40 @@ Item {
                 value: root.formatUsagePair(
                     service.rootStorageUsedBytes,
                     service.rootStorageTotalBytes
+                ),
+                available: root.isNumeric(
+                    service.rootStorageUsagePercent
+                ),
+                status: root.utilizationStatus(
+                    service.rootStorageUsagePercent
                 )
             },
             {
                 label: "NVMe max",
                 value: root.formatTemperature(
                     service.nvmeMaxTemperatureCelsius
+                ),
+                available: root.isNumeric(
+                    service.nvmeMaxTemperatureCelsius
+                ),
+                status: root.temperatureStatus(
+                    service.nvmeMaxTemperatureCelsius,
+                    service.nvmeMaxThresholdCelsius,
+                    service.nvmeCriticalThresholdCelsius,
+                    root.fallbackNvmeWarningCelsius,
+                    root.fallbackNvmeCriticalCelsius
                 )
+            },
+            {
+                label: "NVMe max / critical",
+                value: root.thresholdPairText(
+                    service.nvmeMaxThresholdCelsius,
+                    service.nvmeCriticalThresholdCelsius,
+                    root.fallbackNvmeWarningCelsius,
+                    root.fallbackNvmeCriticalCelsius
+                ),
+                available: true,
+                status: "info"
             },
             {
                 label: "Load 1 / 5 / 15",
@@ -263,13 +513,93 @@ Item {
                     + " / "
                     + Number(service.loadFiveMinutes || 0).toFixed(2)
                     + " / "
-                    + Number(service.loadFifteenMinutes || 0).toFixed(2)
+                    + Number(service.loadFifteenMinutes || 0).toFixed(2),
+                available: service.cpuLogicalProcessors > 0,
+                status: service.cpuLogicalProcessors > 0
+                    ? root.utilizationStatus(
+                        100
+                        * Number(service.loadOneMinute || 0)
+                        / Number(service.cpuLogicalProcessors)
+                    )
+                    : "info"
             },
             {
                 label: "Uptime",
                 value: root.formatDuration(service.uptimeSeconds)
             }
         ];
+    }
+
+    function detailSection(cardIndex) {
+        switch (Number(cardIndex)) {
+        case 0:
+            return "cpu";
+        case 1:
+            return "memory";
+        case 2:
+            return "gpu";
+        case 3:
+            return "system";
+        default:
+            return "";
+        }
+    }
+
+    function detailTitle(section) {
+        switch (String(section || "")) {
+        case "cpu":
+            return "CPU";
+        case "memory":
+            return "Memory";
+        case "gpu":
+            return "GPU";
+        case "system":
+            return "System";
+        default:
+            return "";
+        }
+    }
+
+    function detailSubtitle(section) {
+        const service = root.performanceService;
+
+        switch (String(section || "")) {
+        case "cpu":
+            return service
+                ? root.textOrUnavailable(service.cpuModel)
+                : "Observed processor telemetry";
+
+        case "memory":
+            return "RAM and swap";
+
+        case "gpu":
+            return service && service.gpuAvailable
+                ? "AMDGPU · " + root.textOrUnavailable(service.gpuPci)
+                : "GPU telemetry unavailable";
+
+        case "system":
+            return service
+                ? root.textOrUnavailable(service.rootStorageFilesystem)
+                    + " · "
+                    + root.textOrUnavailable(service.rootStorageMountPoint)
+                : "Observed system telemetry";
+
+        default:
+            return "";
+        }
+    }
+
+    function detailRowCount(section) {
+        return root.detailRows(section).length;
+    }
+
+    function detailRow(section, rowIndex) {
+        const rows = root.detailRows(section);
+        const index = Number(rowIndex);
+
+        return index >= 0 && index < rows.length
+            ? rows[index]
+            : null;
     }
 
     ColumnLayout {
@@ -300,12 +630,7 @@ Item {
                         String(root.performanceService.status || "unknown")
                             .toUpperCase();
 
-                    const refreshed =
-                        String(root.performanceService.lastRefresh || "");
-
-                    return refreshed.length > 0
-                        ? state + " · Updated " + refreshed
-                        : state + " · Observed system telemetry";
+                    return state + " · Live observed telemetry";
                 }
             }
 
@@ -313,13 +638,8 @@ Item {
                 theme: root.theme
                 iconName: "refresh"
 
-                text: root.serviceLoading
-                    ? "Refreshing…"
-                    : "Refresh"
-
-                controlEnabled:
-                    root.performanceService
-                    && !root.serviceLoading
+                text: "Refresh"
+                controlEnabled: Boolean(root.performanceService)
 
                 onClicked: root.refreshRequested()
             }
@@ -489,55 +809,15 @@ Item {
                     rowSpacing: root.theme.spaceMd
 
                     Repeater {
-                        model: [
-                            {
-                                title: "CPU",
-                                subtitle:
-                                    root.performanceService
-                                        ? root.textOrUnavailable(
-                                            root.performanceService.cpuModel
-                                        )
-                                        : "Observed processor telemetry",
-                                rows: root.detailRows("cpu")
-                            },
-                            {
-                                title: "Memory",
-                                subtitle: "RAM and swap",
-                                rows: root.detailRows("memory")
-                            },
-                            {
-                                title: "GPU",
-                                subtitle:
-                                    root.performanceService
-                                    && root.performanceService.gpuAvailable
-                                        ? "AMDGPU · "
-                                            + root.textOrUnavailable(
-                                                root.performanceService.gpuPci
-                                            )
-                                        : "GPU telemetry unavailable",
-                                rows: root.detailRows("gpu")
-                            },
-                            {
-                                title: "System",
-                                subtitle:
-                                    root.performanceService
-                                        ? root.textOrUnavailable(
-                                            root.performanceService
-                                                .rootStorageFilesystem
-                                        ) + " · "
-                                            + root.textOrUnavailable(
-                                                root.performanceService
-                                                    .rootStorageMountPoint
-                                            )
-                                        : "Observed system telemetry",
-                                rows: root.detailRows("system")
-                            }
-                        ]
+                        model: 4
 
                         delegate: Components.JcSurface {
                             id: detailCard
 
-                            required property var modelData
+                            required property int index
+
+                            readonly property string section:
+                                root.detailSection(detailCard.index)
 
                             Layout.fillWidth: true
                             Layout.minimumWidth:
@@ -549,6 +829,32 @@ Item {
 
                             theme: root.theme
                             surfaceRole: "glass"
+                            fillEnabled: false
+                            bordered: false
+
+                            Components.JcHudFrame {
+                                id: detailCardHudFrame
+
+                                anchors.fill: parent
+                                anchors.margins: root.theme.space2Xs
+
+                                theme: root.theme
+                                surfaceRole: "glass"
+
+                                fillEnabled: true
+                                fillColor: root.theme.hudSurface
+                                contentPadding: 0
+
+                                cutSize: root.theme.spaceMd
+                                accentLength:
+                                    root.theme.controlHeightDefault
+                                    + root.theme.spaceMd
+
+                                glowEnabled: false
+                                showInnerFrame: true
+                                showCornerAccents: true
+                                showSecondaryAccent: false
+                            }
 
                             ColumnLayout {
                                 id: detailColumn
@@ -561,12 +867,12 @@ Item {
                                     Layout.fillWidth: true
 
                                     theme: root.theme
-                                    title: String(detailCard.modelData.title)
-                                    subtitle:
-                                        String(
-                                            detailCard.modelData.subtitle
-                                            || ""
-                                        )
+                                    title: root.detailTitle(
+                                        detailCard.section
+                                    )
+                                    subtitle: root.detailSubtitle(
+                                        detailCard.section
+                                    )
                                 }
 
                                 Components.JcDivider {
@@ -575,10 +881,18 @@ Item {
                                 }
 
                                 Repeater {
-                                    model: detailCard.modelData.rows || []
+                                    model: root.detailRowCount(
+                                        detailCard.section
+                                    )
 
                                     delegate: RowLayout {
-                                        required property var modelData
+                                        required property int index
+
+                                        readonly property var rowData:
+                                            root.detailRow(
+                                                detailCard.section,
+                                                index
+                                            )
 
                                         Layout.fillWidth: true
                                         spacing: root.theme.spaceMd
@@ -586,8 +900,9 @@ Item {
                                         Text {
                                             Layout.fillWidth: true
 
-                                            text:
-                                                String(modelData.label)
+                                            text: rowData
+                                                ? String(rowData.label)
+                                                : ""
                                             color:
                                                 root.theme.textSecondary
 
@@ -598,10 +913,18 @@ Item {
                                         }
 
                                         Text {
-                                            text:
-                                                String(modelData.value)
-                                            color:
-                                                root.theme.textPrimary
+                                            text: rowData
+                                                ? String(rowData.value)
+                                                : ""
+                                            color: root.statusColor(
+                                                rowData
+                                                    ? rowData.status
+                                                    : "info",
+                                                rowData
+                                                    ? rowData.available
+                                                        !== false
+                                                    : false
+                                            )
 
                                             font.family:
                                                 root.theme.fontFamilyMono
@@ -624,7 +947,31 @@ Item {
                         + (root.theme.spaceSm * 2)
 
                     theme: root.theme
-                    surfaceRole: "sunken"
+                    surfaceRole: "glass"
+                    fillEnabled: false
+                    bordered: false
+
+                    Components.JcHudFrame {
+                        id: performanceFooterHudFrame
+
+                        anchors.fill: parent
+                        anchors.margins: root.theme.space2Xs
+
+                        theme: root.theme
+                        surfaceRole: "glass"
+
+                        fillEnabled: true
+                        fillColor: root.theme.hudSurface
+                        contentPadding: 0
+
+                        cutSize: root.theme.spaceSm
+                        accentLength: root.theme.controlHeightDefault
+
+                        glowEnabled: false
+                        showInnerFrame: true
+                        showCornerAccents: false
+                        showSecondaryAccent: false
+                    }
 
                     Text {
                         id: footerText
@@ -632,18 +979,11 @@ Item {
                         anchors.fill: parent
                         anchors.margins: root.theme.spaceSm
 
-                        text:
-                            "Read-only observed telemetry · "
-                            + "Live refresh every "
-                            + (
-                                root.performanceService
-                                    ? root.performanceService
-                                        .refreshIntervalMs / 1000
-                                    : 2
-                            )
-                            + "s while Performance is visible."
-
+                        text: root.footerStatusText
                         color: root.theme.textMuted
+
+                        layer.enabled: true
+                        layer.smooth: true
 
                         font.family: root.theme.fontFamilySans
                         font.pixelSize: root.theme.textSizeCaption

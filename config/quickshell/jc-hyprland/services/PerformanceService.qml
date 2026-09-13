@@ -37,6 +37,9 @@ Scope {
     property var cpuMinimumFrequencyKHz: null
     property var cpuMaximumFrequencyKHz: null
     property var cpuTemperatureCelsius: null
+    property var cpuTemperatureMaxThresholdCelsius: null
+    property var cpuTemperatureCriticalThresholdCelsius: null
+    property var cpuTemperatureEmergencyThresholdCelsius: null
 
     property bool memoryAvailable: false
     property real memoryTotalBytes: 0
@@ -64,9 +67,19 @@ Scope {
     property var gpuJunctionTemperatureCelsius: null
     property var gpuMemoryTemperatureCelsius: null
     property var gpuFanRpm: null
+    property var gpuFanMaxRpm: null
     property var gpuPowerWatts: null
+    property var gpuPowerCapWatts: null
+    property var gpuEdgeCriticalTemperatureCelsius: null
+    property var gpuEdgeEmergencyTemperatureCelsius: null
+    property var gpuJunctionCriticalTemperatureCelsius: null
+    property var gpuJunctionEmergencyTemperatureCelsius: null
+    property var gpuMemoryCriticalTemperatureCelsius: null
+    property var gpuMemoryEmergencyTemperatureCelsius: null
 
     property var nvmeMaxTemperatureCelsius: null
+    property var nvmeMaxThresholdCelsius: null
+    property var nvmeCriticalThresholdCelsius: null
 
     property bool rootStorageAvailable: false
     property var rootStorageSource: null
@@ -182,7 +195,18 @@ Scope {
                 || !root.numberOrNull(payload.cpu.frequency.averageMHz)
                 || !root.numberOrNull(payload.cpu.frequency.minimumKHz)
                 || !root.numberOrNull(payload.cpu.frequency.maximumKHz)
-                || !root.numberOrNull(payload.cpu.temperatureCelsius)) {
+                || !root.numberOrNull(payload.cpu.temperatureCelsius)
+                || !payload.cpu.temperatureThresholds
+                || typeof payload.cpu.temperatureThresholds !== "object"
+                || !root.numberOrNull(
+                    payload.cpu.temperatureThresholds.maxCelsius
+                )
+                || !root.numberOrNull(
+                    payload.cpu.temperatureThresholds.criticalCelsius
+                )
+                || !root.numberOrNull(
+                    payload.cpu.temperatureThresholds.emergencyCelsius
+                )) {
             return false;
         }
 
@@ -213,13 +237,39 @@ Scope {
                 || !root.numberOrNull(payload.gpu.temperature.edgeCelsius)
                 || !root.numberOrNull(payload.gpu.temperature.junctionCelsius)
                 || !root.numberOrNull(payload.gpu.temperature.memoryCelsius)
+                || !root.numberOrNull(
+                    payload.gpu.temperature.edgeCriticalCelsius
+                )
+                || !root.numberOrNull(
+                    payload.gpu.temperature.edgeEmergencyCelsius
+                )
+                || !root.numberOrNull(
+                    payload.gpu.temperature.junctionCriticalCelsius
+                )
+                || !root.numberOrNull(
+                    payload.gpu.temperature.junctionEmergencyCelsius
+                )
+                || !root.numberOrNull(
+                    payload.gpu.temperature.memoryCriticalCelsius
+                )
+                || !root.numberOrNull(
+                    payload.gpu.temperature.memoryEmergencyCelsius
+                )
                 || !root.numberOrNull(payload.gpu.fanRpm)
-                || !root.numberOrNull(payload.gpu.powerWatts)) {
+                || !root.numberOrNull(payload.gpu.fanMaxRpm)
+                || !root.numberOrNull(payload.gpu.powerWatts)
+                || !root.numberOrNull(payload.gpu.powerCapWatts)) {
             return false;
         }
 
         if (!root.numberOrNull(payload.temperatures.cpuCelsius)
-                || !root.numberOrNull(payload.temperatures.nvmeMaxCelsius)) {
+                || !root.numberOrNull(payload.temperatures.nvmeMaxCelsius)
+                || !root.numberOrNull(
+                    payload.temperatures.nvmeMaxThresholdCelsius
+                )
+                || !root.numberOrNull(
+                    payload.temperatures.nvmeCriticalThresholdCelsius
+                )) {
             return false;
         }
 
@@ -275,6 +325,12 @@ Scope {
             payload.cpu.frequency.maximumKHz;
         root.cpuTemperatureCelsius =
             payload.cpu.temperatureCelsius;
+        root.cpuTemperatureMaxThresholdCelsius =
+            payload.cpu.temperatureThresholds.maxCelsius;
+        root.cpuTemperatureCriticalThresholdCelsius =
+            payload.cpu.temperatureThresholds.criticalCelsius;
+        root.cpuTemperatureEmergencyThresholdCelsius =
+            payload.cpu.temperatureThresholds.emergencyCelsius;
 
         root.memoryAvailable = Boolean(payload.memory.available);
         root.memoryTotalBytes = Number(payload.memory.totalBytes || 0);
@@ -308,10 +364,28 @@ Scope {
         root.gpuMemoryTemperatureCelsius =
             payload.gpu.temperature.memoryCelsius;
         root.gpuFanRpm = payload.gpu.fanRpm;
+        root.gpuFanMaxRpm = payload.gpu.fanMaxRpm;
         root.gpuPowerWatts = payload.gpu.powerWatts;
+        root.gpuPowerCapWatts = payload.gpu.powerCapWatts;
+        root.gpuEdgeCriticalTemperatureCelsius =
+            payload.gpu.temperature.edgeCriticalCelsius;
+        root.gpuEdgeEmergencyTemperatureCelsius =
+            payload.gpu.temperature.edgeEmergencyCelsius;
+        root.gpuJunctionCriticalTemperatureCelsius =
+            payload.gpu.temperature.junctionCriticalCelsius;
+        root.gpuJunctionEmergencyTemperatureCelsius =
+            payload.gpu.temperature.junctionEmergencyCelsius;
+        root.gpuMemoryCriticalTemperatureCelsius =
+            payload.gpu.temperature.memoryCriticalCelsius;
+        root.gpuMemoryEmergencyTemperatureCelsius =
+            payload.gpu.temperature.memoryEmergencyCelsius;
 
         root.nvmeMaxTemperatureCelsius =
             payload.temperatures.nvmeMaxCelsius;
+        root.nvmeMaxThresholdCelsius =
+            payload.temperatures.nvmeMaxThresholdCelsius;
+        root.nvmeCriticalThresholdCelsius =
+            payload.temperatures.nvmeCriticalThresholdCelsius;
 
         root.rootStorageAvailable =
             Boolean(payload.storage.root.available);

@@ -172,3 +172,88 @@ Performance is visible.
 
 The Performance navigation item is enabled in ControlCenterNavigation.qml.
 Media, Network and Notifications remain future disabled entries.
+
+## Phase 2E.4 — Telemetry UX and hardware semantics
+
+Phase 2E.4 adds hardware-aware semantic feedback without moving hardware
+discovery into presentation QML.
+
+The stable schema remains `schemaVersion: 1`; the change is additive. The
+runtime now exposes optional hardware limits alongside observed telemetry:
+
+- CPU temperature max/critical/emergency thresholds when k10temp publishes
+  them;
+- AMDGPU edge/junction/memory critical and emergency temperatures;
+- AMDGPU power cap and maximum fan RPM when exported by HWMON;
+- NVMe `temp*_max` and `temp*_crit` thresholds, reduced conservatively to the
+  lowest observed threshold when multiple NVMe sensors exist.
+
+Unavailable limits remain `null`. No `hwmonN`, DRM card number or machine-local
+PCI address is persisted in the repository.
+
+PerformanceService projects these limit values but continues to consume only
+`jc-performance status --json`. PerformanceView still owns no `/proc`, `/sys`
+or hardware discovery.
+
+### Severity policy
+
+Utilization-style metrics use the existing UX policy:
+
+```text
+normal    < 75%
+warning   >= 75%
+critical  >= 90%
+```
+
+Temperature semantics prefer hardware-published thresholds.
+
+For AMDGPU, the hardware critical temperature is the critical boundary and the
+warning boundary is derived at 85% of that critical temperature. If no GPU
+critical value is available, the explicit presentation fallback is
+85 °C warning / 100 °C critical.
+
+For NVMe, `temp*_max` is the warning boundary and `temp*_crit` is the critical
+boundary. If unavailable, the explicit presentation fallback is
+70 °C warning / 85 °C critical.
+
+Some AMD k10temp drivers expose Tctl/Tccd readings without max/critical
+thresholds. In that case PerformanceView uses an explicit UX fallback of
+80 °C warning / 90 °C critical. These values are fallback presentation
+semantics, not claims about a processor's vendor-rated thermal limit.
+
+Power draw and fan speed remain informational. Reaching a GPU power cap or a
+high fan speed is not classified as a fault by this UI.
+
+Unavailable sensors remain visually muted and display `Unavailable`; missing
+optional telemetry does not create a false warning.
+
+Detail-row values reuse the canonical Theme semantic colors. Normal values keep
+the ordinary text color, warnings use `theme.warning`, critical values use
+`theme.danger`, informational hardware limits use `theme.info`, and unavailable
+values use `theme.textMuted`.
+
+### Live-refresh visual stability
+
+Periodic telemetry must update values without reconstructing the Performance
+card hierarchy. The CPU, Memory, GPU and System card delegates therefore use a
+stable numeric Repeater model, and each row delegate also keeps a stable numeric
+model while its displayed value remains bound to PerformanceService.
+
+This prevents the 2 s live refresh from destroying and recreating card/row
+objects, which otherwise produces visible flashing and can disturb scrolling.
+The Refresh action also keeps a stable label and enabled presentation during
+automatic refresh; overlapping refresh requests remain rejected by
+PerformanceService.refresh().
+
+### HUD detail cards and stable status chrome
+
+Performance detail cards use the same angular HUD material ownership as the
+rest of the production Control Center. The outer JcSurface delegates its visual
+material with `fillEnabled: false`, while a presentation-only JcHudFrame owns
+the visible `hudSurface`, inner frame and corner accents.
+
+Live telemetry refresh is intentionally limited to metric values and rings.
+The Performance header does not rewrite an `Updated <timestamp>` string every
+two seconds, and the footer uses a stable status string rendered on a cached
+text layer. This keeps non-metric UI chrome visually stationary while observed
+telemetry continues to refresh.

@@ -9519,10 +9519,11 @@ for contract in \
     'function formatDuration(value) {' \
     'function utilizationStatus(value) {' \
     'title: "Performance"' \
-    'title: "CPU"' \
-    'title: "Memory"' \
-    'title: "GPU"' \
-    'title: "System"' \
+    'function detailTitle(section) {' \
+    'return "CPU";' \
+    'return "Memory";' \
+    'return "GPU";' \
+    'return "System";' \
     'onClicked: root.refreshRequested()'
 do
     if grep -Fq -- "$contract" "$performance_view"; then
@@ -9661,7 +9662,7 @@ done
 for contract in \
     'Read-only observed telemetry' \
     'Live refresh every ' \
-    'refreshIntervalMs / 1000' \
+    'readonly property string footerStatusText:' \
     'while Performance is visible.'
 do
     if grep -Fq -- "$contract" "$performance_view"; then
@@ -9700,6 +9701,176 @@ do
         ok "Performance 2E.3 documentation: $contract"
     else
         fail "Performance 2E.3 documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2E.4 Performance telemetry UX + hardware semantics\n'
+
+performance_runtime="$repo_root/scripts/runtime/jc-performance.sh"
+performance_service="$config_dir/services/PerformanceService.qml"
+performance_view="$config_dir/modules/performance/PerformanceView.qml"
+performance_docs="$repo_root/docs/performance.md"
+
+for contract in \
+    'hwmon_temp_attribute_by_label() {' \
+    'cpu_temperature_attribute() {' \
+    'nvme_min_temperature_threshold() {' \
+    'temperatureThresholds: {' \
+    "edgeCriticalCelsius: \$gpuEdgeCriticalTemperature" \
+    "fanMaxRpm: \$gpuFanMaxRpm" \
+    "powerCapWatts: \$gpuPowerCapWatts" \
+    "nvmeMaxThresholdCelsius: \$nvmeMaxThreshold" \
+    "nvmeCriticalThresholdCelsius: \$nvmeCriticalThreshold"
+do
+    if grep -Fq -- "$contract" "$performance_runtime"; then
+        ok "Performance hardware-limit runtime contract: $contract"
+    else
+        fail "Performance hardware-limit runtime contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'property var cpuTemperatureCriticalThresholdCelsius: null' \
+    'property var gpuEdgeCriticalTemperatureCelsius: null' \
+    'property var gpuJunctionCriticalTemperatureCelsius: null' \
+    'property var gpuMemoryCriticalTemperatureCelsius: null' \
+    'property var gpuFanMaxRpm: null' \
+    'property var gpuPowerCapWatts: null' \
+    'property var nvmeMaxThresholdCelsius: null' \
+    'property var nvmeCriticalThresholdCelsius: null'
+do
+    if grep -Fq -- "$contract" "$performance_service"; then
+        ok "Performance hardware-limit service contract: $contract"
+    else
+        fail "Performance hardware-limit service contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'readonly property real fallbackCpuWarningCelsius: 80' \
+    'readonly property real fallbackCpuCriticalCelsius: 90' \
+    'readonly property real fallbackGpuWarningCelsius: 85' \
+    'readonly property real fallbackGpuCriticalCelsius: 100' \
+    'readonly property real fallbackNvmeWarningCelsius: 70' \
+    'readonly property real fallbackNvmeCriticalCelsius: 85' \
+    'function temperatureStatus(' \
+    'function derivedGpuWarning(criticalThreshold)' \
+    'function worstStatus(first, second)' \
+    'function statusColor(status, available)' \
+    'label: "Thermal policy"' \
+    'label: "Thermal critical"' \
+    'label: "Cap / Fan max"' \
+    'label: "NVMe max / critical"'
+do
+    if grep -Fq -- "$contract" "$performance_view"; then
+        ok "Performance semantic UX contract: $contract"
+    else
+        fail "Performance semantic UX contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'function detailSection(cardIndex) {' \
+    'function detailRowCount(section) {' \
+    'function detailRow(section, rowIndex) {' \
+    'model: 4' \
+    'model: root.detailRowCount(' \
+    'readonly property var rowData:' \
+    'text: "Refresh"' \
+    'controlEnabled: Boolean(root.performanceService)'
+do
+    if grep -Fq -- "$contract" "$performance_view"; then
+        ok "Performance live-refresh stability contract: $contract"
+    else
+        fail "Performance live-refresh stability contract missing: $contract"
+    fi
+done
+
+if grep -Fq -- 'model: [' "$performance_view"; then
+    fail "PerformanceView retains a dynamic JS-array Repeater model"
+else
+    ok "PerformanceView uses stable Repeater models for live telemetry"
+fi
+
+if grep -Fq -- 'text: root.serviceLoading' "$performance_view"; then
+    fail "Performance Refresh action still flashes its label during live polling"
+else
+    ok "Performance Refresh action presentation remains stable during live polling"
+fi
+
+for contract in \
+    'id: detailCardHudFrame' \
+    'fillColor: root.theme.hudSurface' \
+    'showInnerFrame: true' \
+    'showCornerAccents: true' \
+    'showSecondaryAccent: false' \
+    'id: performanceFooterHudFrame' \
+    'readonly property string footerStatusText:' \
+    'text: root.footerStatusText' \
+    'layer.enabled: true' \
+    'return state + " · Live observed telemetry";'
+do
+    if grep -Fq -- "$contract" "$performance_view"; then
+        ok "Performance HUD/stable chrome contract: $contract"
+    else
+        fail "Performance HUD/stable chrome contract missing: $contract"
+    fi
+done
+
+if grep -Fq -- 'Updated " + refreshed' "$performance_view"; then
+    fail "Performance header still rewrites the refresh timestamp"
+else
+    ok "Performance header chrome remains stable across live refresh"
+fi
+
+if grep -Fq -- 'refreshIntervalMs / 1000' "$performance_view"; then
+    fail "Performance footer retains a live service binding"
+else
+    ok "Performance footer text is decoupled from live telemetry refresh"
+fi
+
+for forbidden in \
+    '/proc/' \
+    '/sys/' \
+    'GPU_PCI' \
+    'hwmon0' \
+    'hwmon1' \
+    'hwmon7' \
+    'card0' \
+    'card1'
+do
+    if grep -Fq -- "$forbidden" "$performance_view"; then
+        fail "PerformanceView leaks hardware/backend detail: $forbidden"
+    else
+        ok "PerformanceView excludes hardware/backend detail: $forbidden"
+    fi
+done
+
+if grep -Eq -- \
+    '[[:xdigit:]]{4}:[[:xdigit:]]{2}:[[:xdigit:]]{2}\.[[:xdigit:]]' \
+    "$performance_view"
+then
+    fail "PerformanceView contains a hardcoded PCI BDF"
+else
+    ok "PerformanceView contains no hardcoded PCI BDF"
+fi
+
+for contract in \
+    '## Phase 2E.4 — Telemetry UX and hardware semantics' \
+    'schemaVersion: 1' \
+    'normal    < 75%' \
+    'warning   >= 75%' \
+    'critical  >= 90%' \
+    '85% of that critical temperature' \
+    '80 °C warning / 90 °C critical' \
+    '70 °C warning / 85 °C critical' \
+    'Power draw and fan speed remain informational' \
+    'optional telemetry does not create a false warning'
+do
+    if grep -Fq -- "$contract" "$performance_docs"; then
+        ok "Performance 2E.4 documentation: $contract"
+    else
+        fail "Performance 2E.4 documentation missing: $contract"
     fi
 done
 
