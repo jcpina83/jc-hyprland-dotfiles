@@ -10789,8 +10789,10 @@ quick_settings_polish_doc="$repo_root/docs/quick-settings.md"
 
 for contract in \
     '"dnd"' \
+    '"lock"' \
     '"night-light"' \
     'case "dnd":' \
+    'case "lock":' \
     'case "night-light":'
 do
     if grep -Fq -- "$contract" "$quick_settings_polish_icon"; then
@@ -10801,9 +10803,7 @@ do
 done
 
 for removed_icon in \
-    '"lock"' \
     '"suspend"' \
-    'case "lock":' \
     'case "suspend":'
 do
     if grep -Fq -- "$removed_icon" "$quick_settings_polish_icon"; then
@@ -10817,7 +10817,7 @@ for contract in \
     'id: refreshAction' \
     'id: dndQuickTile' \
     'iconName: "dnd"' \
-    'iconName: "settings"' \
+    'iconName: "lock"' \
     'iconName: "night-light"' \
     'iconName: "power"' \
     'title: "Quick actions"' \
@@ -10866,7 +10866,8 @@ done
 for contract in \
     '## Phase 2D.4 — Visual, keyboard and icon polish' \
     'The final Quick Settings icon treatment is intentionally hybrid:' \
-    "Lock keeps the established \`settings\` icon" \
+    "closed-padlock \`lock\` vector icon" \
+    'combining sun and crescent moon geometry' \
     "Suspend keeps the established \`power\` icon" \
     'presentation-only'
 do
@@ -10879,9 +10880,10 @@ done
 
 for contract in \
     '### Quick Settings — Phase 2D.4 Visual / keyboard / icon polish' \
-    'dedicated semantic vector icons for DND and Night' \
-    'retaining the established Settings icon for Lock' \
-    'Power icon for Suspend' \
+    'dedicated semantic vector icons for DND, Lock and' \
+    'represented by a closed padlock' \
+    'combined sun/crescent symbol' \
+    'established Power icon' \
     'directional focus movement' \
     'presentation-only'
 do
@@ -10891,3 +10893,17 @@ do
         fail "Quick Settings 2D.4 README missing: $contract"
     fi
 done
+
+# Final validator guard.
+#
+# Some validation phases were appended historically after the original
+# "Quickshell validation summary". Always evaluate the shared error counter
+# again at the physical end of the validator so a late FAIL cannot return 0.
+printf '\nQuickshell final validation summary: %d error(s)\n' "$errors"
+
+if (( errors > 0 )); then
+    printf 'Quickshell final static checks failed.\n'
+    exit 1
+fi
+
+printf 'Quickshell final static checks passed.\n'
