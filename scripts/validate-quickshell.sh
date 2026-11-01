@@ -12553,3 +12553,210 @@ for label, text in (
 
 print("  OK    existing 6000 ms fail-closed timeouts preserved")
 PY_PHASE2G2E
+
+echo
+echo "==> Phase 2G.3a Bluetooth trust control"
+python3 - \
+    config/quickshell/jc-hyprland/services/BluetoothActionService.qml \
+    config/quickshell/jc-hyprland/modules/network/NetworkView.qml \
+    docs/network.md <<'PY_PHASE2G3A'
+from pathlib import Path
+import re
+import sys
+
+action = Path(sys.argv[1]).read_text()
+view = Path(sys.argv[2]).read_text()
+doc = Path(sys.argv[3]).read_text()
+
+
+def extract_function(text: str, name: str) -> str:
+    match = re.search(
+        rf"function\s+{re.escape(name)}\s*\([^)]*\)\s*:\s*\w+\s*\{{",
+        text,
+    )
+    if not match:
+        raise SystemExit(f"FAIL  Phase 2G.3a missing function: {name}")
+
+    brace = text.find("{", match.start())
+    depth = 0
+
+    for pos in range(brace, len(text)):
+        char = text[pos]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[match.start():pos + 1]
+
+    raise SystemExit(f"FAIL  Phase 2G.3a unterminated function: {name}")
+
+
+def require(label: str, condition: bool) -> None:
+    if not condition:
+        raise SystemExit(f"FAIL  {label}")
+    print(f"  OK    {label}")
+
+
+can_trust = extract_function(action, "canSetPairedDeviceTrusted")
+set_trust = extract_function(action, "setPairedDeviceTrusted")
+reconcile = extract_function(action, "reconcilePairedDeviceTrusted")
+
+restart = set_trust.find("mutationTimeout.restart();")
+native_write = set_trust.find("device.trusted = desired;")
+
+require(
+    "Bluetooth trust canSet contract",
+    "device.paired !== true" in can_trust
+    and "device.pairing === true" in can_trust
+    and "Boolean(device.trusted) !== desired" in can_trust,
+)
+require(
+    "Bluetooth trust participates in busy observed-state contract",
+    "root.awaitingObservedState = true;" in set_trust
+    and set_trust.find("root.awaitingObservedState = true;") < restart
+    and "root.awaitingObservedState" in action,
+)
+require(
+    "Bluetooth trust timeout precedes native write",
+    restart >= 0 and native_write >= 0 and restart < native_write,
+)
+require(
+    "Bluetooth trust observed reconciliation",
+    "Boolean(root.pendingDevice.trusted)" in reconcile
+    and "root.pendingDesiredTrusted" in reconcile
+    and "root.resetPending();" in reconcile,
+)
+def balanced_qml_block(source: str, start: int) -> tuple[int, int, str]:
+    brace = source.find("{", start)
+    if brace < 0:
+        raise SystemExit("FAIL  Phase 2G.3a opening brace not found")
+
+    depth = 0
+    for pos in range(brace, len(source)):
+        char = source[pos]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return start, pos + 1, source[start:pos + 1]
+
+    raise SystemExit("FAIL  Phase 2G.3a unterminated QML block")
+
+
+def direct_pending_device_handler_depth(
+    source: str,
+    handler_name: str,
+) -> int:
+    matches = []
+
+    for match in re.finditer(r"(?m)^[ \t]*Connections\s*\{", source):
+        start, end, block = balanced_qml_block(source, match.start())
+        if (
+            "target: root.pendingDevice" in block
+            and "function onConnectedChanged()" in block
+        ):
+            matches.append((start, end, block))
+
+    if len(matches) != 1:
+        raise SystemExit(
+            "FAIL  Phase 2G.3a pending-device Connections topology"
+        )
+
+    block = matches[0][2]
+    token = f"function {handler_name}()"
+    token_pos = block.find(token)
+
+    if token_pos < 0:
+        return -1
+
+    brace = block.find("{")
+    depth = 0
+    in_string = None
+    escaped = False
+
+    for char in block[brace:token_pos]:
+        if in_string is not None:
+            if escaped:
+                escaped = False
+                continue
+            if char == "\\":
+                escaped = True
+                continue
+            if char == in_string:
+                in_string = None
+            continue
+
+        if char in ("'", '"'):
+            in_string = char
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+
+    return depth
+
+
+connected_handler_depth = direct_pending_device_handler_depth(
+    action,
+    "onConnectedChanged",
+)
+trusted_handler_depth = direct_pending_device_handler_depth(
+    action,
+    "onTrustedChanged",
+)
+
+require(
+    "Bluetooth trust observed listener topology",
+    connected_handler_depth == 1
+    and trusted_handler_depth == 1
+    and "root.reconcilePairedDeviceTrusted();" in action,
+)
+require(
+    "Bluetooth trust keeps 6000 ms timeout",
+    "interval: 6000" in action,
+)
+require(
+    "Bluetooth trust UI labels",
+    'id: bluetoothTrustButton' in view
+    and '"Trust"' in view
+    and '"Untrust"' in view,
+)
+require(
+    "Bluetooth trust UI delegates canSet",
+    "canSetPairedDeviceTrusted" in view,
+)
+require(
+    "Bluetooth trust UI delegates mutation",
+    "setPairedDeviceTrusted" in view,
+)
+require(
+    "Bluetooth trust UI reflects observed state",
+    "pairedDeviceRow.deviceObject.trusted" in view,
+)
+require(
+    "Bluetooth trust action service owns native write",
+    "device.trusted = desired;" in action
+    and ".trusted =" not in view,
+)
+require(
+    "NetworkView contains no command mutation backend",
+    "bluetoothctl" not in view
+    and "busctl" not in view
+    and "Process {" not in view,
+)
+require(
+    "Phase 2G.3a documentation",
+    "## Phase 2G.3a — Bluetooth trust control" in doc
+    and "Trust / Untrust" in doc,
+)
+require(
+    "Deferred Bluetooth scope preserved",
+    ".pair(" not in view
+    and ".forget(" not in view
+    and ".blocked =" not in view,
+)
+
+print("phase2g3a_bluetooth_trust_validator=PASS")
+PY_PHASE2G3A

@@ -265,3 +265,22 @@ This is preventive hardening only. Phase 2G.2d runtime certification already
 proved these three controls functional. Phase 2G.2e does not add PSK/new
 network, network forget, Bluetooth pair/forget, trust/block, or any new UI
 mutation scope.
+
+## Phase 2G.3a — Bluetooth trust control
+
+Phase 2G.3a extends the existing low-risk Bluetooth mutation boundary with a
+reversible **Trust / Untrust** control for devices that are already paired.
+
+`BluetoothActionService.qml` remains the sole mutation owner. The action
+service writes the native Quickshell `BluetoothDevice.trusted` property, arms
+the existing 6000 ms fail-closed timeout **before** the native write, and only
+declares success after the observed `trusted` property reconciles to the
+requested value. `NetworkView.qml` remains presentation-only and reflects the
+observed device state rather than maintaining an optimistic trust flag.
+
+The paired-device row now keeps the existing **Connect / Disconnect** action
+and adds **Trust / Untrust**. Bluetooth mutations remain mutually exclusive
+through the shared action-service busy state.
+
+This phase intentionally does **not** add pairing, unpair/forget, block,
+discovery/pairable controls, Wi-Fi forget, or new-network/PSK handling.

@@ -655,6 +655,7 @@ Flickable {
                                     Math.max(
                                         0,
                                         parent.width
+                                        - bluetoothTrustButton.width
                                         - bluetoothConnectButton.width
                                         - parent.spacing
                                     )
@@ -685,6 +686,37 @@ Flickable {
                                             )
                                     color: root.theme.textSecondary
                                     font.pixelSize: root.theme.textSizeCaption
+                                }
+                            }
+
+                            Components.JcButton {
+                                id: bluetoothTrustButton
+
+                                theme: root.theme
+                                compact: true
+                                text:
+                                    pairedDeviceRow.deviceObject
+                                    && pairedDeviceRow.deviceObject.trusted
+                                        ? "Untrust"
+                                        : "Trust"
+                                controlEnabled:
+                                    root.bluetoothActionService
+                                    && pairedDeviceRow.deviceObject
+                                    && root.bluetoothActionService
+                                        .canSetPairedDeviceTrusted(
+                                            pairedDeviceRow.deviceObject,
+                                            !pairedDeviceRow.deviceObject.trusted
+                                        )
+
+                                onClicked: {
+                                    if (root.bluetoothActionService
+                                            && pairedDeviceRow.deviceObject) {
+                                        root.bluetoothActionService
+                                            .setPairedDeviceTrusted(
+                                                pairedDeviceRow.deviceObject,
+                                                !pairedDeviceRow.deviceObject.trusted
+                                            );
+                                    }
                                 }
                             }
 

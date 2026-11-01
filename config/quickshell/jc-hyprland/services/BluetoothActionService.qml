@@ -7,7 +7,7 @@ Scope {
 
     // Phase 2G.2b — native mutation foundation.
     //
-    // Pair/forget/trust/block remain intentionally outside this phase.
+    // Pair/forget/block remain intentionally outside this phase.
     // BluetoothService remains authoritative for observed state.
     property var bluetoothService: null
 
@@ -17,6 +17,7 @@ Scope {
 
     property bool pendingDesiredAdapterEnabled: false
     property bool pendingDesiredConnected: false
+    property bool pendingDesiredTrusted: false
     property var pendingDevice: null
     property string pendingAction: ""
 
@@ -65,6 +66,24 @@ Scope {
         return Boolean(device.connected) !== desired;
     }
 
+
+    function canSetPairedDeviceTrusted(device, desiredTrusted): bool {
+        if (root.busy || device === null || device === undefined)
+            return false;
+
+        if (root.bluetoothService === null
+                || root.bluetoothService === undefined
+                || root.bluetoothService.enabled !== true) {
+            return false;
+        }
+
+        if (device.paired !== true || device.pairing === true)
+            return false;
+
+        const desired = Boolean(desiredTrusted);
+        return Boolean(device.trusted) !== desired;
+    }
+
     function reject(action, message): void {
         root.errorMessage = String(
             message || "Bluetooth action is unavailable."
@@ -79,6 +98,7 @@ Scope {
         root.awaitingObservedState = false;
         root.pendingDesiredAdapterEnabled = false;
         root.pendingDesiredConnected = false;
+        root.pendingDesiredTrusted = false;
         root.pendingDevice = null;
         root.pendingAction = "";
         mutationTimeout.stop();
@@ -150,6 +170,34 @@ Scope {
 
     }
 
+
+    function setPairedDeviceTrusted(device, desiredTrusted): void {
+        root.clearTransientFeedback();
+
+        const desired = Boolean(desiredTrusted);
+
+        if (!root.canSetPairedDeviceTrusted(device, desired)) {
+            root.reject(
+                "paired-device-trust",
+                "Paired-device trust mutation is unavailable."
+            );
+            return;
+        }
+
+        root.awaitingObservedState = true;
+        root.pendingDevice = device;
+        root.pendingDesiredTrusted = desired;
+        root.pendingAction = desired
+            ? "paired-device-trust"
+            : "paired-device-untrust";
+        root.statusMessage = desired
+            ? "Trusting paired Bluetooth device…"
+            : "Removing trust from paired Bluetooth device…";
+
+        mutationTimeout.restart();
+        device.trusted = desired;
+    }
+
     function reconcileAdapterEnabled(): void {
         if (!root.applyingAdapterEnabled || !root.awaitingObservedState)
             return;
@@ -188,6 +236,27 @@ Scope {
         root.actionApplied(action);
     }
 
+
+    function reconcilePairedDeviceTrusted(): void {
+        if (!root.busy
+                || root.pendingDevice === null
+                || (root.pendingAction !== "paired-device-trust"
+                    && root.pendingAction !== "paired-device-untrust")) {
+            return;
+        }
+
+        if (Boolean(root.pendingDevice.trusted)
+                !== root.pendingDesiredTrusted) {
+            return;
+        }
+
+        const action = root.pendingAction;
+        root.resetPending();
+        root.statusMessage = action === "paired-device-trust"
+            ? "Paired Bluetooth device trusted."
+            : "Paired Bluetooth device trust removed.";
+    }
+
     Timer {
         id: mutationTimeout
         interval: 6000
@@ -216,6 +285,12 @@ Scope {
 
         function onConnectedChanged() {
             root.reconcilePairedDevice();
+
+
+        }
+
+        function onTrustedChanged() {
+            root.reconcilePairedDeviceTrusted();
         }
     }
 }
