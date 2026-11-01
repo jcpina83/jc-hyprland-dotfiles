@@ -11929,7 +11929,7 @@ for contract in \
     'title: "Bluetooth"' \
     'wifiSignalStrength * 100' \
     'primaryDeviceBattery * 100' \
-    'Read-only telemetry'
+    'Low-risk controls use native Quickshell action services.'
 do
     if grep -Fq -- "$contract" "$phase2g_network_view"; then
         ok "Phase 2G.1b NetworkView contract: $contract"
@@ -12206,16 +12206,12 @@ for phase2g2b_token in \
     }
 done
 
-for phase2g2b_forbidden in \
-    'setWifiEnabled(' \
-    'setKnownNetworkConnected(' \
-    'setAdapterEnabled(' \
-    'setPairedDeviceConnected(' \
+for phase2g2b_deferred in \
     'connectWithPsk(' \
     '.forget(' \
     '.pair('; do
-    if grep -Fq "$phase2g2b_forbidden" "$phase2g2b_network_view"; then
-        echo "  FAIL  NetworkView must not invoke mutation: $phase2g2b_forbidden"
+    if grep -Fq "$phase2g2b_deferred" "$phase2g2b_network_view"; then
+        echo "  FAIL  deferred mutation leaked into NetworkView: $phase2g2b_deferred"
         exit 1
     fi
 done
@@ -12256,3 +12252,106 @@ grep -Fq 'Phase 2G.2b' "$phase2g2b_architecture_doc" || {
 }
 
 echo "  OK    Phase 2G.2b action-service foundation"
+
+printf '\n==> Phase 2G.2c low-risk connectivity controls\n'
+
+phase2g2c_network_service="config/quickshell/jc-hyprland/services/NetworkService.qml"
+phase2g2c_bluetooth_service="config/quickshell/jc-hyprland/services/BluetoothService.qml"
+phase2g2c_network_action="config/quickshell/jc-hyprland/services/NetworkActionService.qml"
+phase2g2c_bluetooth_action="config/quickshell/jc-hyprland/services/BluetoothActionService.qml"
+phase2g2c_network_view="config/quickshell/jc-hyprland/modules/network/NetworkView.qml"
+phase2g2c_network_doc="docs/network.md"
+phase2g2c_architecture_doc="docs/architecture.md"
+
+for phase2g2c_token in \
+    'function knownWifiNetworks() {' \
+    'readonly property var knownWifiNetworkValues:' \
+    'readonly property int knownWifiNetworkCount:' \
+    'network.known === true'; do
+    grep -Fq "$phase2g2c_token" "$phase2g2c_network_service" || {
+        echo "  FAIL  Phase 2G.2c NetworkService: $phase2g2c_token"
+        exit 1
+    }
+done
+
+for phase2g2c_token in \
+    'function pairedDevices() {' \
+    'readonly property var pairedDeviceValues:' \
+    'readonly property int pairedDeviceCount:' \
+    'device.paired === true'; do
+    grep -Fq "$phase2g2c_token" "$phase2g2c_bluetooth_service" || {
+        echo "  FAIL  Phase 2G.2c BluetoothService: $phase2g2c_token"
+        exit 1
+    }
+done
+
+for phase2g2c_token in \
+    'root.networkService.wifiHardwareEnabled !== true' \
+    'root.networkService.wifiEnabled !== true'; do
+    grep -Fq "$phase2g2c_token" "$phase2g2c_network_action" || {
+        echo "  FAIL  Phase 2G.2c NetworkActionService guard: $phase2g2c_token"
+        exit 1
+    }
+done
+
+for phase2g2c_token in \
+    'root.bluetoothService.adapterAvailable !== true' \
+    'root.bluetoothService.enabled !== true'; do
+    grep -Fq "$phase2g2c_token" "$phase2g2c_bluetooth_action" || {
+        echo "  FAIL  Phase 2G.2c BluetoothActionService guard: $phase2g2c_token"
+        exit 1
+    }
+done
+
+for phase2g2c_token in \
+    'Components.JcToggle {' \
+    'root.networkActionService.setWifiEnabled(value);' \
+    '.setKnownNetworkConnected(' \
+    'root.bluetoothActionService.setAdapterEnabled(value);' \
+    '.setPairedDeviceConnected(' \
+    'root.networkService.knownWifiNetworkValues' \
+    'root.bluetoothService.pairedDeviceValues' \
+    'Saved networks' \
+    'Paired devices'; do
+    grep -Fq "$phase2g2c_token" "$phase2g2c_network_view" || {
+        echo "  FAIL  Phase 2G.2c NetworkView control contract: $phase2g2c_token"
+        exit 1
+    }
+done
+
+phase2g2c_toggle_count="$(
+    grep -Fc 'Components.JcToggle {' "$phase2g2c_network_view"
+)"
+[[ "$phase2g2c_toggle_count" -eq 2 ]] || {
+    echo "  FAIL  expected exactly 2 low-risk toggles, got $phase2g2c_toggle_count"
+    exit 1
+}
+
+for phase2g2c_forbidden in \
+    'Process {' \
+    'nmcli' \
+    'bluetoothctl' \
+    'busctl' \
+    'rfkill' \
+    'connectWithPsk(' \
+    '.forget(' \
+    '.pair(' \
+    'setTrusted' \
+    'setBlocked'; do
+    if grep -Fq "$phase2g2c_forbidden" "$phase2g2c_network_view"; then
+        echo "  FAIL  Phase 2G.2c presentation/deferred boundary: $phase2g2c_forbidden"
+        exit 1
+    fi
+done
+
+grep -Fq 'Phase 2G.2c' "$phase2g2c_network_doc" || {
+    echo "  FAIL  Phase 2G.2c network documentation"
+    exit 1
+}
+
+grep -Fq 'Phase 2G.2c' "$phase2g2c_architecture_doc" || {
+    echo "  FAIL  Phase 2G.2c architecture documentation"
+    exit 1
+}
+
+echo "  OK    Phase 2G.2c low-risk connectivity controls"

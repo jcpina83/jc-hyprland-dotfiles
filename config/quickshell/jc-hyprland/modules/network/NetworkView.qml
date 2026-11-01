@@ -45,6 +45,13 @@ Flickable {
         ) + "%";
     }
 
+    function bluetoothDeviceName(device) {
+        if (!device)
+            return "Paired device";
+
+        return String(device.name || device.deviceName || "Paired device");
+    }
+
     Column {
         id: contentColumn
 
@@ -55,7 +62,7 @@ Flickable {
             width: parent.width
             theme: root.theme
             title: "Network & Bluetooth"
-            subtitle: "Observed state · read-only foundation"
+            subtitle: "Observed state · low-risk connectivity controls"
         }
 
         Components.JcHudFrame {
@@ -152,6 +159,27 @@ Flickable {
                             : "Unavailable"
                 }
 
+                Components.JcToggle {
+                    width: parent.width
+                    theme: root.theme
+                    text:
+                        root.networkActionService
+                        && root.networkActionService.applyingWifiEnabled
+                            ? "Wi-Fi radio · updating…"
+                            : "Wi-Fi radio"
+                    checked:
+                        root.networkService
+                        && root.networkService.wifiEnabled
+                    controlEnabled:
+                        root.networkActionService
+                        && root.networkActionService.canSetWifiEnabled
+
+                    onToggled: value => {
+                        if (root.networkActionService)
+                            root.networkActionService.setWifiEnabled(value);
+                    }
+                }
+
                 Text {
                     width: parent.width
                     text:
@@ -218,6 +246,152 @@ Flickable {
                     color: root.theme.textSecondary
                     font.pixelSize: root.theme.textSizeCaption
                     elide: Text.ElideRight
+                }
+
+                Components.JcSectionHeader {
+                    width: parent.width
+                    theme: root.theme
+                    title: "Saved networks"
+                    subtitle:
+                        root.networkService
+                            ? root.networkService.knownWifiNetworkCount
+                                + " known"
+                            : "Unavailable"
+                }
+
+                Text {
+                    width: parent.width
+                    visible:
+                        !root.networkService
+                        || root.networkService.knownWifiNetworkCount === 0
+                    text: "No saved Wi-Fi networks are currently observed."
+                    color: root.theme.textMuted
+                    font.pixelSize: root.theme.textSizeCaption
+                    wrapMode: Text.Wrap
+                }
+
+                Repeater {
+                    model:
+                        root.networkService
+                            ? root.networkService.knownWifiNetworkValues
+                            : []
+
+                    delegate: Column {
+                        id: knownNetworkRow
+
+                        width: wifiColumn.width
+                        spacing: root.theme.spaceXs
+
+                        property var networkObject: modelData
+
+                        Row {
+                            width: parent.width
+                            spacing: root.theme.spaceSm
+
+                            Column {
+                                width:
+                                    Math.max(
+                                        0,
+                                        parent.width
+                                        - networkConnectButton.width
+                                        - parent.spacing
+                                    )
+                                spacing: root.theme.space2Xs
+
+                                Text {
+                                    width: parent.width
+                                    text:
+                                        knownNetworkRow.networkObject
+                                            ? String(
+                                                knownNetworkRow.networkObject.name
+                                                || "Saved network"
+                                            )
+                                            : "Saved network"
+                                    color: root.theme.textPrimary
+                                    font.pixelSize: root.theme.textSizeBody
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    width: parent.width
+                                    text:
+                                        knownNetworkRow.networkObject
+                                        && knownNetworkRow.networkObject.stateChanging
+                                            ? "Updating…"
+                                            : (
+                                                knownNetworkRow.networkObject
+                                                && knownNetworkRow.networkObject.connected
+                                                    ? "Connected"
+                                                    : "Saved"
+                                            )
+                                    color: root.theme.textSecondary
+                                    font.pixelSize: root.theme.textSizeCaption
+                                }
+                            }
+
+                            Components.JcButton {
+                                id: networkConnectButton
+
+                                theme: root.theme
+                                compact: true
+                                text:
+                                    knownNetworkRow.networkObject
+                                    && knownNetworkRow.networkObject.connected
+                                        ? "Disconnect"
+                                        : "Connect"
+                                controlEnabled:
+                                    root.networkActionService
+                                    && knownNetworkRow.networkObject
+                                    && root.networkActionService
+                                        .canSetKnownNetworkConnected(
+                                            knownNetworkRow.networkObject,
+                                            !knownNetworkRow.networkObject.connected
+                                        )
+
+                                onClicked: {
+                                    if (root.networkActionService
+                                            && knownNetworkRow.networkObject) {
+                                        root.networkActionService
+                                            .setKnownNetworkConnected(
+                                                knownNetworkRow.networkObject,
+                                                !knownNetworkRow.networkObject.connected
+                                            );
+                                    }
+                                }
+                            }
+                        }
+
+                        Components.JcDivider {
+                            width: parent.width
+                            theme: root.theme
+                        }
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    visible:
+                        root.networkActionService
+                        && (
+                            root.networkActionService.errorMessage.length > 0
+                            || root.networkActionService.statusMessage.length > 0
+                        )
+                    text:
+                        root.networkActionService
+                        && root.networkActionService.errorMessage.length > 0
+                            ? root.networkActionService.errorMessage
+                            : (
+                                root.networkActionService
+                                    ? root.networkActionService.statusMessage
+                                    : ""
+                            )
+                    color:
+                        root.networkActionService
+                        && root.networkActionService.errorMessage.length > 0
+                            ? root.theme.danger
+                            : root.theme.textSecondary
+                    font.pixelSize: root.theme.textSizeCaption
+                    wrapMode: Text.Wrap
                 }
             }
         }
@@ -332,6 +506,27 @@ Flickable {
                             : "Unavailable"
                 }
 
+                Components.JcToggle {
+                    width: parent.width
+                    theme: root.theme
+                    text:
+                        root.bluetoothActionService
+                        && root.bluetoothActionService.applyingAdapterEnabled
+                            ? "Bluetooth adapter · updating…"
+                            : "Bluetooth adapter"
+                    checked:
+                        root.bluetoothService
+                        && root.bluetoothService.enabled
+                    controlEnabled:
+                        root.bluetoothActionService
+                        && root.bluetoothActionService.canSetAdapterEnabled
+
+                    onToggled: value => {
+                        if (root.bluetoothActionService)
+                            root.bluetoothActionService.setAdapterEnabled(value);
+                    }
+                }
+
                 Text {
                     width: parent.width
                     text:
@@ -414,14 +609,157 @@ Flickable {
                     color: root.theme.textSecondary
                     font.pixelSize: root.theme.textSizeCaption
                 }
+
+                Components.JcSectionHeader {
+                    width: parent.width
+                    theme: root.theme
+                    title: "Paired devices"
+                    subtitle:
+                        root.bluetoothService
+                            ? root.bluetoothService.pairedDeviceCount
+                                + " paired"
+                            : "Unavailable"
+                }
+
+                Text {
+                    width: parent.width
+                    visible:
+                        !root.bluetoothService
+                        || root.bluetoothService.pairedDeviceCount === 0
+                    text: "No paired Bluetooth devices are currently observed."
+                    color: root.theme.textMuted
+                    font.pixelSize: root.theme.textSizeCaption
+                    wrapMode: Text.Wrap
+                }
+
+                Repeater {
+                    model:
+                        root.bluetoothService
+                            ? root.bluetoothService.pairedDeviceValues
+                            : []
+
+                    delegate: Column {
+                        id: pairedDeviceRow
+
+                        width: bluetoothColumn.width
+                        spacing: root.theme.spaceXs
+
+                        property var deviceObject: modelData
+
+                        Row {
+                            width: parent.width
+                            spacing: root.theme.spaceSm
+
+                            Column {
+                                width:
+                                    Math.max(
+                                        0,
+                                        parent.width
+                                        - bluetoothConnectButton.width
+                                        - parent.spacing
+                                    )
+                                spacing: root.theme.space2Xs
+
+                                Text {
+                                    width: parent.width
+                                    text:
+                                        root.bluetoothDeviceName(
+                                            pairedDeviceRow.deviceObject
+                                        )
+                                    color: root.theme.textPrimary
+                                    font.pixelSize: root.theme.textSizeBody
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    width: parent.width
+                                    text:
+                                        pairedDeviceRow.deviceObject
+                                        && pairedDeviceRow.deviceObject.pairing
+                                            ? "Pairing state busy"
+                                            : (
+                                                pairedDeviceRow.deviceObject
+                                                && pairedDeviceRow.deviceObject.connected
+                                                    ? "Connected"
+                                                    : "Paired"
+                                            )
+                                    color: root.theme.textSecondary
+                                    font.pixelSize: root.theme.textSizeCaption
+                                }
+                            }
+
+                            Components.JcButton {
+                                id: bluetoothConnectButton
+
+                                theme: root.theme
+                                compact: true
+                                text:
+                                    pairedDeviceRow.deviceObject
+                                    && pairedDeviceRow.deviceObject.connected
+                                        ? "Disconnect"
+                                        : "Connect"
+                                controlEnabled:
+                                    root.bluetoothActionService
+                                    && pairedDeviceRow.deviceObject
+                                    && root.bluetoothActionService
+                                        .canSetPairedDeviceConnected(
+                                            pairedDeviceRow.deviceObject,
+                                            !pairedDeviceRow.deviceObject.connected
+                                        )
+
+                                onClicked: {
+                                    if (root.bluetoothActionService
+                                            && pairedDeviceRow.deviceObject) {
+                                        root.bluetoothActionService
+                                            .setPairedDeviceConnected(
+                                                pairedDeviceRow.deviceObject,
+                                                !pairedDeviceRow.deviceObject.connected
+                                            );
+                                    }
+                                }
+                            }
+                        }
+
+                        Components.JcDivider {
+                            width: parent.width
+                            theme: root.theme
+                        }
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    visible:
+                        root.bluetoothActionService
+                        && (
+                            root.bluetoothActionService.errorMessage.length > 0
+                            || root.bluetoothActionService.statusMessage.length > 0
+                        )
+                    text:
+                        root.bluetoothActionService
+                        && root.bluetoothActionService.errorMessage.length > 0
+                            ? root.bluetoothActionService.errorMessage
+                            : (
+                                root.bluetoothActionService
+                                    ? root.bluetoothActionService.statusMessage
+                                    : ""
+                            )
+                    color:
+                        root.bluetoothActionService
+                        && root.bluetoothActionService.errorMessage.length > 0
+                            ? root.theme.danger
+                            : root.theme.textSecondary
+                    font.pixelSize: root.theme.textSizeCaption
+                    wrapMode: Text.Wrap
+                }
             }
         }
 
         Text {
             width: parent.width
             text:
-                "Read-only telemetry · network and Bluetooth mutations "
-                + "remain disabled in Phase 2G.1b."
+                "Low-risk controls use native Quickshell action services. "
+                + "Credentials, pairing, and forget actions remain deferred."
             color: root.theme.textMuted
             font.pixelSize: root.theme.textSizeCaption
             wrapMode: Text.Wrap

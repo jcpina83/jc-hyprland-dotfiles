@@ -50,6 +50,13 @@ Scope {
         if (root.busy || network === null || network === undefined)
             return false;
 
+        if (root.networkService === null
+                || root.networkService.backendAvailable !== true
+                || root.networkService.wifiHardwareEnabled !== true
+                || root.networkService.wifiEnabled !== true) {
+            return false;
+        }
+
         if (network.known !== true)
             return false;
 

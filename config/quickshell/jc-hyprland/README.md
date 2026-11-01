@@ -298,3 +298,9 @@ The Network module now has dedicated native `NetworkActionService` and
 `BluetoothActionService` composition boundaries. Phase 2G.2b wires capability,
 busy, status, and error plumbing only; mutation controls remain disabled until
 later Phase 2G.2 subphases.
+
+### Phase 2G.2c low-risk connectivity controls
+
+The Network module now exposes reversible Wi-Fi and Bluetooth controls through
+native action services while keeping credential, pair/forget, trust, and block
+flows deferred.

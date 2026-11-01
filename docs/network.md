@@ -171,3 +171,34 @@ Credential-bearing and destructive flows remain deferred:
 `NetworkView.qml` remains presentation-only. It receives action-service handles
 from `Main.qml`, but does not execute `nmcli`, `bluetoothctl`, `busctl`,
 `rfkill`, raw DBus, or a `Process` backend.
+
+## Phase 2G.2c — low-risk connectivity controls
+
+Phase 2G.2c exposes the reversible connectivity actions established by the
+Phase 2G.2b action-service foundation.
+
+The observed model now exposes native-object collections for:
+
+- known Wi-Fi networks (`NetworkService.knownWifiNetworkValues`);
+- paired Bluetooth devices (`BluetoothService.pairedDeviceValues`).
+
+Native object identity is preserved so mutation ownership remains in
+`NetworkActionService` and `BluetoothActionService`.
+
+The Network view may now invoke only these low-risk actions:
+
+- Wi-Fi radio enable/disable;
+- known/saved Wi-Fi network connect/disconnect;
+- Bluetooth adapter enable/disable;
+- paired Bluetooth device connect/disconnect.
+
+The presentation layer still owns no backend process or raw DBus access.
+`Process`, `nmcli`, `bluetoothctl`, `busctl`, and `rfkill` remain outside
+`NetworkView.qml`.
+
+New-network PSK/password entry, network forget, Bluetooth pair/forget, and
+trusted/block mutation remain deferred to later separately certified scopes.
+
+The implementation/static gate does not execute a connectivity mutation.
+Runtime mutation certification is performed separately with explicit human
+authorization and before/after observed-state verification.

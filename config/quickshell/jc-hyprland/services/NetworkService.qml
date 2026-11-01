@@ -63,6 +63,29 @@ Scope {
 
     readonly property var wifiDevice:
         root.firstDeviceOfType(DeviceType.Wifi)
+
+    function knownWifiNetworks() {
+        if (!root.wifiDevice || !root.wifiDevice.networks)
+            return [];
+
+        const values = root.wifiDevice.networks.values || [];
+        const known = [];
+
+        for (let i = 0; i < values.length; ++i) {
+            const network = values[i];
+
+            if (network && network.known === true)
+                known.push(network);
+        }
+
+        return known;
+    }
+
+    readonly property var knownWifiNetworkValues:
+        root.knownWifiNetworks()
+    readonly property int knownWifiNetworkCount:
+        root.knownWifiNetworkValues.length
+
     readonly property bool wifiAvailable: root.wifiDevice !== null
     readonly property bool wifiConnected:
         root.wifiAvailable && root.wifiDevice.connected === true

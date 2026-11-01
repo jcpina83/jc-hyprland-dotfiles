@@ -2521,3 +2521,17 @@ Phase 2G.2b establishes the action layer only. It deliberately exposes no
 enabled mutation controls and performs no connectivity mutation during its
 certification gate. Secret-bearing Wi-Fi flows plus pair/forget flows remain
 separate later scopes.
+
+## Phase 2G.2c — low-risk connectivity control integration
+
+The connectivity presentation can invoke the dedicated action-service boundary
+for reversible operations while observed-state services remain authoritative.
+
+`NetworkService` exposes known native `WifiNetwork` objects without copying or
+persisting credentials. `BluetoothService` exposes paired native
+`BluetoothDevice` objects. `NetworkView` binds canonical controls to these
+objects and delegates mutation to the corresponding action service.
+
+Phase 2G.2c permits only Wi-Fi radio, known-network connection state, Bluetooth
+adapter power, and paired-device connection state. Credential-bearing,
+destructive, pairing, trust, and block flows remain outside this phase.

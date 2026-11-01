@@ -52,6 +52,12 @@ Scope {
         if (root.busy || device === null || device === undefined)
             return false;
 
+        if (root.bluetoothService === null
+                || root.bluetoothService.adapterAvailable !== true
+                || root.bluetoothService.enabled !== true) {
+            return false;
+        }
+
         if (device.paired !== true || device.pairing === true)
             return false;
 

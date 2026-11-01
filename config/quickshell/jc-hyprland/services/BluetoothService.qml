@@ -39,6 +39,20 @@ Scope {
     readonly property var deviceValues:
         Bluetooth.devices ? Bluetooth.devices.values : []
 
+    function pairedDevices() {
+        const values = root.deviceValues || [];
+        const paired = [];
+
+        for (let i = 0; i < values.length; ++i) {
+            const device = values[i];
+
+            if (device && device.paired === true)
+                paired.push(device);
+        }
+
+        return paired;
+    }
+
     function connectedDevices() {
         const values = root.deviceValues || [];
         const connected = [];
@@ -52,6 +66,11 @@ Scope {
 
         return connected;
     }
+
+    readonly property var pairedDeviceValues:
+        root.pairedDevices()
+    readonly property int pairedDeviceCount:
+        root.pairedDeviceValues.length
 
     readonly property var connectedDeviceValues:
         root.connectedDevices()
