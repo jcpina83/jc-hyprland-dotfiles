@@ -12760,3 +12760,213 @@ require(
 
 print("phase2g3a_bluetooth_trust_validator=PASS")
 PY_PHASE2G3A
+
+echo
+echo "==> Phase 2G.3b Bluetooth block control"
+python3 - \
+    config/quickshell/jc-hyprland/services/BluetoothActionService.qml \
+    config/quickshell/jc-hyprland/modules/network/NetworkView.qml \
+    docs/network.md <<'PY_PHASE2G3B'
+from pathlib import Path
+import re
+import sys
+
+action = Path(sys.argv[1]).read_text()
+view = Path(sys.argv[2]).read_text()
+doc = Path(sys.argv[3]).read_text()
+
+
+def balanced_block(source: str, start: int) -> tuple[int, int, str]:
+    brace = source.find("{", start)
+    if brace < 0:
+        raise SystemExit("FAIL  Phase 2G.3b opening brace not found")
+
+    depth = 0
+    in_string = None
+    escaped = False
+
+    for pos in range(brace, len(source)):
+        ch = source[pos]
+
+        if in_string is not None:
+            if escaped:
+                escaped = False
+                continue
+            if ch == "\\":
+                escaped = True
+                continue
+            if ch == in_string:
+                in_string = None
+            continue
+
+        if ch in ("'", '"'):
+            in_string = ch
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return start, pos + 1, source[start:pos + 1]
+
+    raise SystemExit("FAIL  Phase 2G.3b unterminated block")
+
+
+def function_block(name: str) -> str:
+    match = re.search(
+        rf"function\s+{re.escape(name)}\s*\([^)]*\)\s*:\s*\w+\s*\{{",
+        action,
+    )
+    if not match:
+        raise SystemExit(f"FAIL  Phase 2G.3b missing function: {name}")
+
+    return balanced_block(action, match.start())[2]
+
+
+def handler_depth(block: str, name: str) -> int:
+    token = f"function {name}()"
+    pos = block.find(token)
+    if pos < 0:
+        return -1
+
+    brace = block.find("{")
+    depth = 0
+    in_string = None
+    escaped = False
+
+    for ch in block[brace:pos]:
+        if in_string is not None:
+            if escaped:
+                escaped = False
+                continue
+            if ch == "\\":
+                escaped = True
+                continue
+            if ch == in_string:
+                in_string = None
+            continue
+
+        if ch in ("'", '"'):
+            in_string = ch
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+
+    return depth
+
+
+def require(label: str, condition: bool) -> None:
+    if not condition:
+        raise SystemExit(f"FAIL  {label}")
+    print(f"  OK    {label}")
+
+
+can_block = function_block("canSetPairedDeviceBlocked")
+set_block = function_block("setPairedDeviceBlocked")
+reconcile = function_block("reconcilePairedDeviceBlocked")
+reset = function_block("resetPending")
+
+restart = set_block.find("mutationTimeout.restart();")
+write = set_block.find("device.blocked = desired;")
+awaiting = set_block.find("root.awaitingObservedState = true;")
+
+pending_blocks = []
+for match in re.finditer(r"(?m)^[ \t]*Connections\s*\{", action):
+    block = balanced_block(action, match.start())[2]
+    if (
+        "target: root.pendingDevice" in block
+        and "function onConnectedChanged()" in block
+    ):
+        pending_blocks.append(block)
+
+if len(pending_blocks) != 1:
+    raise SystemExit("FAIL  Phase 2G.3b pending-device Connections topology")
+
+pending_block = pending_blocks[0]
+
+require(
+    "Bluetooth block canSet paired contract",
+    "device.paired !== true" in can_block
+    and "device.pairing === true" in can_block,
+)
+require(
+    "Bluetooth block rejects no-op",
+    "Boolean(device.blocked) === desired" in can_block,
+)
+require(
+    "Bluetooth Block requires disconnected device",
+    "desired && device.connected === true" in can_block,
+)
+require(
+    "Bluetooth block enters shared busy state before timeout",
+    awaiting >= 0 and restart >= 0 and awaiting < restart,
+)
+require(
+    "Bluetooth block timeout precedes native write",
+    restart >= 0 and write >= 0 and restart < write,
+)
+require(
+    "Bluetooth block observed reconciliation",
+    "Boolean(root.pendingDevice.blocked)" in reconcile
+    and "root.pendingDesiredBlocked" in reconcile
+    and "root.resetPending();" in reconcile,
+)
+require(
+    "Bluetooth block direct observed listener topology",
+    handler_depth(pending_block, "onConnectedChanged") == 1
+    and handler_depth(pending_block, "onTrustedChanged") == 1
+    and handler_depth(pending_block, "onBlockedChanged") == 1
+    and "root.reconcilePairedDeviceBlocked();" in pending_block,
+)
+require(
+    "Bluetooth block reset contract",
+    "root.pendingDesiredBlocked = false;" in reset
+    and "root.awaitingObservedState = false;" in reset
+    and "mutationTimeout.stop();" in reset,
+)
+require(
+    "Bluetooth block keeps 6000 ms timeout",
+    "interval: 6000" in action,
+)
+require(
+    "Bluetooth block UI labels",
+    "id: bluetoothBlockButton" in view
+    and '"Block"' in view
+    and '"Unblock"' in view,
+)
+require(
+    "Bluetooth block UI delegates action service",
+    "canSetPairedDeviceBlocked" in view
+    and "setPairedDeviceBlocked" in view,
+)
+require(
+    "Bluetooth block UI reflects observed state",
+    "pairedDeviceRow.deviceObject.blocked" in view,
+)
+require(
+    "Bluetooth block native write owned by action service",
+    "device.blocked = desired;" in action
+    and ".blocked =" not in view,
+)
+require(
+    "NetworkView contains no command mutation backend",
+    "bluetoothctl" not in view
+    and "busctl" not in view
+    and "Process {" not in view,
+)
+require(
+    "Pair and forget remain deferred",
+    ".pair(" not in view
+    and ".forget(" not in view
+    and ".pair(" not in action
+    and ".forget(" not in action,
+)
+require(
+    "Phase 2G.3b documentation",
+    "## Phase 2G.3b — Bluetooth block control" in doc
+    and "Block is available only while the paired device is disconnected"
+        in doc,
+)
+
+print("phase2g3b_bluetooth_block_validator=PASS")
+PY_PHASE2G3B

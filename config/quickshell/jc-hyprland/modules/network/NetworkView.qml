@@ -655,6 +655,7 @@ Flickable {
                                     Math.max(
                                         0,
                                         parent.width
+                                        - bluetoothBlockButton.width
                                         - bluetoothTrustButton.width
                                         - bluetoothConnectButton.width
                                         - parent.spacing
@@ -686,6 +687,37 @@ Flickable {
                                             )
                                     color: root.theme.textSecondary
                                     font.pixelSize: root.theme.textSizeCaption
+                                }
+                            }
+
+                            Components.JcButton {
+                                id: bluetoothBlockButton
+
+                                theme: root.theme
+                                compact: true
+                                text:
+                                    pairedDeviceRow.deviceObject
+                                    && pairedDeviceRow.deviceObject.blocked
+                                        ? "Unblock"
+                                        : "Block"
+                                controlEnabled:
+                                    root.bluetoothActionService
+                                    && pairedDeviceRow.deviceObject
+                                    && root.bluetoothActionService
+                                        .canSetPairedDeviceBlocked(
+                                            pairedDeviceRow.deviceObject,
+                                            !pairedDeviceRow.deviceObject.blocked
+                                        )
+
+                                onClicked: {
+                                    if (root.bluetoothActionService
+                                            && pairedDeviceRow.deviceObject) {
+                                        root.bluetoothActionService
+                                            .setPairedDeviceBlocked(
+                                                pairedDeviceRow.deviceObject,
+                                                !pairedDeviceRow.deviceObject.blocked
+                                            );
+                                    }
                                 }
                             }
 

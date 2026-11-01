@@ -7,7 +7,7 @@ Scope {
 
     // Phase 2G.2b — native mutation foundation.
     //
-    // Pair/forget/block remain intentionally outside this phase.
+    // Pair/forget remain intentionally outside this phase.
     // BluetoothService remains authoritative for observed state.
     property var bluetoothService: null
 
@@ -18,6 +18,7 @@ Scope {
     property bool pendingDesiredAdapterEnabled: false
     property bool pendingDesiredConnected: false
     property bool pendingDesiredTrusted: false
+    property bool pendingDesiredBlocked: false
     property var pendingDevice: null
     property string pendingAction: ""
 
@@ -84,6 +85,31 @@ Scope {
         return Boolean(device.trusted) !== desired;
     }
 
+
+    function canSetPairedDeviceBlocked(device, desiredBlocked): bool {
+        if (root.busy || device === null || device === undefined)
+            return false;
+
+        if (root.bluetoothService === null
+                || root.bluetoothService === undefined
+                || root.bluetoothService.enabled !== true) {
+            return false;
+        }
+
+        if (device.paired !== true || device.pairing === true)
+            return false;
+
+        const desired = Boolean(desiredBlocked);
+
+        if (Boolean(device.blocked) === desired)
+            return false;
+
+        if (desired && device.connected === true)
+            return false;
+
+        return true;
+    }
+
     function reject(action, message): void {
         root.errorMessage = String(
             message || "Bluetooth action is unavailable."
@@ -99,6 +125,7 @@ Scope {
         root.pendingDesiredAdapterEnabled = false;
         root.pendingDesiredConnected = false;
         root.pendingDesiredTrusted = false;
+        root.pendingDesiredBlocked = false;
         root.pendingDevice = null;
         root.pendingAction = "";
         mutationTimeout.stop();
@@ -198,6 +225,36 @@ Scope {
         device.trusted = desired;
     }
 
+
+    function setPairedDeviceBlocked(device, desiredBlocked): void {
+        root.clearTransientFeedback();
+
+        const desired = Boolean(desiredBlocked);
+
+        if (!root.canSetPairedDeviceBlocked(device, desired)) {
+            root.reject(
+                "paired-device-block",
+                desired && device && device.connected === true
+                    ? "Disconnect the paired Bluetooth device before blocking it."
+                    : "Paired-device block mutation is unavailable."
+            );
+            return;
+        }
+
+        root.awaitingObservedState = true;
+        root.pendingDevice = device;
+        root.pendingDesiredBlocked = desired;
+        root.pendingAction = desired
+            ? "paired-device-block"
+            : "paired-device-unblock";
+        root.statusMessage = desired
+            ? "Blocking paired Bluetooth device…"
+            : "Unblocking paired Bluetooth device…";
+
+        mutationTimeout.restart();
+        device.blocked = desired;
+    }
+
     function reconcileAdapterEnabled(): void {
         if (!root.applyingAdapterEnabled || !root.awaitingObservedState)
             return;
@@ -257,6 +314,27 @@ Scope {
             : "Paired Bluetooth device trust removed.";
     }
 
+
+    function reconcilePairedDeviceBlocked(): void {
+        if (!root.busy
+                || root.pendingDevice === null
+                || (root.pendingAction !== "paired-device-block"
+                    && root.pendingAction !== "paired-device-unblock")) {
+            return;
+        }
+
+        if (Boolean(root.pendingDevice.blocked)
+                !== root.pendingDesiredBlocked) {
+            return;
+        }
+
+        const action = root.pendingAction;
+        root.resetPending();
+        root.statusMessage = action === "paired-device-block"
+            ? "Paired Bluetooth device blocked."
+            : "Paired Bluetooth device unblocked.";
+    }
+
     Timer {
         id: mutationTimeout
         interval: 6000
@@ -291,6 +369,10 @@ Scope {
 
         function onTrustedChanged() {
             root.reconcilePairedDeviceTrusted();
+        }
+
+        function onBlockedChanged() {
+            root.reconcilePairedDeviceBlocked();
         }
     }
 }

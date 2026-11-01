@@ -284,3 +284,22 @@ through the shared action-service busy state.
 
 This phase intentionally does **not** add pairing, unpair/forget, block,
 discovery/pairable controls, Wi-Fi forget, or new-network/PSK handling.
+
+## Phase 2G.3b — Bluetooth block control
+
+Phase 2G.3b extends the paired-device mutation boundary with a reversible
+**Block / Unblock** control backed by the native Quickshell
+`BluetoothDevice.blocked` property.
+
+`BluetoothActionService.qml` remains the sole mutation owner. Block mutations
+enter the shared observed-state busy lifecycle, arm the existing 6000 ms
+fail-closed timeout before the native property write, and reconcile success
+only when the observed `blocked` state matches the requested value.
+
+To avoid an implicit connection teardown being hidden inside the Block action,
+**Block is available only while the paired device is disconnected**. Unblock
+remains available for a paired blocked device. The UI reflects observed state
+and does not maintain an optimistic local blocked flag.
+
+Pairing, forget/unpair, discovery/pairable controls, Wi-Fi forget, and
+new-network/PSK handling remain outside this phase.
