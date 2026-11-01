@@ -11672,6 +11672,97 @@ done
 # again at the physical end of the validator so a late FAIL cannot return 0.
 printf '\nQuickshell final validation summary: %d error(s)\n' "$errors"
 
+
+printf '\n==> Media semantic icon polish\n'
+
+media_icon_component="$config_dir/components/JcIcon.qml"
+media_icon_view="$config_dir/modules/media/MediaView.qml"
+media_icon_doc="$repo_root/docs/media.md"
+
+for semantic_name in \
+    previous play pause next \
+    volume volume-mute microphone microphone-off
+do
+    if grep -Fq -- "\"$semantic_name\"" "$media_icon_component"; then
+        ok "Media semantic vector icon: $semantic_name"
+    else
+        fail "Media semantic vector icon missing: $semantic_name"
+    fi
+done
+
+for contract in \
+    'case "previous":' \
+    'case "play":' \
+    'case "pause":' \
+    'case "next":' \
+    'case "volume":' \
+    'case "volume-mute":' \
+    'case "microphone":' \
+    'case "microphone-off":' \
+    'function drawSpeaker(ctx, muted) {' \
+    'function drawMicrophone(ctx, muted) {'
+do
+    if grep -Fq -- "$contract" "$media_icon_component"; then
+        ok "Media JcIcon drawing contract: $contract"
+    else
+        fail "Media JcIcon drawing contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '? "volume-mute"' \
+    ': "volume"' \
+    '? "microphone-off"' \
+    ': "microphone"' \
+    'root.mediaService.sinkAvailable === false' \
+    'root.mediaService.sourceAvailable === false' \
+    'root.theme.iconSizeCompactControl'
+do
+    if grep -Fq -- "$contract" "$media_icon_view"; then
+        ok "Media visual state icon contract: $contract"
+    else
+        fail "Media visual state icon contract missing: $contract"
+    fi
+done
+
+for contract in \
+    '? "volume"' \
+    ': "volume-mute"' \
+    'root.sinkMuteRequested('
+do
+    if grep -Fq -- "$contract" "$media_icon_view"; then
+        ok "Media Mute action semantics preserved: $contract"
+    else
+        fail "Media Mute action semantics missing: $contract"
+    fi
+done
+
+if grep -Eq \
+    'playerctl|wpctl|pactl|busctl|jc-media|Process[[:space:]]*\{' \
+    "$media_icon_view"
+then
+    fail "MediaView icon polish must remain presentation-only"
+else
+    ok "MediaView icon polish preserves backend boundary"
+fi
+
+# Literal documentation contracts intentionally contain Markdown backticks.
+# shellcheck disable=SC2016
+for contract in \
+    '## Media semantic icon polish' \
+    '`previous`, `play`, `pause`, `next`' \
+    '`volume`, `volume-mute`' \
+    '`microphone`, `microphone-off`' \
+    'The Input header remains observe-only.' \
+    'source-volume or source-mute mutation is introduced.'
+do
+    if grep -Fq -- "$contract" "$media_icon_doc"; then
+        ok "Media icon polish documentation: $contract"
+    else
+        fail "Media icon polish documentation missing: $contract"
+    fi
+done
+
 if (( errors > 0 )); then
     printf 'Quickshell final static checks failed.\n'
     exit 1

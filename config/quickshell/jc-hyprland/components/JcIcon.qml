@@ -42,7 +42,15 @@ Item {
         "power",
         "dnd",
         "lock",
-        "night-light"
+        "night-light",
+        "previous",
+        "play",
+        "pause",
+        "next",
+        "volume",
+        "volume-mute",
+        "microphone",
+        "microphone-off"
     ]
 
     readonly property bool vectorKnown:
@@ -90,6 +98,14 @@ Item {
         case "dnd": return "⊘";
         case "lock": return "🔒";
         case "night-light": return "◐";
+        case "previous": return "|◀";
+        case "play": return "▶";
+        case "pause": return "Ⅱ";
+        case "next": return "▶|";
+        case "volume": return "◖";
+        case "volume-mute": return "×";
+        case "microphone": return "●";
+        case "microphone-off": return "×";
         default: return "";
         }
     }
@@ -203,6 +219,53 @@ Item {
         }
 
         root.strokePolyline(ctx, points, true);
+    }
+
+    function drawSpeaker(ctx, muted) {
+        root.strokePolyline(
+            ctx,
+            [[4.0, 9.0], [8.0, 9.0], [13.0, 5.5], [13.0, 18.5],
+             [8.0, 15.0], [4.0, 15.0]],
+            true
+        );
+
+        if (muted) {
+            root.strokePolyline(ctx, [[16.0, 8.2], [20.0, 15.8]], false);
+            root.strokePolyline(ctx, [[20.0, 8.2], [16.0, 15.8]], false);
+            return;
+        }
+
+        root.beginStroke(ctx);
+        ctx.arc(12.7, 12.0, 4.2, -0.78, 0.78, false);
+        ctx.stroke();
+
+        root.beginStroke(ctx);
+        ctx.arc(12.7, 12.0, 7.3, -0.78, 0.78, false);
+        ctx.stroke();
+    }
+
+    function drawMicrophone(ctx, muted) {
+        root.beginStroke(ctx);
+        ctx.moveTo(8.4, 9.6);
+        ctx.lineTo(8.4, 8.0);
+        ctx.quadraticCurveTo(8.4, 4.8, 12.0, 4.8);
+        ctx.quadraticCurveTo(15.6, 4.8, 15.6, 8.0);
+        ctx.lineTo(15.6, 9.6);
+        ctx.quadraticCurveTo(15.6, 14.2, 12.0, 14.2);
+        ctx.quadraticCurveTo(8.4, 14.2, 8.4, 9.6);
+        ctx.stroke();
+
+        root.beginStroke(ctx);
+        ctx.moveTo(6.2, 10.2);
+        ctx.quadraticCurveTo(6.2, 17.0, 12.0, 17.0);
+        ctx.quadraticCurveTo(17.8, 17.0, 17.8, 10.2);
+        ctx.stroke();
+
+        root.strokePolyline(ctx, [[12.0, 17.0], [12.0, 20.2]], false);
+        root.strokePolyline(ctx, [[8.8, 20.2], [15.2, 20.2]], false);
+
+        if (muted)
+            root.strokePolyline(ctx, [[5.0, 4.5], [19.0, 19.5]], false);
     }
 
     function drawIcon(ctx, iconName) {
@@ -376,6 +439,53 @@ Item {
             root.beginStroke(ctx);
             ctx.arc(12, 14, 1.3, 0, Math.PI * 2, false);
             ctx.fill();
+            break;
+
+        case "previous":
+            root.strokePolyline(ctx, [[5.2, 5.5], [5.2, 18.5]], false);
+            root.strokePolyline(
+                ctx,
+                [[18.2, 5.2], [8.2, 12.0], [18.2, 18.8]],
+                true
+            );
+            break;
+
+        case "play":
+            root.strokePolyline(
+                ctx,
+                [[7.0, 5.0], [18.2, 12.0], [7.0, 19.0]],
+                true
+            );
+            break;
+
+        case "pause":
+            root.strokePolyline(ctx, [[8.3, 5.5], [8.3, 18.5]], false);
+            root.strokePolyline(ctx, [[15.7, 5.5], [15.7, 18.5]], false);
+            break;
+
+        case "next":
+            root.strokePolyline(ctx, [[18.8, 5.5], [18.8, 18.5]], false);
+            root.strokePolyline(
+                ctx,
+                [[5.8, 5.2], [15.8, 12.0], [5.8, 18.8]],
+                true
+            );
+            break;
+
+        case "volume":
+            root.drawSpeaker(ctx, false);
+            break;
+
+        case "volume-mute":
+            root.drawSpeaker(ctx, true);
+            break;
+
+        case "microphone":
+            root.drawMicrophone(ctx, false);
+            break;
+
+        case "microphone-off":
+            root.drawMicrophone(ctx, true);
             break;
 
         case "media":

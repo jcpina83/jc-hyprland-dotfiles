@@ -259,3 +259,25 @@ track.
 The fallback is bounded to one additional command. It does not persist
 player-specific identifiers, does not hardcode a particular player, and does
 not send two `Previous` commands when the first one already changes the track.
+
+## Media semantic icon polish
+
+The Media presentation uses the canonical self-contained `JcIcon` vector
+renderer for transport and audio semantics:
+
+- `previous`, `play`, `pause`, `next`;
+- `volume`, `volume-mute`;
+- `microphone`, `microphone-off`.
+
+The Output header represents observed sink state: an active sink uses `volume`
+and a muted sink uses `volume-mute`. The Mute button remains action-oriented:
+when the sink is muted it shows `volume` for the Unmute action; otherwise it
+shows `volume-mute` for the Mute action.
+
+The Input header remains observe-only. It uses `microphone` for an active
+default source and `microphone-off` when the observed source is muted. No
+source-volume or source-mute mutation is introduced.
+
+All eight icons use the existing normalized 24×24 `JcIcon` Canvas geometry,
+`iconStrokeRatio` and Theme API colors. `MediaView.qml` remains presentation
+only and contains no direct MPRIS, PipeWire or process backend.

@@ -633,6 +633,24 @@ Item {
                     anchors.fill: parent
                     spacing: root.theme.spaceXs
 
+                    Components.JcIcon {
+                        theme: root.theme
+                        name:
+                            root.mediaService
+                            && root.mediaService.sinkMuted === true
+                                ? "volume-mute"
+                                : "volume"
+                        iconSize: root.theme.iconSizeCompactControl
+                        iconColor:
+                            root.mediaService
+                            && root.mediaService.sinkAvailable === false
+                                ? root.theme.textMuted
+                                : root.mediaService
+                                    && root.mediaService.sinkMuted === true
+                                        ? root.theme.warning
+                                        : root.theme.controlIconDefault
+                    }
+
                     Text {
                         Layout.fillWidth: true
 
@@ -803,6 +821,24 @@ Item {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: root.theme.spaceXs
+
+                    Components.JcIcon {
+                        theme: root.theme
+                        name:
+                            root.mediaService
+                            && root.mediaService.sourceMuted === true
+                                ? "microphone-off"
+                                : "microphone"
+                        iconSize: root.theme.iconSizeCompactControl
+                        iconColor:
+                            root.mediaService
+                            && root.mediaService.sourceAvailable === false
+                                ? root.theme.textMuted
+                                : root.mediaService
+                                    && root.mediaService.sourceMuted === true
+                                        ? root.theme.warning
+                                        : root.theme.controlIconDefault
+                    }
 
                     Text {
                         Layout.fillWidth: true
