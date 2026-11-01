@@ -143,3 +143,31 @@ by the established Control Center modules.
 This phase is presentation-only. It does not change `NetworkService`,
 `BluetoothService`, module routing, or any network/Bluetooth mutation
 boundary.
+
+## Phase 2G.2b — native action-service foundation
+
+Phase 2G.2b introduces dedicated `NetworkActionService.qml` and
+`BluetoothActionService.qml` boundaries for future low-risk connectivity
+mutations.
+
+The services use the installed Quickshell native APIs directly and preserve the
+observed-state services as the source of truth. Their foundation scope is:
+
+- Wi-Fi radio enable/disable;
+- saved/known Wi-Fi network connect/disconnect;
+- Bluetooth adapter enable/disable;
+- paired Bluetooth device connect/disconnect.
+
+No Network or Bluetooth control is enabled in the UI during Phase 2G.2b, and
+the phase runtime/static gate must not invoke a mutation.
+
+Credential-bearing and destructive flows remain deferred:
+
+- new Wi-Fi connection with PSK/password;
+- saved network forget;
+- Bluetooth pairing;
+- Bluetooth forget.
+
+`NetworkView.qml` remains presentation-only. It receives action-service handles
+from `Main.qml`, but does not execute `nmcli`, `bluetoothctl`, `busctl`,
+`rfkill`, raw DBus, or a `Process` backend.

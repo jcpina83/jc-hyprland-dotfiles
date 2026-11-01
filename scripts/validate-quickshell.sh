@@ -12131,3 +12131,128 @@ do
         ok "Phase 2G.1e presentation excludes backend token: $phase2g1e_forbidden"
     fi
 done
+
+printf '\n==> Phase 2G.2b action-service foundation\n'
+
+phase2g2b_network_action="config/quickshell/jc-hyprland/services/NetworkActionService.qml"
+phase2g2b_bluetooth_action="config/quickshell/jc-hyprland/services/BluetoothActionService.qml"
+phase2g2b_network_view="config/quickshell/jc-hyprland/modules/network/NetworkView.qml"
+phase2g2b_main="config/quickshell/jc-hyprland/Main.qml"
+phase2g2b_network_doc="docs/network.md"
+phase2g2b_architecture_doc="docs/architecture.md"
+
+for phase2g2b_file in \
+    "$phase2g2b_network_action" \
+    "$phase2g2b_bluetooth_action"; do
+    [[ -f "$phase2g2b_file" ]] || {
+        echo "  FAIL  missing Phase 2G.2b action service: $phase2g2b_file"
+        exit 1
+    }
+done
+
+for phase2g2b_token in \
+    'property var networkService: null' \
+    'readonly property bool busy:' \
+    'readonly property bool canSetWifiEnabled:' \
+    'function setWifiEnabled(desiredEnabled): void {' \
+    'function setKnownNetworkConnected(network, desiredConnected): void {' \
+    'Networking.wifiEnabled = desired;' \
+    'network.connect();' \
+    'network.disconnect();' \
+    'function reconcileWifiEnabled(): void {' \
+    'function reconcileKnownNetwork(): void {'; do
+    grep -Fq "$phase2g2b_token" "$phase2g2b_network_action" || {
+        echo "  FAIL  NetworkActionService contract: $phase2g2b_token"
+        exit 1
+    }
+done
+
+for phase2g2b_token in \
+    'property var bluetoothService: null' \
+    'readonly property bool busy:' \
+    'readonly property bool canSetAdapterEnabled:' \
+    'function setAdapterEnabled(desiredEnabled): void {' \
+    'function setPairedDeviceConnected(device, desiredConnected): void {' \
+    'root.adapter.enabled = desired;' \
+    'device.connect();' \
+    'device.disconnect();' \
+    'function reconcileAdapterEnabled(): void {' \
+    'function reconcilePairedDevice(): void {'; do
+    grep -Fq "$phase2g2b_token" "$phase2g2b_bluetooth_action" || {
+        echo "  FAIL  BluetoothActionService contract: $phase2g2b_token"
+        exit 1
+    }
+done
+
+for phase2g2b_token in \
+    'readonly property var networkActionServiceHandle: networkActionService' \
+    'readonly property var bluetoothActionServiceHandle: bluetoothActionService' \
+    'Services.NetworkActionService {' \
+    'Services.BluetoothActionService {' \
+    'networkActionService: root.networkActionServiceHandle' \
+    'bluetoothActionService: root.bluetoothActionServiceHandle'; do
+    grep -Fq "$phase2g2b_token" "$phase2g2b_main" || {
+        echo "  FAIL  Main Phase 2G.2b wiring: $phase2g2b_token"
+        exit 1
+    }
+done
+
+for phase2g2b_token in \
+    'property var networkActionService: null' \
+    'property var bluetoothActionService: null'; do
+    grep -Fq "$phase2g2b_token" "$phase2g2b_network_view" || {
+        echo "  FAIL  NetworkView Phase 2G.2b injection: $phase2g2b_token"
+        exit 1
+    }
+done
+
+for phase2g2b_forbidden in \
+    'setWifiEnabled(' \
+    'setKnownNetworkConnected(' \
+    'setAdapterEnabled(' \
+    'setPairedDeviceConnected(' \
+    'connectWithPsk(' \
+    '.forget(' \
+    '.pair('; do
+    if grep -Fq "$phase2g2b_forbidden" "$phase2g2b_network_view"; then
+        echo "  FAIL  NetworkView must not invoke mutation: $phase2g2b_forbidden"
+        exit 1
+    fi
+done
+
+for phase2g2b_forbidden in \
+    'Process {' \
+    'nmcli' \
+    'bluetoothctl' \
+    'busctl' \
+    'rfkill'; do
+    if grep -Fq "$phase2g2b_forbidden" "$phase2g2b_network_view"; then
+        echo "  FAIL  NetworkView backend boundary: $phase2g2b_forbidden"
+        exit 1
+    fi
+done
+
+for phase2g2b_forbidden in \
+    'connectWithPsk(' \
+    '.forget(' \
+    '.pair(' \
+    'setTrusted' \
+    'setBlocked'; do
+    if grep -Fq "$phase2g2b_forbidden" "$phase2g2b_network_action" \
+            || grep -Fq "$phase2g2b_forbidden" "$phase2g2b_bluetooth_action"; then
+        echo "  FAIL  deferred Phase 2G.2 action leaked into foundation: $phase2g2b_forbidden"
+        exit 1
+    fi
+done
+
+grep -Fq 'Phase 2G.2b' "$phase2g2b_network_doc" || {
+    echo "  FAIL  Phase 2G.2b network documentation"
+    exit 1
+}
+
+grep -Fq 'Phase 2G.2b' "$phase2g2b_architecture_doc" || {
+    echo "  FAIL  Phase 2G.2b architecture documentation"
+    exit 1
+}
+
+echo "  OK    Phase 2G.2b action-service foundation"

@@ -7,6 +7,8 @@ Flickable {
     required property var theme
     property var networkService
     property var bluetoothService
+    property var networkActionService: null
+    property var bluetoothActionService: null
 
     clip: true
     contentWidth: width

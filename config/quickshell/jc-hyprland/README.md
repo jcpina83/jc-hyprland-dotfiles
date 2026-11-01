@@ -291,3 +291,10 @@ remains disabled until runtime/visual acceptance.
 
 The Network entry is enabled for runtime and visual acceptance. The module
 remains read-only, and Notifications remains disabled.
+
+### Phase 2G.2b connectivity action-service foundation
+
+The Network module now has dedicated native `NetworkActionService` and
+`BluetoothActionService` composition boundaries. Phase 2G.2b wires capability,
+busy, status, and error plumbing only; mutation controls remain disabled until
+later Phase 2G.2 subphases.

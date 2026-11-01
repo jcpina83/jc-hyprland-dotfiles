@@ -310,6 +310,8 @@ Scope {
     readonly property var mediaActionServiceHandle: mediaActionService
     readonly property var networkServiceHandle: networkService
     readonly property var bluetoothServiceHandle: bluetoothService
+    readonly property var networkActionServiceHandle: networkActionService
+    readonly property var bluetoothActionServiceHandle: bluetoothActionService
     readonly property var quickSettingsActionServiceHandle:
         quickSettingsActionService
     readonly property var themeDraftStoreHandle: themeDraftStore
@@ -635,6 +637,16 @@ Scope {
         id: bluetoothService
     }
 
+    Services.NetworkActionService {
+        id: networkActionService
+        networkService: networkService
+    }
+
+    Services.BluetoothActionService {
+        id: bluetoothActionService
+        bluetoothService: bluetoothService
+    }
+
     Services.QuickSettingsActionService {
         id: quickSettingsActionService
         quickSettingsService: quickSettingsService
@@ -855,6 +867,8 @@ Scope {
             theme: controlCenterShell.theme
             networkService: root.networkServiceHandle
             bluetoothService: root.bluetoothServiceHandle
+            networkActionService: root.networkActionServiceHandle
+            bluetoothActionService: root.bluetoothActionServiceHandle
         }
     }
 

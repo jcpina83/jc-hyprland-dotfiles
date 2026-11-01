@@ -2501,3 +2501,23 @@ navigation entry remains disabled until visual/runtime certification.
 Network is now reachable from both generic IPC routing and visible Control Center
 navigation. This does not expand the backend capability boundary: Network and
 Bluetooth remain observed-state/read-only, while Notifications remains disabled.
+
+## Phase 2G.2b — connectivity mutation boundary
+
+Connectivity mutations are owned by dedicated action services rather than
+presentation QML:
+
+- `NetworkActionService.qml` owns the native NetworkManager/Quickshell mutation
+  boundary for Wi-Fi radio and known-network connection state.
+- `BluetoothActionService.qml` owns the native BlueZ/Quickshell mutation
+  boundary for adapter power and paired-device connection state.
+- `NetworkService.qml` and `BluetoothService.qml` remain authoritative
+  observed-state services.
+- `Main.qml` owns action-service composition and injects handles into
+  `NetworkView.qml`.
+- `NetworkView.qml` remains presentation-only.
+
+Phase 2G.2b establishes the action layer only. It deliberately exposes no
+enabled mutation controls and performs no connectivity mutation during its
+certification gate. Secret-bearing Wi-Fi flows plus pair/forget flows remain
+separate later scopes.
