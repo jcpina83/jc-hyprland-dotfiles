@@ -383,6 +383,7 @@ runtime_links=(
     "jc-wallpaperctl:scripts/runtime/jc-wallpaperctl.sh"
     "jc-quick-settings:scripts/runtime/jc-quick-settings.sh"
     "jc-performance:scripts/runtime/jc-performance.sh"
+    "jc-media:scripts/runtime/jc-media.sh"
     "network-traffic.sh:scripts/runtime/network-traffic.sh"
     "amd-gpu.sh:scripts/runtime/amd-gpu.sh"
     "launch-wofi.sh:scripts/runtime/launch-wofi.sh"
@@ -632,6 +633,7 @@ public_cli_commands=(
     "jc-wallpaperctl"
     "jc-quick-settings"
     "jc-performance"
+    "jc-media"
     "jc-theme"
 )
 

@@ -2359,3 +2359,92 @@ Hardware discovery rules:
 
 This allows later GPU backends to be added without exposing hardware-specific
 paths to QML.
+
+## Phase 2F.1a stable Media runtime API
+
+Media follows the same runtime-boundary architecture as Performance:
+
+```text
+future MediaView.qml
+        |
+        v
+future MediaService.qml
+        |
+        v
+jc-media status --json
+        |
+        +-- MPRIS / playerctl
+        +-- PipeWire / WirePlumber
+```
+
+Phase 2F.1a introduces only the stable read-only `jc-media` runtime API.
+Presentation QML must not invoke `playerctl`, `wpctl`, `pactl` or `busctl`
+directly.
+
+Player selection is dynamic and capability-aware. `playerctld` is excluded as
+a concrete player, and local MPRIS instance suffixes are never persisted.
+
+Default audio is addressed through `@DEFAULT_AUDIO_SINK@` and
+`@DEFAULT_AUDIO_SOURCE@`; numeric PipeWire IDs, ALSA card numbers and Bluetooth
+MAC addresses are forbidden as tracked selectors.
+
+## Phase 2F.3a Media mutation boundary
+
+Media mutations preserve the existing backend boundary:
+
+```text
+MediaView.qml          (still observational in 2F.3a)
+        |
+        v
+MediaService.qml       (still observational in 2F.3a)
+        |
+        v
+jc-media
+  |-- status --json
+  |-- player <action> [--json]
+  `-- audio <action> [--json]
+        |
+        +-- dynamic MPRIS / playerctl
+        `-- @DEFAULT_AUDIO_SINK@ / wpctl
+```
+
+The runtime CLI owns player selection, capability checks, argument validation
+and default-sink selection. Presentation code must not acquire backend-specific
+selectors or invoke `playerctl` / `wpctl` directly.
+
+
+## Phase 2F.3b Media action service boundary
+
+Media mutations follow the same service boundary used by the rest of the
+Control Center:
+
+```text
+MediaView.qml
+    │  user intent only
+    ▼
+MediaActionService.qml
+    │  stable structured commands only
+    ▼
+jc-media
+    ├── dynamic MPRIS selection
+    └── default PipeWire sink resolution
+
+jc-media result
+    ▼
+MediaActionService.qml
+    │  post-action reconciliation
+    ▼
+MediaService.qml
+    │  jc-media status --json
+    ▼
+MediaView.qml
+```
+
+`MediaView.qml emits intent only`; it owns presentation, gesture commit
+behavior and capability-driven enablement. `MediaActionService.qml` owns
+process execution, response validation, busy/error feedback and post-action
+reconciliation. `jc-media remains the only backend mutation boundary` and
+continues to resolve concrete runtime targets dynamically.
+
+Seek and sink-volume gestures commit on release rather than continuously.
+The source/input side stays observation-only.

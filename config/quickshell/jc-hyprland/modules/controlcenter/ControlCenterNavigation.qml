@@ -125,7 +125,7 @@ Item {
             id: "media",
             label: "Media",
             iconName: "media",
-            enabled: false
+            enabled: true
         },
         {
             id: "network",

@@ -239,3 +239,28 @@ qs -c jc-hyprland ipc call controlCenter showGallery
 
 `JcCard` remains a legacy compatibility component for the current Displays UI.
 New Phase 2 UI should prefer `JcSurface` and canonical reusable components.
+
+### Media — Phase 2F.1a stable runtime API
+
+Media observation is exposed through:
+
+```bash
+jc-media status --json
+```
+
+The runtime boundary discovers real MPRIS players dynamically, excludes
+`playerctld` as a concrete player, and observes PipeWire audio through
+`@DEFAULT_AUDIO_SINK@` / `@DEFAULT_AUDIO_SOURCE@`.
+
+Phase 2F.1a is read-only; QML integration and mutations are intentionally
+deferred.
+
+
+### Media — Phase 2F.3b actions
+
+Media now uses `MediaActionService.qml` for capability-gated transport, seek
+and output audio controls. The view emits intent only; mutations flow through
+the stable `jc-media` CLI and reconcile back through `MediaService`.
+
+Seek and output-volume sliders commit only on release. Input audio remains
+observed-only.

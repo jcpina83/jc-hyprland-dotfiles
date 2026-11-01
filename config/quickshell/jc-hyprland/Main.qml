@@ -9,6 +9,7 @@ import qs.modules.wallpapers as Wallpapers
 import qs.modules.themes as Themes
 import qs.modules.quicksettings as QuickSettings
 import qs.modules.performance as Performance
+import qs.modules.media as Media
 import qs.modules.dev as Dev
 import qs.modules.controlcenter as ControlCenter
 
@@ -304,6 +305,8 @@ Scope {
     readonly property var themeServiceHandle: themeService
     readonly property var quickSettingsServiceHandle: quickSettingsService
     readonly property var performanceServiceHandle: performanceService
+    readonly property var mediaServiceHandle: mediaService
+    readonly property var mediaActionServiceHandle: mediaActionService
     readonly property var quickSettingsActionServiceHandle:
         quickSettingsActionService
     readonly property var themeDraftStoreHandle: themeDraftStore
@@ -352,7 +355,8 @@ Scope {
     function moduleIsAvailable(moduleId) {
         if (moduleId === "themes"
                 || moduleId === "quick-settings"
-                || moduleId === "performance") {
+                || moduleId === "performance"
+                || moduleId === "media") {
             return true;
         }
 
@@ -604,6 +608,19 @@ Scope {
             && root.activeModuleId === "performance"
     }
 
+    Services.MediaService {
+        id: mediaService
+
+        liveUpdatesEnabled:
+            root.controlCenterVisible
+            && root.activeModuleId === "media"
+    }
+
+    Services.MediaActionService {
+        id: mediaActionService
+        mediaService: mediaService
+    }
+
     Services.QuickSettingsActionService {
         id: quickSettingsActionService
         quickSettingsService: quickSettingsService
@@ -767,6 +784,31 @@ Scope {
     }
 
     Component {
+        id: shellMediaComponent
+
+        Media.MediaView {
+            theme: controlCenterShell.theme
+            mediaService: root.mediaServiceHandle
+            actionService: root.mediaActionServiceHandle
+
+            onRefreshRequested: {
+                mediaActionService.clearTransientFeedback();
+                mediaService.refresh();
+            }
+
+            onPlayPauseRequested: mediaActionService.playPause()
+            onNextRequested: mediaActionService.next()
+            onPreviousRequested: mediaActionService.previous()
+            onSeekRequested: seconds =>
+                mediaActionService.seekTo(seconds)
+            onSinkVolumeRequested: value =>
+                mediaActionService.setSinkVolume(value)
+            onSinkMuteRequested: mode =>
+                mediaActionService.setSinkMute(mode)
+        }
+    }
+
+    Component {
         id: shellDisplaysComponent
 
         Displays.DisplayView {
@@ -813,7 +855,9 @@ Scope {
                         ? "Quick Settings"
                         : root.activeModuleId === "performance"
                             ? "Performance"
-                            : root.activeModuleId
+                            : root.activeModuleId === "media"
+                                ? "Media"
+                                : root.activeModuleId
         transitionLocked: root.controlCenterTransitionLocked
         statusText: root.controlCenterStatusText
         statusDetail: root.controlCenterStatusDetail
@@ -829,7 +873,9 @@ Scope {
                             ? shellQuickSettingsComponent
                             : root.activeModuleId === "performance"
                                 ? shellPerformanceComponent
-                                : null
+                                : root.activeModuleId === "media"
+                                    ? shellMediaComponent
+                                    : null
 
         onCloseRequested: root.hideControlCenter()
 

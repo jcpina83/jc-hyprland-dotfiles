@@ -1177,7 +1177,7 @@ for future_module in \
     network \
     notifications
 do
-    if [[ "$future_module" == "performance" ]]; then
+    if [[ "$future_module" == "performance" || "$future_module" == "media" ]]; then
         continue
     fi
     if [[ "$future_module" == "themes"
@@ -9021,6 +9021,479 @@ do
     fi
 done
 
+printf '\n==> Phase 2F.1a stable Media runtime API\n'
+
+media_cli="$repo_root/scripts/runtime/jc-media.sh"
+media_doc="$repo_root/docs/media.md"
+media_readme="$repo_root/config/quickshell/jc-hyprland/README.md"
+media_architecture="$repo_root/docs/architecture.md"
+media_install="$repo_root/scripts/install.sh"
+media_doctor="$repo_root/scripts/doctor.sh"
+
+if [[ -x "$media_cli" ]]; then
+    ok "Media runtime API executable"
+else
+    fail "Media runtime API missing or not executable"
+fi
+
+for contract in \
+    'schema_version=1' \
+    'jc-media status [--json]' \
+    'readOnly: true' \
+    'selectionStrategy: "playing-paused-first"' \
+    'playerctl' \
+    'CanControl' \
+    'CanGoNext' \
+    'CanGoPrevious' \
+    'CanSeek' \
+    '@DEFAULT_AUDIO_SINK@' \
+    '@DEFAULT_AUDIO_SOURCE@' \
+    'backend: "MPRIS/playerctl"' \
+    'backend: "PipeWire/WirePlumber"'
+do
+    if grep -Fq -- "$contract" "$media_cli"; then
+        ok "Media runtime API: $contract"
+    else
+        fail "Media runtime API missing: $contract"
+    fi
+done
+
+# Phase 2F.3a supersedes the 2F.1a command-level read-only prohibition.
+# The `status` snapshot remains readOnly=true, while explicit mutation
+# subcommands are validated below.
+
+for mutation_contract in \
+    'jc-media player play-pause [--json]' \
+    'jc-media player next [--json]' \
+    'jc-media player previous [--json]' \
+    'jc-media player seek <seconds> [--json]' \
+    'jc-media audio sink-volume <0..1> [--json]' \
+    'jc-media audio sink-mute <on|off|toggle> [--json]' \
+    'selected_player_capability()' \
+    'action_result_json()' \
+    "playerctl --player=\"\$selected\" play-pause" \
+    "playerctl --player=\"\$selected\" position \"\$argument\"" \
+    "wpctl set-volume \"\$selector\" \"\$argument\"" \
+    "wpctl set-mute \"\$selector\" \"\$backend_value\""
+do
+    if grep -Fq -- "$mutation_contract" "$media_cli"; then
+        ok "Media mutation API: $mutation_contract"
+    else
+        fail "Media mutation API missing: $mutation_contract"
+    fi
+done
+
+if grep -Eq '([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}' "$media_cli"; then
+    fail "Media runtime contains a hardcoded Bluetooth MAC"
+else
+    ok "Media runtime contains no hardcoded Bluetooth MAC"
+fi
+
+for contract in \
+    "\"\$repo_root/scripts/runtime/jc-media.sh\"" \
+    "\"\$bin_dir/jc-media\"" \
+    "\"\$public_bin_dir/jc-media\""
+do
+    if grep -Fq -- "$contract" "$media_install"; then
+        ok "Media install integration: $contract"
+    else
+        fail "Media install integration missing: $contract"
+    fi
+done
+
+for contract in \
+    'jc-media:scripts/runtime/jc-media.sh' \
+    '"jc-media"'
+do
+    if grep -Fq -- "$contract" "$media_doctor"; then
+        ok "Media doctor integration: $contract"
+    else
+        fail "Media doctor integration missing: $contract"
+    fi
+done
+
+for contract in \
+    '# Media' \
+    '## Phase 2F.1a — Stable runtime API' \
+    'jc-media status --json' \
+    'playerctld' \
+    '@DEFAULT_AUDIO_SINK@' \
+    '@DEFAULT_AUDIO_SOURCE@' \
+    'schemaVersion: 1'
+do
+    if grep -Fq -- "$contract" "$media_doc"; then
+        ok "Media documentation: $contract"
+    else
+        fail "Media documentation missing: $contract"
+    fi
+done
+
+media_readme_contract='### Media — Phase 2F.1a stable runtime API'
+
+if grep -Fq -- "$media_readme_contract" "$media_readme"; then
+    ok "Media README contract: $media_readme_contract"
+else
+    fail "Media README contract missing: $media_readme_contract"
+fi
+
+media_architecture_contract='## Phase 2F.1a stable Media runtime API'
+
+if grep -Fq -- "$media_architecture_contract" "$media_architecture"; then
+    ok "Media architecture contract: $media_architecture_contract"
+else
+    fail "Media architecture contract missing: $media_architecture_contract"
+fi
+
+printf '\n==> Phase 2F.3a Media mutation API boundary\n'
+
+media_mutation_cli="$repo_root/scripts/runtime/jc-media.sh"
+media_mutation_doc="$repo_root/docs/media.md"
+
+for contract in \
+    'player_action()' \
+    'audio_sink_action()' \
+    'parse_json_suffix()' \
+    'fail_action()' \
+    'capability-unavailable' \
+    'target-unavailable' \
+    'backend-failed' \
+    'CanPause' \
+    'CanPlay' \
+    'CanGoNext' \
+    'CanGoPrevious' \
+    'CanSeek' \
+    '@DEFAULT_AUDIO_SINK@'
+do
+    if grep -Fq -- "$contract" "$media_mutation_cli"; then
+        ok "Media 2F.3a mutation boundary: $contract"
+    else
+        fail "Media 2F.3a mutation boundary missing: $contract"
+    fi
+done
+
+for forbidden_selector in \
+    'firefox.instance_' \
+    'bluez_output.' \
+    'bluez_input.'
+do
+    if grep -Fq -- "$forbidden_selector" "$media_mutation_cli"; then
+        fail "Media mutation runtime contains persisted local selector: $forbidden_selector"
+    else
+        ok "Media mutation runtime excludes local selector: $forbidden_selector"
+    fi
+done
+
+for contract in \
+    '## Phase 2F.3a — Mutation API boundary' \
+    'player play-pause' \
+    'player seek <seconds>' \
+    'audio sink-volume <0..1>' \
+    'audio sink-mute <on|off|toggle>' \
+    "\`status\` snapshot remains observational"
+do
+    if grep -Fq -- "$contract" "$media_mutation_doc"; then
+        ok "Media 2F.3a documentation: $contract"
+    else
+        fail "Media 2F.3a documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2F.3b Media action service + UI wiring\n'
+
+media_action_service="$config_dir/services/MediaActionService.qml"
+media_action_view="$config_dir/modules/media/MediaView.qml"
+media_action_main="$config_dir/Main.qml"
+media_action_doc="$repo_root/docs/media.md"
+media_action_architecture="$repo_root/docs/architecture.md"
+media_action_readme="$config_dir/README.md"
+
+if [[ -f "$media_action_service" ]]; then
+    ok "MediaActionService file"
+else
+    fail "MediaActionService.qml missing"
+fi
+
+for contract in \
+    'property var mediaService' \
+    'readonly property bool canPlayPause:' \
+    'readonly property bool canNext:' \
+    'readonly property bool canPrevious:' \
+    'readonly property bool canSeek:' \
+    'readonly property bool canSetSinkVolume:' \
+    'readonly property bool canSetSinkMute:' \
+    'signal actionApplied(string action)' \
+    'signal failed(string action, string message)' \
+    'function playPause(): void {' \
+    'function next(): void {' \
+    'function previous(): void {' \
+    'function seekTo(seconds): void {' \
+    'function setSinkVolume(value): void {' \
+    'function setSinkMute(mode): void {' \
+    'function beginObservedReconciliation(): void {' \
+    'function finishObservedReconciliation(): void {' \
+    'Process {' \
+    'StdioCollector {' \
+    'Connections {' \
+    'root.mediaService.refresh();'
+do
+    if grep -Fq -- "$contract" "$media_action_service"; then
+        ok "MediaActionService contract: $contract"
+    else
+        fail "MediaActionService contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'playerctl' \
+    'wpctl' \
+    'pactl' \
+    'busctl' \
+    '@DEFAULT_AUDIO_SINK@' \
+    'firefox.instance_' \
+    'bluez_output.' \
+    'bluez_input.'
+do
+    if grep -Fq -- "$forbidden" "$media_action_service"; then
+        fail "MediaActionService contains backend/runtime selector: $forbidden"
+    else
+        ok "MediaActionService excludes backend/runtime selector: $forbidden"
+    fi
+done
+
+for contract in \
+    'property var actionService' \
+    'signal playPauseRequested()' \
+    'signal nextRequested()' \
+    'signal previousRequested()' \
+    'signal seekRequested(real seconds)' \
+    'signal sinkVolumeRequested(real value)' \
+    'signal sinkMuteRequested(string mode)' \
+    'root.actionService.canPlayPause' \
+    'root.actionService.canNext' \
+    'root.actionService.canPrevious' \
+    'root.actionService.canSeek' \
+    '.canSetSinkVolume === true' \
+    '.canSetSinkMute === true' \
+    'root.requestTransportAction(index)' \
+    'root.seekRequested(root.stagedSeekSeconds)' \
+    'root.sinkVolumeRequested(' \
+    'root.sinkMuteRequested('
+do
+    if grep -Fq -- "$contract" "$media_action_view"; then
+        ok "MediaView action contract: $contract"
+    else
+        fail "MediaView action contract missing: $contract"
+    fi
+done
+
+media_slider_count="$(
+    grep -Fc 'Components.JcSlider {' "$media_action_view" || true
+)"
+
+if [[ "$media_slider_count" -eq 2 ]]; then
+    ok "MediaView has exactly two action sliders"
+else
+    fail "MediaView expected 2 JcSlider controls, found $media_slider_count"
+fi
+
+for forbidden in \
+    'Process {' \
+    'playerctl' \
+    'wpctl' \
+    'pactl' \
+    'busctl' \
+    'jc-media' \
+    '@DEFAULT_AUDIO_SINK@'
+do
+    if grep -Fq -- "$forbidden" "$media_action_view"; then
+        fail "MediaView contains backend/action boundary detail: $forbidden"
+    else
+        ok "MediaView excludes backend/action boundary detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'readonly property var mediaActionServiceHandle: mediaActionService' \
+    'Services.MediaActionService {' \
+    'id: mediaActionService' \
+    'mediaService: mediaService' \
+    'actionService: root.mediaActionServiceHandle' \
+    'onPlayPauseRequested: mediaActionService.playPause()' \
+    'onNextRequested: mediaActionService.next()' \
+    'onPreviousRequested: mediaActionService.previous()' \
+    'mediaActionService.seekTo(seconds)' \
+    'mediaActionService.setSinkVolume(value)' \
+    'mediaActionService.setSinkMute(mode)'
+do
+    if grep -Fq -- "$contract" "$media_action_main"; then
+        ok "Main Media action wiring: $contract"
+    else
+        fail "Main Media action wiring missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2F.3b — Action service and interactive controls' \
+    'MediaActionService.qml' \
+    'Play / Pause' \
+    'Seek and output-volume mutations are emitted only when the user' \
+    'observed-only in Phase 2F.3b'
+do
+    if grep -Fq -- "$contract" "$media_action_doc"; then
+        ok "Media 2F.3b documentation: $contract"
+    else
+        fail "Media 2F.3b documentation missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2F.3b Media action service boundary' \
+    'MediaActionService.qml' \
+    'MediaView.qml emits intent only' \
+    'jc-media remains the only backend mutation boundary'
+do
+    if grep -Fq -- "$contract" "$media_action_architecture"; then
+        ok "Media 2F.3b architecture: $contract"
+    else
+        fail "Media 2F.3b architecture missing: $contract"
+    fi
+done
+
+for contract in \
+    '### Media — Phase 2F.3b actions' \
+    'MediaActionService.qml' \
+    'capability-gated transport, seek'
+do
+    if grep -Fq -- "$contract" "$media_action_readme"; then
+        ok "Media 2F.3b README: $contract"
+    else
+        fail "Media 2F.3b README missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2F.3b Media visual stability refinement\n'
+
+media_visual_action_service="$config_dir/services/MediaActionService.qml"
+media_visual_view="$config_dir/modules/media/MediaView.qml"
+media_visual_doc="$repo_root/docs/media.md"
+
+for contract in \
+    'readonly property bool observedReady:' \
+    '&& root.mediaService.ready' \
+    '&& root.mediaService.observedHealthy'
+do
+    if grep -Fq -- "$contract" "$media_visual_action_service"; then
+        ok "Media visual stability action-service contract: $contract"
+    else
+        fail "Media visual stability action-service contract missing: $contract"
+    fi
+done
+
+if grep -Fq -- '&& !root.mediaService.loading' "$media_visual_action_service"; then
+    fail "Media action capabilities still follow transient MediaService.loading"
+else
+    ok "Media action capabilities ignore transient MediaService.loading"
+fi
+
+for contract in \
+    'Layout.minimumHeight:' \
+    'root.theme.controlHeightLarge * 5.5' \
+    'root.theme.controlHeightLarge * 2.75' \
+    '· interactive controls'
+do
+    if grep -Fq -- "$contract" "$media_visual_view"; then
+        ok "Media visual stability view contract: $contract"
+    else
+        fail "Media visual stability view contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'capability preview only' \
+    'root.theme.controlHeightLarge * 3.4'
+do
+    if grep -Fq -- "$forbidden" "$media_visual_view"; then
+        fail "Media visual stability retired presentation remains: $forbidden"
+    else
+        ok "Media visual stability retired presentation removed: $forbidden"
+    fi
+done
+
+for contract in \
+    '### Phase 2F.3b visual stability refinement' \
+    'last committed good snapshot' \
+    "does not follow the transient \`loading\` flag" \
+    'Now Playing card keeps a minimum height'
+do
+    if grep -Fq -- "$contract" "$media_visual_doc"; then
+        ok "Media visual stability documentation: $contract"
+    else
+        fail "Media visual stability documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2F.3b Media reconciliation watchdog\n'
+
+media_action_watchdog="$config_dir/services/MediaActionService.qml"
+
+for contract in \
+    'property int reconciliationTimeoutMs: 2500' \
+    'reconciliationWatchdog.restart();' \
+    'function releaseReconciliationAfterTimeout(): void {' \
+    'reconciliationWatchdog.stop();' \
+    'id: reconciliationWatchdog' \
+    'interval: root.reconciliationTimeoutMs' \
+    'onTriggered: root.releaseReconciliationAfterTimeout()'
+do
+    if grep -Fq -- "$contract" "$media_action_watchdog"; then
+        ok "Media reconciliation watchdog contract: $contract"
+    else
+        fail "Media reconciliation watchdog missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2F.3b Media semantic Previous-track refinement\n'
+
+media_previous_cli="$repo_root/scripts/runtime/jc-media.sh"
+
+for contract in \
+    'player_track_key() {' \
+    'smart_previous_track() {' \
+    'value >= 0 && value <= 1.50' \
+    'semantic previous-track action failed'
+do
+    if grep -Fq -- "$contract" "$media_previous_cli"; then
+        ok "Media semantic Previous contract: $contract"
+    else
+        fail "Media semantic Previous contract missing: $contract"
+    fi
+done
+
+smart_previous_dispatch_literal="if ! smart_previous_track \"\$selected\"; then"
+raw_previous_call_literal="playerctl --player=\"\$selected\" previous"
+
+smart_previous_dispatch_count="$(
+    grep -Fc -- "$smart_previous_dispatch_literal" \
+        "$media_previous_cli" || true
+)"
+
+if [[ "$smart_previous_dispatch_count" -eq 1 ]]; then
+    ok "Media semantic Previous has exactly one public dispatch"
+else
+    fail "Media semantic Previous expected one dispatch, found $smart_previous_dispatch_count"
+fi
+
+raw_previous_call_count="$(
+    grep -Fc -- "$raw_previous_call_literal" \
+        "$media_previous_cli" || true
+)"
+
+if [[ "$raw_previous_call_count" -eq 2 ]]; then
+    ok "Media semantic Previous is bounded to primary + fallback calls"
+else
+    fail "Media semantic Previous expected two bounded raw call sites, found $raw_previous_call_count"
+fi
+
 printf '\n==> Phase 2E.1a stable Performance runtime API\n'
 
 performance_cli="$repo_root/scripts/runtime/jc-performance.sh"
@@ -9210,6 +9683,303 @@ do
         ok "Quick Settings README contract: $contract"
     else
         fail "Quick Settings README contract missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2F.1b Media observed-state service\n'
+
+media_service="$repo_root/config/quickshell/jc-hyprland/services/MediaService.qml"
+media_main="$repo_root/config/quickshell/jc-hyprland/Main.qml"
+media_doc="$repo_root/docs/media.md"
+
+if [[ -f "$media_service" ]]; then
+    ok "MediaService.qml exists"
+else
+    fail "MediaService.qml missing"
+fi
+
+for contract in \
+    'Scope {' \
+    'property int snapshotSchemaVersion: 0' \
+    'property string status: "unknown"' \
+    'property bool readOnly: true' \
+    'property bool loading: false' \
+    'property bool ready: false' \
+    'property string errorMessage: ""' \
+    'property string lastRefresh: ""' \
+    'property bool liveUpdatesEnabled: false' \
+    'property int refreshIntervalMs: 1000' \
+    'readonly property bool observedHealthy:' \
+    'property bool playerAvailable: false' \
+    'property var players: []' \
+    'property string selectedPlayer: ""' \
+    'property string playbackStatus: ""' \
+    'property string trackTitle: ""' \
+    'property var trackLengthSeconds: null' \
+    'property var positionSeconds: null' \
+    'property var canControl: null' \
+    'property var canGoNext: null' \
+    'property var canGoPrevious: null' \
+    'property var canSeek: null' \
+    'property bool sinkAvailable: false' \
+    'property var sinkMuted: null' \
+    'property var sinkVolume: null' \
+    'property bool sourceAvailable: false' \
+    'signal refreshed()' \
+    'signal refreshFailed(string message)' \
+    'function mediaCommandPath() {' \
+    'function validStatus(payload) {' \
+    'function commitSnapshot(payload) {' \
+    'function refresh(): void {' \
+    '"status",' \
+    '"--json"' \
+    'Process {' \
+    'StdioCollector {' \
+    'Timer {' \
+    'running: root.liveUpdatesEnabled' \
+    'Component.onCompleted: root.refresh()'
+do
+    if grep -Fq -- "$contract" "$media_service"; then
+        ok "MediaService contract: $contract"
+    else
+        fail "MediaService contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'playerctl' \
+    'wpctl' \
+    'pactl' \
+    'busctl' \
+    '@DEFAULT_AUDIO_SINK@' \
+    '@DEFAULT_AUDIO_SOURCE@' \
+    'org.mpris.MediaPlayer2' \
+    'PipeWire' \
+    'WirePlumber'
+do
+    if grep -Fq -- "$forbidden" "$media_service"; then
+        fail "MediaService owns backend detail: $forbidden"
+    else
+        ok "MediaService excludes backend detail: $forbidden"
+    fi
+done
+
+for contract in \
+    'readonly property var mediaServiceHandle: mediaService' \
+    'Services.MediaService {' \
+    'id: mediaService'
+do
+    if grep -Fq -- "$contract" "$media_main"; then
+        ok "Main MediaService wiring: $contract"
+    else
+        fail "Main MediaService wiring missing: $contract"
+    fi
+done
+
+for contract in \
+    '## Phase 2F.1b — Observed-state service' \
+    "\`MediaService.qml\` is the read-only QML projection" \
+    'jc-media status --json' \
+    'liveUpdatesEnabled' \
+    'mediaServiceHandle' \
+    'does not enable Media navigation'
+do
+    if grep -Fq -- "$contract" "$media_doc"; then
+        ok "Media 2F.1b documentation: $contract"
+    else
+        fail "Media 2F.1b documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2F.2 MediaView foundation + navigation/lifecycle\n'
+
+media_view="$config_dir/modules/media/MediaView.qml"
+media_service="$config_dir/services/MediaService.qml"
+media_main="$config_dir/Main.qml"
+media_navigation="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
+media_docs="$repo_root/docs/media.md"
+
+if [[ -f "$media_view" ]]; then
+    ok "MediaView foundation file"
+else
+    fail "MediaView.qml missing"
+fi
+
+for contract in \
+    'Item {' \
+    'required property var theme' \
+    'property var mediaService' \
+    'signal refreshRequested()' \
+    'readonly property real progressFraction:' \
+    'readonly property string footerStatusText:' \
+    'function formatDuration(value) {' \
+    'function formatVolume(value) {' \
+    'function capabilityLabel(index) {' \
+    'function capabilityAvailable(index) {' \
+    'function audioDescription(isSink) {' \
+    'Components.JcHudFrame {' \
+    'title: "Media"' \
+    'model: 3' \
+    'controlEnabled:' \
+    'root.capabilityAvailable(index)' \
+    'text: "Output"' \
+    'text: "Input"' \
+    'root.operationStatus.length > 0' \
+    'onClicked: root.refreshRequested()'
+do
+    if grep -Fq -- "$contract" "$media_view"; then
+        ok "MediaView contract: $contract"
+    else
+        fail "MediaView contract missing: $contract"
+    fi
+done
+
+hud_count="$(
+    grep -Fc 'Components.JcHudFrame {' "$media_view" || true
+)"
+
+if ((hud_count >= 4)); then
+    ok "MediaView uses holographic HUD frames"
+else
+    fail "MediaView requires at least four JcHudFrame instances"
+fi
+
+for forbidden in \
+    'Process {' \
+    'jc-media' \
+    'playerctl' \
+    'wpctl' \
+    'pactl' \
+    'busctl' \
+    '@DEFAULT_AUDIO_SINK@' \
+    '@DEFAULT_AUDIO_SOURCE@' \
+    'org.mpris.MediaPlayer2' \
+    'PipeWire' \
+    'WirePlumber'
+do
+    if grep -Fq -- "$forbidden" "$media_view"; then
+        fail "MediaView owns forbidden backend detail: $forbidden"
+    else
+        ok "MediaView excludes backend detail: $forbidden"
+    fi
+done
+
+for forbidden in \
+    'play-pause' \
+    'set-volume' \
+    'set-mute' \
+    'seek '
+do
+    if grep -Fq -- "$forbidden" "$media_view"; then
+        fail "MediaView contains mutation contract: $forbidden"
+    else
+        ok "MediaView remains observational: $forbidden"
+    fi
+done
+
+for contract in \
+    'import qs.modules.media as Media' \
+    '|| moduleId === "media") {' \
+    'readonly property var mediaServiceHandle: mediaService' \
+    'Services.MediaService {' \
+    '&& root.activeModuleId === "media"' \
+    'id: shellMediaComponent' \
+    'Media.MediaView {' \
+    'mediaService: root.mediaServiceHandle' \
+    'mediaService.refresh();' \
+    '? "Media"' \
+    '? shellMediaComponent'
+do
+    if grep -Fq -- "$contract" "$media_main"; then
+        ok "Main MediaView lifecycle wiring: $contract"
+    else
+        fail "Main MediaView lifecycle wiring missing: $contract"
+    fi
+done
+
+for contract in \
+    'property bool liveUpdatesEnabled: false' \
+    'property int refreshIntervalMs: 1000' \
+    'onLiveUpdatesEnabledChanged:' \
+    'if (root.liveUpdatesEnabled)' \
+    'running: root.liveUpdatesEnabled'
+do
+    if grep -Fq -- "$contract" "$media_service"; then
+        ok "Media live lifecycle service contract: $contract"
+    else
+        fail "Media live lifecycle service contract missing: $contract"
+    fi
+done
+
+media_nav_block="$(
+    grep -A5 -F 'id: "media"' "$media_navigation" || true
+)"
+
+if grep -Fq 'enabled: true' <<< "$media_nav_block"; then
+    ok "Media navigation entry is enabled"
+else
+    fail "Media navigation entry must be enabled in Phase 2F.2"
+fi
+
+for future_module in network notifications; do
+    future_block="$(
+        grep -A5 -F "id: \"$future_module\"" "$media_navigation" || true
+    )"
+
+    if grep -Fq 'enabled: false' <<< "$future_block"; then
+        ok "future navigation entry remains disabled: $future_module"
+    else
+        fail "future navigation entry unexpectedly enabled: $future_module"
+    fi
+done
+
+for contract in \
+    '## Phase 2F.2 — MediaView foundation and live lifecycle' \
+    'MediaView.qml' \
+    'non-interactive progress visualization' \
+    'Capability state affects presentation' \
+    'Media navigation is enabled' \
+    'MediaService.liveUpdatesEnabled' \
+    "activeModuleId\` is \`\"media\"\`" \
+    'stops the timer'
+do
+    if grep -Fq -- "$contract" "$media_docs"; then
+        ok "Media 2F.2 documentation: $contract"
+    else
+        fail "Media 2F.2 documentation missing: $contract"
+    fi
+done
+
+printf '\n==> Phase 2F.2 Media Refresh visual stability\n'
+
+media_refresh_view="$repo_root/config/quickshell/jc-hyprland/modules/media/MediaView.qml"
+
+refresh_block="$(
+    grep -A12 -F 'id: refreshButton' "$media_refresh_view" || true
+)"
+
+for contract in \
+    'text: "Refresh"' \
+    'iconName: "refresh"' \
+    'compact: true' \
+    '&& !root.actionBusy' \
+    'onClicked: root.refreshRequested()'
+do
+    if grep -Fq -- "$contract" <<< "$refresh_block"; then
+        ok "Media Refresh stability: $contract"
+    else
+        fail "Media Refresh stability contract missing: $contract"
+    fi
+done
+
+for unstable in \
+    'Refreshing…' \
+    'root.serviceLoading'
+do
+    if grep -Fq -- "$unstable" <<< "$refresh_block"; then
+        fail "Media Refresh button still depends on live loading state: $unstable"
+    else
+        ok "Media Refresh button excludes unstable loading presentation: $unstable"
     fi
 done
 
@@ -9608,7 +10378,7 @@ main_qml="$config_dir/Main.qml"
 navigation_qml="$config_dir/modules/controlcenter/ControlCenterNavigation.qml"
 
 for contract in \
-    '|| moduleId === "performance") {' \
+    '|| moduleId === "performance"' \
     'liveUpdatesEnabled:' \
     'root.controlCenterVisible' \
     '&& root.activeModuleId === "performance"' \
@@ -9634,7 +10404,7 @@ else
     fail "Performance navigation entry must be enabled in Phase 2E.3"
 fi
 
-for future_module in media network notifications; do
+for future_module in network notifications; do
     future_block="$(
         grep -A5 -F "id: \"$future_module\"" "$navigation_qml" || true
     )"
@@ -10837,6 +11607,7 @@ done
 
 for replaced_mapping in \
     'iconName: "notifications"' \
+    'iconName: "settings"' \
     'iconName: "theme"'
 do
     if grep -Fq -- "$replaced_mapping" "$quick_settings_polish_view"; then
