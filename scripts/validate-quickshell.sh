@@ -12355,3 +12355,115 @@ grep -Fq 'Phase 2G.2c' "$phase2g2c_architecture_doc" || {
 }
 
 echo "  OK    Phase 2G.2c low-risk connectivity controls"
+
+
+printf '\n==> Phase 2G.2d Wi-Fi observed-state reconciliation fix\n'
+
+phase2g2d_network_action="config/quickshell/jc-hyprland/services/NetworkActionService.qml"
+
+for phase2g2d_token in \
+    'target: Networking' \
+    'target: root.networkService' \
+    'function reconcileWifiEnabled(): void {' \
+    'root.networkService.wifiEnabled' \
+    'root.pendingDesiredWifiEnabled' \
+    'interval: 6000' \
+    '"Network mutation timed out before observed state matched."'; do
+    if grep -Fq "$phase2g2d_token" "$phase2g2d_network_action"; then
+        echo "  OK    Phase 2G.2d NetworkActionService: $phase2g2d_token"
+    else
+        echo "  FAIL  Phase 2G.2d NetworkActionService: $phase2g2d_token"
+        exit 1
+    fi
+done
+
+phase2g2d_wifi_changed_handlers="$(
+    grep -Fc 'function onWifiEnabledChanged() {' "$phase2g2d_network_action" || true
+)"
+if [[ "$phase2g2d_wifi_changed_handlers" -ge 2 ]]; then
+    echo "  OK    Phase 2G.2d dual Wi-Fi reconciliation handlers: $phase2g2d_wifi_changed_handlers"
+else
+    echo "  FAIL  Phase 2G.2d expected at least 2 Wi-Fi reconciliation handlers"
+    exit 1
+fi
+
+echo "  OK    Phase 2G.2d preserves 6000 ms fail-closed timeout"
+
+
+printf '\n==> Phase 2G.2d synchronous Wi-Fi notify timeout ordering\n'
+
+phase2g2d_reentrant_action="config/quickshell/jc-hyprland/services/NetworkActionService.qml"
+
+python3 - "$phase2g2d_reentrant_action" <<'PY_VALIDATE'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+lines = text.splitlines()
+
+def extract_function(name):
+    pattern = re.compile(
+        rf"function\s+{re.escape(name)}\s*\([^)]*\)\s*:\s*void\s*\{{"
+    )
+
+    for start_idx, line in enumerate(lines):
+        if not pattern.search(line):
+            continue
+
+        depth = 0
+        started = False
+
+        for end_idx in range(start_idx, len(lines)):
+            for char in lines[end_idx]:
+                if char == "{":
+                    depth += 1
+                    started = True
+                elif char == "}":
+                    depth -= 1
+
+            if started and depth == 0:
+                return "\n".join(lines[start_idx:end_idx + 1])
+
+    raise SystemExit(
+        f"  FAIL  Phase 2G.2d function not found or unterminated: {name}"
+    )
+
+body = extract_function("setWifiEnabled")
+timer = "mutationTimeout.restart();"
+write = "Networking.wifiEnabled = desired;"
+
+if timer not in body or write not in body:
+    raise SystemExit("  FAIL  Phase 2G.2d timeout/write tokens missing")
+
+if body.index(timer) >= body.index(write):
+    raise SystemExit(
+        "  FAIL  Phase 2G.2d timeout must be armed before native Wi-Fi write"
+    )
+
+if "id: observedStateReconcilePoll" in text:
+    raise SystemExit(
+        "  FAIL  Phase 2G.2d temporary observed-state poll must be absent"
+    )
+
+required = [
+    "target: Networking",
+    "target: root.networkService",
+    "function reconcileWifiEnabled(): void {",
+    "mutationTimeout.stop();",
+    "interval: 6000",
+    '"Network mutation timed out before observed state matched."',
+]
+
+for token in required:
+    if token not in text:
+        raise SystemExit(
+            f"  FAIL  Phase 2G.2d required reconciliation token: {token}"
+        )
+
+print("  OK    Phase 2G.2d timeout armed before native Wi-Fi write")
+print("  OK    Phase 2G.2d temporary reconciliation poll absent")
+print("  OK    Phase 2G.2d native + observed listeners preserved")
+print("  OK    Phase 2G.2d 6000 ms fail-closed timeout preserved")
+PY_VALIDATE

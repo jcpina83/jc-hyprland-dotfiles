@@ -116,8 +116,8 @@ Scope {
             ? "Enabling Wi-Fi radio…"
             : "Disabling Wi-Fi radio…";
 
-        Networking.wifiEnabled = desired;
         mutationTimeout.restart();
+        Networking.wifiEnabled = desired;
     }
 
     function setKnownNetworkConnected(network, desiredConnected): void {
@@ -211,6 +211,20 @@ Scope {
 
     Connections {
         target: Networking
+
+        function onWifiEnabledChanged() {
+            root.reconcileWifiEnabled();
+        }
+    }
+
+    // Reconcile again from the authoritative observed-state service.
+    //
+    // Networking.wifiEnabledChanged can be delivered before the derived
+    // NetworkService.wifiEnabled binding has propagated. Without this second
+    // trigger, a successful mutation can remain pending until the timeout and
+    // surface a false failure in NetworkView.
+    Connections {
+        target: root.networkService
 
         function onWifiEnabledChanged() {
             root.reconcileWifiEnabled();

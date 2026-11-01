@@ -202,3 +202,45 @@ trusted/block mutation remain deferred to later separately certified scopes.
 The implementation/static gate does not execute a connectivity mutation.
 Runtime mutation certification is performed separately with explicit human
 authorization and before/after observed-state verification.
+
+## Phase 2G.2d — Wi-Fi radio observed-state reconciliation fix
+
+Runtime mutation certification exposed a false-negative feedback race in the
+Wi-Fi radio action path. `NetworkActionService` received the native
+`Networking.wifiEnabledChanged` signal and immediately reconciled against the
+authoritative observed `NetworkService.wifiEnabled` binding. When that derived
+binding had not propagated in the same event turn, no later reconciliation was
+scheduled and the otherwise successful mutation could expire at the existing
+6-second timeout.
+
+The fix preserves the mutation and observation boundaries and adds a second
+reconciliation trigger on `NetworkService.wifiEnabledChanged`. The native
+trigger remains in place, the 6000 ms timeout is unchanged, and mutation success
+still requires the authoritative observed state to match the requested radio
+state. Known-network, credential/PSK, forget, Bluetooth, and presentation
+boundaries are unchanged.
+
+### Phase 2G.2d — synchronous notify timeout rearm correction
+
+Further runtime certification proved that both the observed-state listener and
+the temporary 100 ms reconciliation poll could still end with a false timeout
+even when NetworkManager had already applied the requested Wi-Fi radio state.
+
+The root cause was reentrant ordering inside `setWifiEnabled()`: the service
+wrote `Networking.wifiEnabled` before arming `mutationTimeout`. The native
+property is writable and exposes `wifiEnabledChanged`; if that notification is
+delivered synchronously during the write, `reconcileWifiEnabled()` can complete,
+call `resetPending()`, and stop the timer before `setWifiEnabled()` returns.
+Control then returned to the setter, which restarted the timer after the
+operation had already succeeded. Six seconds later that orphan timer surfaced a
+false timeout.
+
+The final correction arms the existing 6000 ms fail-closed timer before writing
+the native Wi-Fi property. A synchronous successful reconciliation can therefore
+stop an already-running timer, and no later statement rearms it. The temporary
+100 ms poll has been removed. The native and observed-state event listeners
+remain as reconciliation triggers.
+
+This correction is scoped only to Wi-Fi radio timeout/reentrancy behavior.
+Known-network connect/disconnect, credentials/PSK, forget actions, Bluetooth,
+and Media remain unchanged.
