@@ -244,3 +244,24 @@ remain as reconciliation triggers.
 This correction is scoped only to Wi-Fi radio timeout/reentrancy behavior.
 Known-network connect/disconnect, credentials/PSK, forget actions, Bluetooth,
 and Media remain unchanged.
+
+
+## Phase 2G.2e — mutation timer-order hardening
+
+The three already-certified low-risk mutation paths now arm their existing
+6000 ms fail-closed timeout **before** invoking the native mutation:
+
+- saved/known Wi-Fi connect or disconnect;
+- Bluetooth adapter power;
+- paired Bluetooth device connect or disconnect.
+
+This ordering prevents a synchronous observed-state notification from
+successfully reconciling and stopping the timeout only for the setter to arm
+that timeout again afterward. Existing observed-state listeners,
+`resetPending()` semantics, runtime behavior, and the 6000 ms timeout are
+preserved.
+
+This is preventive hardening only. Phase 2G.2d runtime certification already
+proved these three controls functional. Phase 2G.2e does not add PSK/new
+network, network forget, Bluetooth pair/forget, trust/block, or any new UI
+mutation scope.

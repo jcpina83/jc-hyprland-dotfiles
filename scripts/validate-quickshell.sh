@@ -12467,3 +12467,89 @@ print("  OK    Phase 2G.2d temporary reconciliation poll absent")
 print("  OK    Phase 2G.2d native + observed listeners preserved")
 print("  OK    Phase 2G.2d 6000 ms fail-closed timeout preserved")
 PY_VALIDATE
+
+
+printf '\n==> Phase 2G.2e mutation timer-order hardening\n'
+
+python3 - \
+    "config/quickshell/jc-hyprland/services/NetworkActionService.qml" \
+    "config/quickshell/jc-hyprland/services/BluetoothActionService.qml" <<'PY_PHASE2G2E'
+from pathlib import Path
+import re
+import sys
+
+network = Path(sys.argv[1]).read_text()
+bluetooth = Path(sys.argv[2]).read_text()
+
+
+def extract_function(text: str, name: str) -> str:
+    lines = text.splitlines()
+    pattern = re.compile(
+        rf"function\s+{re.escape(name)}\s*\([^)]*\)\s*:\s*void\s*\{{"
+    )
+
+    for start_idx, line in enumerate(lines):
+        if not pattern.search(line):
+            continue
+
+        depth = 0
+        started = False
+
+        for end_idx in range(start_idx, len(lines)):
+            for char in lines[end_idx]:
+                if char == "{":
+                    depth += 1
+                    started = True
+                elif char == "}":
+                    depth -= 1
+
+            if started and depth == 0:
+                return "\n".join(lines[start_idx:end_idx + 1])
+
+    raise SystemExit(f"missing function: {name}")
+
+
+def assert_before(label: str, body: str, mutation_tokens: list[str]):
+    restart = body.find("mutationTimeout.restart();")
+    positions = [body.find(token) for token in mutation_tokens]
+
+    if restart < 0 or any(pos < 0 for pos in positions):
+        raise SystemExit(f"FAIL  {label}: expected ordering tokens missing")
+
+    if not all(restart < pos for pos in positions):
+        raise SystemExit(
+            f"FAIL  {label}: timeout must be armed before native mutation"
+        )
+
+    print(f"  OK    {label}: timeout armed before native mutation")
+
+
+known = extract_function(network, "setKnownNetworkConnected")
+adapter = extract_function(bluetooth, "setAdapterEnabled")
+paired = extract_function(bluetooth, "setPairedDeviceConnected")
+
+assert_before(
+    "known Wi-Fi timer ordering",
+    known,
+    ["network.connect();", "network.disconnect();"],
+)
+assert_before(
+    "Bluetooth adapter timer ordering",
+    adapter,
+    ["root.adapter.enabled = desired;"],
+)
+assert_before(
+    "paired-device timer ordering",
+    paired,
+    ["device.connect();", "device.disconnect();"],
+)
+
+for label, text in (
+    ("NetworkActionService", network),
+    ("BluetoothActionService", bluetooth),
+):
+    if "interval: 6000" not in text:
+        raise SystemExit(f"FAIL  {label}: 6000 ms timeout missing")
+
+print("  OK    existing 6000 ms fail-closed timeouts preserved")
+PY_PHASE2G2E

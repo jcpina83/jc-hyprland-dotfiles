@@ -145,12 +145,12 @@ Scope {
             ? "Connecting to saved network…"
             : "Disconnecting saved network…";
 
+        mutationTimeout.restart();
         if (desired)
             network.connect();
         else
             network.disconnect();
 
-        mutationTimeout.restart();
     }
 
     function reconcileWifiEnabled(): void {

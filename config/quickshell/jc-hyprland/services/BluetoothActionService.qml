@@ -113,8 +113,8 @@ Scope {
             ? "Enabling Bluetooth adapter…"
             : "Disabling Bluetooth adapter…";
 
-        root.adapter.enabled = desired;
         mutationTimeout.restart();
+        root.adapter.enabled = desired;
     }
 
     function setPairedDeviceConnected(device, desiredConnected): void {
@@ -142,12 +142,12 @@ Scope {
             ? "Connecting paired Bluetooth device…"
             : "Disconnecting paired Bluetooth device…";
 
+        mutationTimeout.restart();
         if (desired)
             device.connect();
         else
             device.disconnect();
 
-        mutationTimeout.restart();
     }
 
     function reconcileAdapterEnabled(): void {
