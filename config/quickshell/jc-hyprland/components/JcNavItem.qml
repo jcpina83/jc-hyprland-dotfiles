@@ -11,6 +11,17 @@ Item {
     property bool selected: false
     property bool controlEnabled: true
 
+    opacity: root.controlEnabled
+        ? root.theme.opacityEnabled
+        : root.theme.opacityDisabled
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: root.theme.motionControl
+            easing.type: root.theme.easingStandard
+        }
+    }
+
     signal clicked()
     signal previousFocusRequested()
     signal nextFocusRequested()
@@ -154,10 +165,6 @@ Item {
 
         border.color: root.resolvedBorderColor
 
-        opacity: root.controlEnabled
-            ? root.theme.opacityEnabled
-            : root.theme.opacityDisabled
-
         Behavior on color {
             ColorAnimation {
                 duration: root.transitionDuration
@@ -172,12 +179,6 @@ Item {
             }
         }
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: root.theme.motionControl
-                easing.type: root.theme.easingStandard
-            }
-        }
     }
 
     Rectangle {

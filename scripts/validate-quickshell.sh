@@ -1174,7 +1174,6 @@ for future_module in \
     quick-settings \
     performance \
     media \
-    network \
     notifications
 do
     if [[ "$future_module" == "performance" || "$future_module" == "media" ]]; then
@@ -9922,6 +9921,9 @@ else
 fi
 
 for future_module in network notifications; do
+    if [[ "$future_module" == "network" ]]; then
+        continue
+    fi
     future_block="$(
         grep -A5 -F "id: \"$future_module\"" "$media_navigation" || true
     )"
@@ -10405,6 +10407,9 @@ else
 fi
 
 for future_module in network notifications; do
+    if [[ "$future_module" == "network" ]]; then
+        continue
+    fi
     future_block="$(
         grep -A5 -F "id: \"$future_module\"" "$navigation_qml" || true
     )"
@@ -11763,9 +11768,366 @@ do
     fi
 done
 
+printf '\n==> Phase 2G.1a native Network / Bluetooth observed-state services\n'
+
+phase2g_network_service='config/quickshell/jc-hyprland/services/NetworkService.qml'
+phase2g_bluetooth_service='config/quickshell/jc-hyprland/services/BluetoothService.qml'
+phase2g_docs='docs/network.md'
+
+for file in \
+    "$phase2g_network_service" \
+    "$phase2g_bluetooth_service" \
+    "$phase2g_docs"
+do
+    if [[ -f "$file" ]]; then
+        ok "Phase 2G.1a file exists: $file"
+    else
+        fail "Phase 2G.1a file missing: $file"
+    fi
+done
+
+for contract in \
+    'import Quickshell.Networking' \
+    'readonly property bool readOnly: true' \
+    'readonly property var devices: Networking.devices' \
+    'readonly property bool wifiEnabled: Networking.wifiEnabled' \
+    'readonly property bool wifiHardwareEnabled: Networking.wifiHardwareEnabled' \
+    'NetworkConnectivity.toString(Networking.connectivity)' \
+    'DeviceType.Wifi' \
+    'DeviceType.Wired'
+do
+    if grep -Fq -- "$contract" "$phase2g_network_service"; then
+        ok "Phase 2G.1a NetworkService contract: $contract"
+    else
+        fail "Phase 2G.1a NetworkService contract missing: $contract"
+    fi
+done
+
+for contract in \
+    'import Quickshell.Bluetooth' \
+    'readonly property bool readOnly: true' \
+    'readonly property var adapter: Bluetooth.defaultAdapter' \
+    'readonly property var devices: Bluetooth.devices' \
+    'readonly property var connectedDeviceValues:' \
+    'if (device && device.connected === true)' \
+    'BluetoothAdapterState.toString(root.state)' \
+    'BluetoothDeviceState.toString(root.primaryDeviceState)' \
+    'primaryDeviceBatteryAvailable'
+do
+    if grep -Fq -- "$contract" "$phase2g_bluetooth_service"; then
+        ok "Phase 2G.1a BluetoothService contract: $contract"
+    else
+        fail "Phase 2G.1a BluetoothService contract missing: $contract"
+    fi
+done
+
+if grep -Eq \
+    '(^|[^[:alnum:]_])(connect|disconnect|forget|pair|cancelPair|connectWithPsk|checkConnectivity)[[:space:]]*\(' \
+    "$phase2g_network_service" "$phase2g_bluetooth_service"
+then
+    fail "Phase 2G.1a services must not invoke native mutation methods"
+else
+    ok "Phase 2G.1a services invoke no native mutation methods"
+fi
+
+if grep -Eq \
+    '(Networking\.(wifiEnabled|connectivityCheckEnabled)[[:space:]]*=[^=]|\.((enabled|discoverable|discovering|pairable|connected|trusted|blocked|wakeAllowed))[[:space:]]*=[^=])' \
+    "$phase2g_network_service" "$phase2g_bluetooth_service"
+then
+    fail "Phase 2G.1a services must not write mutation-capable native properties"
+else
+    ok "Phase 2G.1a services write no mutation-capable native properties"
+fi
+
+if grep -Eq \
+    '(^|[^[:alnum:]_])(Process[[:space:]]*\{|nmcli|bluetoothctl|busctl|rfkill)' \
+    "$phase2g_network_service" "$phase2g_bluetooth_service"
+then
+    fail "Phase 2G.1a services must use native observation without shell/DBus commands"
+else
+    ok "Phase 2G.1a services contain no shell/DBus backend command leakage"
+fi
+
+if grep -Eq \
+    '(address|dbusPath)' \
+    "$phase2g_bluetooth_service"
+then
+    fail "Phase 2G.1a Bluetooth service must not expose MAC/DBus identity fields"
+else
+    ok "Phase 2G.1a Bluetooth service excludes MAC/DBus identity fields"
+fi
+
+for contract in \
+    '## Phase 2G.1a — Native observed-state services' \
+    'Phase 2G.1a performs **no mutations**.' \
+    'Network navigation remains disabled'
+do
+    if grep -Fq -- "$contract" "$phase2g_docs"; then
+        ok "Phase 2G.1a documentation contract: $contract"
+    else
+        fail "Phase 2G.1a documentation contract missing: $contract"
+    fi
+done
+
+if grep -Fq \
+    '## Phase 2G.1a native Network / Bluetooth observed-state boundary' \
+    docs/architecture.md
+then
+    ok "Phase 2G.1a architecture documentation"
+else
+    fail "Phase 2G.1a architecture documentation missing"
+fi
+
+if grep -Fq \
+    '### Network / Bluetooth — Phase 2G.1a native observed-state services' \
+    config/quickshell/jc-hyprland/README.md
+then
+    ok "Phase 2G.1a Quickshell documentation"
+else
+    fail "Phase 2G.1a Quickshell documentation missing"
+fi
+
+if grep -A 8 -F 'id: "network"' \
+    config/quickshell/jc-hyprland/modules/controlcenter/ControlCenterNavigation.qml |
+    grep -Fq 'enabled: true'
+then
+    ok "Phase 2G.1c supersedes the 2G.1a navigation hold"
+else
+    fail "Phase 2G.1c requires Network navigation enabled"
+fi
+
+if grep -Eq \
+    'import[[:space:]]+Quickshell\.(Networking|Bluetooth)' \
+    config/quickshell/jc-hyprland/modules 2>/dev/null
+then
+    fail "Phase 2G.1a presentation modules must not import native network/Bluetooth APIs"
+else
+    ok "Phase 2G.1a presentation modules contain no native backend imports"
+fi
+
+printf '\n==> Phase 2G.1b NetworkView foundation\n'
+
+phase2g_network_view='config/quickshell/jc-hyprland/modules/network/NetworkView.qml'
+phase2g_main='config/quickshell/jc-hyprland/Main.qml'
+phase2g_navigation='config/quickshell/jc-hyprland/modules/controlcenter/ControlCenterNavigation.qml'
+phase2g_docs='docs/network.md'
+
+if [[ -f "$phase2g_network_view" ]]; then
+    ok "Phase 2G.1b NetworkView exists"
+else
+    fail "Phase 2G.1b NetworkView missing"
+fi
+
+for contract in \
+    'required property var theme' \
+    'property var networkService' \
+    'property var bluetoothService' \
+    'title: "Network & Bluetooth"' \
+    'title: "Connectivity"' \
+    'title: "Wi-Fi"' \
+    'title: "Ethernet"' \
+    'title: "Bluetooth"' \
+    'wifiSignalStrength * 100' \
+    'primaryDeviceBattery * 100' \
+    'Read-only telemetry'
+do
+    if grep -Fq -- "$contract" "$phase2g_network_view"; then
+        ok "Phase 2G.1b NetworkView contract: $contract"
+    else
+        fail "Phase 2G.1b NetworkView contract missing: $contract"
+    fi
+done
+
+for forbidden in \
+    'import Quickshell.Networking' \
+    'import Quickshell.Bluetooth' \
+    'Process {' \
+    'nmcli' \
+    'bluetoothctl' \
+    'busctl' \
+    'rfkill' \
+    'connectWithPsk' \
+    '.connect(' \
+    '.disconnect(' \
+    '.pair(' \
+    '.forget('
+do
+    if grep -Fq -- "$forbidden" "$phase2g_network_view"; then
+        fail "Phase 2G.1b NetworkView backend/action leakage: $forbidden"
+    else
+        ok "Phase 2G.1b NetworkView excludes: $forbidden"
+    fi
+done
+
+for contract in \
+    'import qs.modules.network as Network' \
+    'readonly property var networkServiceHandle: networkService' \
+    'readonly property var bluetoothServiceHandle: bluetoothService' \
+    'if (moduleId === "network")' \
+    'Services.NetworkService {' \
+    'id: networkService' \
+    'Services.BluetoothService {' \
+    'id: bluetoothService' \
+    'id: shellNetworkComponent' \
+    'Network.NetworkView {' \
+    'networkService: root.networkServiceHandle' \
+    'bluetoothService: root.bluetoothServiceHandle' \
+    '? shellNetworkComponent'
+do
+    if grep -Fq -- "$contract" "$phase2g_main"; then
+        ok "Phase 2G.1b Main contract: $contract"
+    else
+        fail "Phase 2G.1b Main contract missing: $contract"
+    fi
+done
+
+if grep -A 8 -F 'id: "network"' "$phase2g_navigation" |
+    grep -Fq 'enabled: true'
+then
+    ok "Phase 2G.1c exposes validated Network navigation"
+else
+    fail "Phase 2G.1c requires visible Network navigation enabled"
+fi
+
+if grep -Eq \
+    'import[[:space:]]+Quickshell\.(Networking|Bluetooth)' \
+    config/quickshell/jc-hyprland/modules/network
+then
+    fail "Phase 2G.1b presentation module imports native backend"
+else
+    ok "Phase 2G.1b presentation module preserves service boundary"
+fi
+
+for contract in \
+    '## Phase 2G.1b — NetworkView foundation' \
+    'showModule("network")' \
+    'visible Network navigation entry remains disabled'
+do
+    if grep -Fq -- "$contract" "$phase2g_docs"; then
+        ok "Phase 2G.1b documentation contract: $contract"
+    else
+        fail "Phase 2G.1b documentation contract missing: $contract"
+    fi
+done
+
+if grep -Fq \
+    '## Phase 2G.1b NetworkView composition boundary' \
+    docs/architecture.md
+then
+    ok "Phase 2G.1b architecture documentation"
+else
+    fail "Phase 2G.1b architecture documentation missing"
+fi
+
+if grep -Fq \
+    '### Network / Bluetooth — Phase 2G.1b NetworkView foundation' \
+    config/quickshell/jc-hyprland/README.md
+then
+    ok "Phase 2G.1b Quickshell documentation"
+else
+    fail "Phase 2G.1b Quickshell documentation missing"
+fi
+
+printf '\n==> Phase 2G.1c Network navigation enable\n'
+
+phase2g_navigation='config/quickshell/jc-hyprland/modules/controlcenter/ControlCenterNavigation.qml'
+
+if grep -A 8 -F 'id: "network"' "$phase2g_navigation" |
+    grep -Fq 'enabled: true'
+then
+    ok "Phase 2G.1c Network navigation enabled"
+else
+    fail "Phase 2G.1c Network navigation must be enabled"
+fi
+
+if grep -A 8 -F 'id: "notifications"' "$phase2g_navigation" |
+    grep -Fq 'enabled: false'
+then
+    ok "Phase 2G.1c keeps Notifications navigation disabled"
+else
+    fail "Phase 2G.1c must not enable Notifications"
+fi
+
+if grep -Fq 'if (moduleId === "network")' \
+    config/quickshell/jc-hyprland/Main.qml
+then
+    ok "Phase 2G.1c Network remains internally routable"
+else
+    fail "Phase 2G.1c Network routing missing"
+fi
+
+if grep -Fq 'id: shellNetworkComponent' \
+    config/quickshell/jc-hyprland/Main.qml
+then
+    ok "Phase 2G.1c Network content remains composed"
+else
+    fail "Phase 2G.1c Network content composition missing"
+fi
+
 if (( errors > 0 )); then
     printf 'Quickshell final static checks failed.\n'
     exit 1
 fi
 
 printf 'Quickshell final static checks passed.\n'
+
+
+printf '\n==> Phase 2G.1e Network HUD composition\n'
+
+phase2g1e_network_view="config/quickshell/jc-hyprland/modules/network/NetworkView.qml"
+phase2g1e_network_doc="docs/network.md"
+
+if [[ "$(grep -cF 'Components.JcHudFrame {' "$phase2g1e_network_view")" -eq 4 ]]; then
+    ok "Phase 2G.1e Network uses four canonical HUD frames"
+else
+    fail "Phase 2G.1e Network must use four canonical HUD frames"
+fi
+
+if ! grep -Fq 'Components.JcSurface {' "$phase2g1e_network_view"; then
+    ok "Phase 2G.1e Network no longer uses plain section surfaces"
+else
+    fail "Phase 2G.1e Network still contains plain section surfaces"
+fi
+
+if [[ "$(grep -cF 'showInnerFrame: true' "$phase2g1e_network_view")" -eq 4 ]] \
+        && [[ "$(grep -cF 'showCornerAccents: true' "$phase2g1e_network_view")" -eq 4 ]] \
+        && [[ "$(grep -cF 'showSecondaryAccent: false' "$phase2g1e_network_view")" -eq 4 ]] \
+        && [[ "$(grep -cF 'glowEnabled: false' "$phase2g1e_network_view")" -eq 4 ]]; then
+    ok "Phase 2G.1e Network HUD chrome matches canonical module language"
+else
+    fail "Phase 2G.1e Network HUD chrome contract is incomplete"
+fi
+
+for phase2g1e_title in \
+    'title: "Network & Bluetooth"' \
+    'title: "Connectivity"' \
+    'title: "Wi-Fi"' \
+    'title: "Ethernet"' \
+    'title: "Bluetooth"'
+do
+    if grep -Fq "$phase2g1e_title" "$phase2g1e_network_view"; then
+        ok "Phase 2G.1e preserves Network section: $phase2g1e_title"
+    else
+        fail "Phase 2G.1e lost Network section: $phase2g1e_title"
+    fi
+done
+
+if grep -Fq '### Phase 2G.1e — Network HUD composition' "$phase2g1e_network_doc"; then
+    ok "Phase 2G.1e Network HUD documentation"
+else
+    fail "Phase 2G.1e Network HUD documentation missing"
+fi
+
+for phase2g1e_forbidden in \
+    'Process {' \
+    'nmcli' \
+    'bluetoothctl' \
+    'rfkill' \
+    'busctl'
+do
+    if grep -Fq "$phase2g1e_forbidden" "$phase2g1e_network_view"; then
+        fail "Phase 2G.1e presentation must exclude backend token: $phase2g1e_forbidden"
+    else
+        ok "Phase 2G.1e presentation excludes backend token: $phase2g1e_forbidden"
+    fi
+done

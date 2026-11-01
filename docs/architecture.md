@@ -2448,3 +2448,56 @@ continues to resolve concrete runtime targets dynamically.
 
 Seek and sink-volume gestures commit on release rather than continuously.
 The source/input side stays observation-only.
+
+## Phase 2G.1a native Network / Bluetooth observed-state boundary
+
+Phase 2G starts with native Quickshell observation rather than a new shell CLI.
+
+```text
+future NetworkView.qml
+        |
+        +--> NetworkService.qml
+        |       `--> Quickshell.Networking
+        |               `--> NetworkManager
+        |
+        `--> BluetoothService.qml
+                `--> Quickshell.Bluetooth
+                        `--> BlueZ
+```
+
+The service layer owns backend imports and exposes only observed state. Phase
+2G.1a does not call the native mutation methods or write mutation-capable
+properties. Wi-Fi secrets, Bluetooth MAC addresses and DBus paths are excluded
+from the project-facing service contract.
+
+`NetworkView.qml` and navigation enablement remain deferred until the observed
+service boundary is validated.
+
+## Phase 2G.1b NetworkView composition boundary
+
+Phase 2G.1b adds the first Network / Bluetooth presentation module:
+
+```text
+Main.qml
+  |
+  +--> NetworkService.qml ----> Quickshell.Networking
+  |
+  +--> BluetoothService.qml --> Quickshell.Bluetooth
+  |
+  `--> NetworkView.qml
+          |
+          `--> presentation only
+```
+
+`Main.qml` owns service composition and module routing. `NetworkView.qml` only
+consumes project-owned services and cannot import or mutate the native backends.
+
+The `network` module is internally available through the generic
+`showModule("network")` IPC route for runtime validation, while the visible
+navigation entry remains disabled until visual/runtime certification.
+
+## Phase 2G.1c Network navigation exposure
+
+Network is now reachable from both generic IPC routing and visible Control Center
+navigation. This does not expand the backend capability boundary: Network and
+Bluetooth remain observed-state/read-only, while Notifications remains disabled.

@@ -10,6 +10,7 @@ import qs.modules.themes as Themes
 import qs.modules.quicksettings as QuickSettings
 import qs.modules.performance as Performance
 import qs.modules.media as Media
+import qs.modules.network as Network
 import qs.modules.dev as Dev
 import qs.modules.controlcenter as ControlCenter
 
@@ -307,6 +308,8 @@ Scope {
     readonly property var performanceServiceHandle: performanceService
     readonly property var mediaServiceHandle: mediaService
     readonly property var mediaActionServiceHandle: mediaActionService
+    readonly property var networkServiceHandle: networkService
+    readonly property var bluetoothServiceHandle: bluetoothService
     readonly property var quickSettingsActionServiceHandle:
         quickSettingsActionService
     readonly property var themeDraftStoreHandle: themeDraftStore
@@ -359,6 +362,9 @@ Scope {
                 || moduleId === "media") {
             return true;
         }
+
+        if (moduleId === "network")
+            return true;
 
         return moduleId === "displays"
             || moduleId === "wallpapers";
@@ -621,6 +627,14 @@ Scope {
         mediaService: mediaService
     }
 
+    Services.NetworkService {
+        id: networkService
+    }
+
+    Services.BluetoothService {
+        id: bluetoothService
+    }
+
     Services.QuickSettingsActionService {
         id: quickSettingsActionService
         quickSettingsService: quickSettingsService
@@ -833,6 +847,17 @@ Scope {
         }
     }
 
+
+    Component {
+        id: shellNetworkComponent
+
+        Network.NetworkView {
+            theme: controlCenterShell.theme
+            networkService: root.networkServiceHandle
+            bluetoothService: root.bluetoothServiceHandle
+        }
+    }
+
     ControlCenter.ControlCenterShell {
         id: controlCenterShell
 
@@ -875,6 +900,8 @@ Scope {
                                 ? shellPerformanceComponent
                                 : root.activeModuleId === "media"
                                     ? shellMediaComponent
+                                    : root.activeModuleId === "network"
+                                    ? shellNetworkComponent
                                     : null
 
         onCloseRequested: root.hideControlCenter()

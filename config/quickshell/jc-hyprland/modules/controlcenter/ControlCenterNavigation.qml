@@ -131,7 +131,7 @@ Item {
             id: "network",
             label: "Network",
             iconName: "network",
-            enabled: false
+            enabled: true
         },
         {
             id: "notifications",

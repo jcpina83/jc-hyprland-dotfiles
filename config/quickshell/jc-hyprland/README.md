@@ -264,3 +264,30 @@ the stable `jc-media` CLI and reconcile back through `MediaService`.
 
 Seek and output-volume sliders commit only on release. Input audio remains
 observed-only.
+
+### Network / Bluetooth — Phase 2G.1a native observed-state services
+
+Phase 2G.1a introduces `NetworkService.qml` and `BluetoothService.qml` as the
+project-owned read-only boundary over `Quickshell.Networking` and
+`Quickshell.Bluetooth`.
+
+The services expose connectivity, Wi-Fi, wired-link, adapter, connected-device
+and battery state without invoking network or Bluetooth mutations. Presentation
+QML must not import the native backends directly.
+
+Network navigation remains disabled in Phase 2G.1a. See `docs/network.md`.
+
+### Network / Bluetooth — Phase 2G.1b NetworkView foundation
+
+`NetworkView.qml` now presents read-only connectivity, Wi-Fi, Ethernet and
+Bluetooth state from the project-owned `NetworkService.qml` and
+`BluetoothService.qml` boundaries.
+
+`Main.qml` composes both services and exposes the Network module through generic
+IPC routing for controlled validation. The visible Network navigation entry
+remains disabled until runtime/visual acceptance.
+
+### Network / Bluetooth — Phase 2G.1c navigation exposure
+
+The Network entry is enabled for runtime and visual acceptance. The module
+remains read-only, and Notifications remains disabled.
